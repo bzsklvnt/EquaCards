@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import React, { createContext, useCallback, useContext, useMemo } from 'react';
+
+import { isSupabaseConfigured, supabase } from '@/src/lib/supabase';
 
 import { useSession } from './SessionProvider';
 
@@ -6,24 +9,48 @@ type AuthorizationValue = {
   roleSlugs: string[];
   hasRole: (slug: string) => boolean;
   hasAnyRole: (slugs: string[]) => boolean;
+  /** Reserved for permissions table / RPC; v1 returns false for unknown slugs. */
+  can: (permission: string) => boolean;
+  rolesLoading: boolean;
 };
 
 const AuthorizationContext = createContext<AuthorizationValue | undefined>(undefined);
 
-/**
- * Loads role slugs after Supabase session is wired; v1 bootstrap exposes empty roles.
- */
 export function AuthorizationProvider({ children }: { children: React.ReactNode }) {
-  useSession();
+  const { session, initialized: sessionReady } = useSession();
 
-  const value = useMemo<AuthorizationValue>(() => {
-    const roleSlugs: string[] = [];
-    return {
+  const { data: roleSlugs = [], isLoading: rolesLoading } = useQuery({
+    queryKey: ['my-roles', session?.userId],
+    enabled: Boolean(session?.userId) && isSupabaseConfigured && sessionReady,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_my_roles', {});
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const hasRole = useCallback(
+    (slug: string) => roleSlugs.includes(slug),
+    [roleSlugs],
+  );
+
+  const hasAnyRole = useCallback(
+    (slugs: string[]) => slugs.some((s) => roleSlugs.includes(s)),
+    [roleSlugs],
+  );
+
+  const can = useCallback((_permission: string) => false, []);
+
+  const value = useMemo<AuthorizationValue>(
+    () => ({
       roleSlugs,
-      hasRole: (slug: string) => roleSlugs.includes(slug),
-      hasAnyRole: (slugs: string[]) => slugs.some((s) => roleSlugs.includes(s)),
-    };
-  }, []);
+      hasRole,
+      hasAnyRole,
+      can,
+      rolesLoading: Boolean(session?.userId) && isSupabaseConfigured && rolesLoading,
+    }),
+    [roleSlugs, hasRole, hasAnyRole, can, session?.userId, rolesLoading],
+  );
 
   return (
     <AuthorizationContext.Provider value={value}>{children}</AuthorizationContext.Provider>

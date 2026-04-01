@@ -30,7 +30,14 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow EquaCards to choose photos for flashcard images.",
+          "cameraPermission": "Allow EquaCards to capture photos for flashcard images."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
