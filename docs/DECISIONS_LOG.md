@@ -20,3 +20,11 @@ Gyökér `CLAUDE.md`.
 Nyitott pont: a `docs/architecture/DATA_MODEL.md` egyelőre placeholder — a forrás
 `PUB_QUIZ_APP_TERV.md` nem volt elérhető ebben a sessionben. Fázis 1 előtt pótolni
 kell, mert minden további fázis prompt erre hivatkozik szakaszszám szerint.
+
+## 2026-08-07 — DATA_MODEL.md véglegesítve
+
+A `PUB_QUIZ_APP_TERV.md` tartalma bekerült a `docs/architecture/DATA_MODEL.md`-be
+(teljes séma: jogosultságok, kérdésbank, válaszok, games/teams/rounds, real-time
+protokoll séma-oldala, audit log, felület-áttekintés, MVP fázisok). A gyökérben lévő
+`PUB_QUIZ_APP_TERV.md` törölve — a `docs/architecture/DATA_MODEL.md` az egyetlen
+forrás igazság, nem tartunk két helyen duplikált másolatot. Fázis 1 innentől indítható.
