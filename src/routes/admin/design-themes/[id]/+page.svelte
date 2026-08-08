@@ -23,7 +23,7 @@
 </script>
 
 <svelte:head>
-	<title>Design téma szerkesztése — Admin</title>
+	<title>Design téma szerkesztése — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Design téma szerkesztése</h1>

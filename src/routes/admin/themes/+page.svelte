@@ -10,7 +10,7 @@
 </script>
 
 <svelte:head>
-	<title>Témák — Admin</title>
+	<title>Témák — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Témák</h1>

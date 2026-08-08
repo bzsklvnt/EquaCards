@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-	<title>Új kérdés — Admin</title>
+	<title>Új kérdés — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Új kérdés</h1>

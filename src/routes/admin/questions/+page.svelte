@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<title>Kérdésbank — Admin</title>
+	<title>Kérdésbank — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Kérdésbank</h1>

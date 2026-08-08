@@ -11,7 +11,7 @@
 </script>
 
 <svelte:head>
-	<title>Kvízesték — Admin</title>
+	<title>Kvízesték — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Kvízesték</h1>

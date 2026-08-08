@@ -43,7 +43,7 @@
 </script>
 
 <svelte:head>
-	<title>Beállítások — Admin</title>
+	<title>Beállítások — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Globális beállítások</h1>

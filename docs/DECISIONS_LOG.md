@@ -1017,3 +1017,34 @@ min-height: 100% }` (nem `var(--cabinet)`, mert az csak lejjebb, az
 Mind az öt javítás élesben tesztelt/ellenőrzött logikára épül (a
 Supabase MCP-n keresztül valódi RLS-kontextusban futtatott
 szimulációkkal, ahol releváns), nem csak feltételezésre.
+
+---
+
+## 2026-08-08 — Fázis N2: Branded kezdőoldal + "Kezelőfelület" átnevezés
+
+A `/` gyökér route eddig egy stílus nélküli, csupasz szöveges oldal volt
+("EquaCards — Pub Kvíz" cím + egy sima link) — ez lett a tényleges
+belépési pont branddé alakítva. Az `ArcadePanel` megosztott komponensbe
+(Fázis H-ban már létrehozva, eddig csak `/play`, `/host`, `/tv` használta)
+került egy hero-tartalom: eyebrow-szöveg ("🍺 Heti kocsmai kvíz"),
+`--font-display` cím, tagline, és egy darab jól látható CTA gomb.
+
+Bejelentkezési állapot szerint viselkedik — **nem** automatikus redirect,
+hanem a látható gomb célja/felirata változik, hogy a `/` tényleg landing
+page-ként funkcionáljon (pl. ha valaki csak megnézi az oldalt, ne dobja
+azonnal tovább):
+
+- Kijelentkezve: "Bejelentkezés / Regisztráció →" a `/login`-ra.
+- Bejelentkezve: "Kezelőfelület megnyitása →" a `/admin`-ra, plusz egy
+  másodlagos (ghost variánsú) Kijelentkezés gomb az email címmel — ez
+  megmaradt a korábbi oldal funkciójából, csak vizuálisan alárendelve.
+
+**"Kezelőfelület" átnevezés:** a felhasználó felé megjelenő "Admin" szó
+egyetlen előfordulási helye a 12 admin route `<title>` tag-jének
+"— Admin" utótagja volt (a nav címkék már eddig is magyarul, "Admin"
+szó nélkül szerepeltek: "Vezérlőpult", "Kérdésbank" stb.) — ez mind
+"— Kezelőfelület"-re cserélve. Az URL-ek (`/admin/...`) szándékosan
+**változatlanok** — a kérés kifejezetten csak a megjelenő szövegre
+vonatkozott, az útvonalak átnevezése minden linket/redirectet/RLS-t
+érintő, indokolatlanul nagy, kockázatos változtatás lett volna egy
+tisztán kozmetikai kérésre.

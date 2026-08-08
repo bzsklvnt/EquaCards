@@ -1,5 +1,5 @@
 <svelte:head>
-	<title>Vezérlőpult — Admin</title>
+	<title>Vezérlőpult — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Vezérlőpult</h1>

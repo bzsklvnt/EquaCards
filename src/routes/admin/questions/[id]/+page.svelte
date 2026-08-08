@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>Kérdés szerkesztése — Admin</title>
+	<title>Kérdés szerkesztése — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Kérdés szerkesztése</h1>

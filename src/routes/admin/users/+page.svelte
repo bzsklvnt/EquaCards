@@ -20,7 +20,7 @@
 </script>
 
 <svelte:head>
-	<title>Felhasználók — Admin</title>
+	<title>Felhasználók — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Felhasználók</h1>

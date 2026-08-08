@@ -14,7 +14,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.game.title} — Admin</title>
+	<title>{data.game.title} — Kezelőfelület</title>
 </svelte:head>
 
 <h1>{data.game.title}</h1>

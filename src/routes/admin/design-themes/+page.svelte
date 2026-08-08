@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>Vizuális témák — Admin</title>
+	<title>Vizuális témák — Kezelőfelület</title>
 </svelte:head>
 
 <h1>Vizuális témák</h1>
