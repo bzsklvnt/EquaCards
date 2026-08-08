@@ -49,6 +49,60 @@ export function tokensToCssText(tokens: Record<string, string>): string {
 		.join(' ');
 }
 
+// Egy CSS font-family értékből ("\"Press Start 2P\", monospace") kiszedi a
+// tényleges betűtípus nevét ("Press Start 2P") — ez az első, vessző előtti
+// darab, az idézőjeleket levágva.
+function extractFontFamilyName(fontFamilyValue: string): string | null {
+	const first = fontFamilyValue
+		.split(',')[0]
+		?.trim()
+		.replace(/^["']|["']$/g, '');
+	return first || null;
+}
+
+// Melyik betűtípus-készletekre injektáltunk már <link>-et — ne töltsük be
+// kétszer ugyanazt a Google Fonts kombinációt navigáció/téma-váltás közben.
+const loadedFontSets = new Set<string>();
+
+// Fázis E: eddig csak a seedelt "Retro Arcade" téma 3 fontja volt belinkelve
+// statikusan az app.html-ben — egy admin által létrehozott, más fontokat
+// használó design téma csendben a böngésző alap sans-serif/monospace-ára
+// esett vissza. Ez a függvény a design_tokens font_display/font_led/
+// font_body kulcsaiból futásidőben épít egy Google Fonts CSS2 URL-t, és
+// <link>-ként injektálja a <head>-be, ha még nem történt meg ugyanezekkel a
+// betűtípusokkal. Hibatűrő: ha egy betűtípus nem létezik a Google Fonts-on,
+// a <link> egyszerűen nem alkalmaz semmit, és a meglévő CSS font-family
+// fallback lánc (pl. ", monospace") már eleve gondoskodik a visszaesésről —
+// nincs szükség extra try/catch-re a betöltés sikerességének ellenőrzéséhez.
+export function loadThemeFonts(tokens: Record<string, string>): void {
+	if (typeof document === 'undefined') return;
+
+	const names = [
+		...new Set(
+			['font_display', 'font_led', 'font_body']
+				.map((key) => tokens[key])
+				.filter((value): value is string => !!value)
+				.map(extractFontFamilyName)
+				.filter((name): name is string => !!name)
+		)
+	];
+
+	if (names.length === 0) return;
+
+	const cacheKey = [...names].sort().join('|');
+	if (loadedFontSets.has(cacheKey)) return;
+	loadedFontSets.add(cacheKey);
+
+	const familyParams = names
+		.map((name) => `family=${encodeURIComponent(name).replace(/%20/g, '+')}:wght@400;600;700`)
+		.join('&');
+
+	const link = document.createElement('link');
+	link.rel = 'stylesheet';
+	link.href = `https://fonts.googleapis.com/css2?${familyParams}&display=swap`;
+	document.head.appendChild(link);
+}
+
 // A host/csapat/TV felület ugyanazt a feloldási sorrendet követi
 // (DATA_MODEL.md 8. szakasz): games.design_theme_id → az adott
 // design_themes sor; ha üres, az is_default=true sor; ha az sincs
@@ -62,5 +116,7 @@ export async function getActiveTokens(
 		: supabase.from('design_themes').select('design_tokens').eq('is_default', true).maybeSingle();
 
 	const { data } = await query;
-	return resolveTokens((data?.design_tokens as Record<string, string> | null) ?? null);
+	const tokens = resolveTokens((data?.design_tokens as Record<string, string> | null) ?? null);
+	loadThemeFonts(tokens);
+	return tokens;
 }

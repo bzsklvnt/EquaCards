@@ -70,17 +70,21 @@ ami `var(--cyan)`-t használ, automatikusan a kiválasztott téma színét kapja
 Ezt a host (`/host/[game_id]`), a csapat (`/play/[pin]`) és a TV
 (`/tv/[game_id]`) felület mindegyike ugyanígy alkalmazza.
 
-## Betűtípusok — ismert korlát
+## Betűtípusok — dinamikus betöltés (Fázis E)
 
-A seedelt "Retro Arcade" téma három Google Font-ot vár el (Press Start 2P,
-Silkscreen, Inter) — ezek statikusan be vannak linkelve a `src/app.html`-ben.
-A rendszer **nem** tölt be dinamikusan tetszőleges betűtípust a
-`design_tokens`-ből: egy admin által felvitt új téma, ami más
-`font_display`/`font_led`/`font_body` nevet ad meg, a böngésző
-alapértelmezett betűjére esik vissza, amíg valaki kézzel be nem linkeli az
-adott fontot az `app.html`-be. Ez tudatos MVP-szintű egyszerűsítés — egy
-teljesen dinamikus Google Fonts betöltő (téma mentésekor `<link>` generálás)
-külön feature lenne, nem indokolt egyetlen seedelt témánál.
+A seedelt "Retro Arcade" téma három Google Font-ja (Press Start 2P,
+Silkscreen, Inter) statikusan be van linkelve a `src/app.html`-ben
+(zéró-latenciás, nincs villanás az alapértelmezett témánál). Egy admin
+által felvitt **másik** téma más `font_display`/`font_led`/`font_body`
+nevet is megadhat — ezeket a `getActiveTokens()` minden hívása
+futásidőben, dinamikusan betölti Google Fonts-ról
+(`src/lib/theme/tokens.ts` `loadThemeFonts()`), egy `<link>`-et
+injektálva a `<head>`-be. Ha a megadott betűtípus nem létezik a Google
+Fonts-on, a kérés 400-at ad vissza, a böngésző ezt figyelmen kívül
+hagyja, és a CSS `font-family` fallback lánca érvényesül — nincs törött
+UI. Részletek, a hibatűrés élő ellenőrzésével együtt:
+`docs/architecture/DESIGN_SYSTEM.md` "Betűtípusok dinamikus betöltése"
+szakasz.
 
 ## Admin felület (`/admin/design-themes`)
 

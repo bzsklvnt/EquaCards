@@ -41,7 +41,29 @@ vezess be ad-hoc hex-kódot.
 | `--font-led`     | Silkscreen     | Minden szám-jellegű kijelzés: timer, pontszám, PIN   |
 | `--font-body`    | Inter          | Minden más: gombszöveg, leírások, form mezők, listák |
 
-## Arcade panel
+### Betűtípusok dinamikus betöltése (Fázis E)
+
+A fenti három font a seedelt "Retro Arcade" témára statikusan be van
+linkelve az `app.html`-ben (zéró-latenciás, nincs villanás az
+alapértelmezett témánál). Egy admin által létrehozott **másik** design
+téma viszont tetszőleges betűtípust megadhat a `design_tokens`
+`font_display`/`font_led`/`font_body` kulcsaiban (`/admin/design-themes`
+nyers JSON-szerkesztője) — ezekhez a `src/lib/theme/tokens.ts`
+`loadThemeFonts()` függvénye épít futásidőben egy Google Fonts CSS2 URL-t
+(kinyeri a tényleges betűtípus-nevet a CSS `font-family` értékből, pl.
+`"Bangers", cursive` → `Bangers`), és `<link>`-ként injektálja a
+`<head>`-be — a `getActiveTokens()` minden hívása automatikusan lefuttatja,
+nem kell a hívó oldalaknak külön hívniuk. Egy `Set`-alapú cache
+(`loadedFontSets`) megakadályozza, hogy ugyanaz a betűtípus-kombináció
+többször is beinjektálódjon navigáció/téma-váltás közben.
+
+**Hibatűrés**: ha egy megadott betűtípus nem létezik a Google Fonts-on, a
+Google CSS2 API 400-at ad vissza (HTML hibaoldalt, nem érvényes CSS-t) —
+élőben leellenőrizve (`curl`, mivel a `fonts.googleapis.com` — a
+Supabase-től eltérően — nincs blokkolva ebben a sandboxban). A böngésző
+ezt egyszerűen figyelmen kívül hagyja, és a CSS `font-family` lánc már
+eleve ott lévő fallback tagja (pl. `, monospace`) érvényesül — nincs
+szükség extra JS-oldali hibakezelésre.
 
 A kártyaszerű felületek alap mintája: `var(--cabinet-2)` háttér,
 `2px solid var(--violet)` keret, `1rem` lekerekítés, finom scanline

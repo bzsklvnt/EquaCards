@@ -815,3 +815,50 @@ kérdéstípusonként — egy nyers minimum kevésbé reprezentatív aggregátum
 lenne (indoklás `docs/features/reports.md`-ben).
 
 Dokumentáció: új `docs/features/reports.md`, `docs/architecture/DATA_MODEL.md` 4. szakasz "Implementáció (Fázis D)" alszakasz.
+
+## 2026-08-08 — Fázis E: Design téma dinamikus font-betöltés
+
+A review 6. szakaszában jelzett hiányosság: csak a seedelt "Retro Arcade"
+téma három Google Font-ja volt belinkelve statikusan az `app.html`-ben —
+egy admin által létrehozott, más betűtípusokat megadó design téma
+csendben a böngésző alapértelmezettjére esett vissza. Ez a Fázis 6-ban
+már dokumentált, tudatosan vállalt MVP-korlát volt (`docs/features/design-themes.md`
+"Betűtípusok — ismert korlát" szakasza) — Fázis E ezt zárja le.
+
+Új `loadThemeFonts()` (`src/lib/theme/tokens.ts`): a `design_tokens`
+`font_display`/`font_led`/`font_body` CSS `font-family` értékéből
+kinyeri a tényleges betűtípus-nevet (`"Bangers", cursive` → `Bangers`),
+és Google Fonts CSS2 URL-t épít belőle, amit `<link>`-ként inject a
+`<head>`-be. A `getActiveTokens()` minden hívása automatikusan
+lefuttatja — nem kellett egyenként bekötni a 9+ hívó oldalba. Egy
+`Set`-alapú cache megakadályozza az ismételt injektálást ugyanarra a
+betűtípus-kombinációra navigáció/téma-váltás közben.
+
+**Élőben tesztelve, nem csak kód-átolvasással** — kiderült, hogy a
+`fonts.googleapis.com` (a Supabase-től eltérően) **nincs** blokkolva
+ennek a sandboxnak az egress-proxyja mögött, tehát valódi `curl`
+kéréseket lehetett futtatni ellene:
+
+- A pontos URL-formátum (`family=Press+Start+2P:wght@400;600;700&...`)
+  ténylegesen 200 OK-t ad a Google Fonts API-tól, mind a seedelt
+  betűtípusokra, mind egy teljesen más kombinációra (`Bangers`/
+  `Roboto Mono`/`Lobster`).
+- A hibatűrési eset is élőben igazolt: egy nem létező betűtípus-névre
+  (`Totally Made Up Font Xyz123`) a Google API 400-at ad vissza egy HTML
+  hibaoldallal — a böngésző ezt egyszerű CSS-ként próbálja értelmezni,
+  nem talál benne érvényes szabályt, a `<link>` némán "üresen" fut le, a
+  UI nem törik, a CSS `font-family` fallback lánc érvényesül.
+- A tervben kért "hozz létre egy második design témát eltérő fontokkal
+  az admin felületen" tesztet DB-szinten közvetlenül elvégeztük (egy
+  `rollback`-kal lezárt tranzakcióban `insert` a `design_themes`-be az
+  admin JSON-szerkesztő pontos formátumával, majd a lekérdezés
+  visszaadta a helyes `font_display`/`font_led`/`font_body` értékeket) —
+  a tényleges vizuális megjelenés böngészőben ellenőrzése (a Supabase
+  Realtime-hoz hasonlóan blokkolt admin/host/play/tv oldalak miatt)
+  továbbra is a felhasználó feladata marad.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Betűtípusok
+dinamikus betöltése" alszakasz, `docs/features/design-themes.md`
+"ismert korlát" szakasza átírva a tényleges megoldásra,
+`docs/architecture/DATA_MODEL.md` 8. szakasz Fázis 6 implementációs
+jegyzete frissítve.

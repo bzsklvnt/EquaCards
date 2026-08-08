@@ -775,8 +775,9 @@ A kapott objektum **inline style-ként kerül a gyökér elemre**, így minden a
   CSS custom property-vé alakítás (`src/lib/theme/tokens.ts`) a host, a
   csapat és a TV felület mindegyikén ugyanúgy fut. Az admin CRUD
   (`/admin/design-themes`) a token-készletet szabad JSON-ként szerkeszti,
-  nem fix mezőkkel — részletek, beleértve a betűtípus-betöltés ismert
-  korlátját: `docs/features/design-themes.md`.
+  nem fix mezőkkel — részletek: `docs/features/design-themes.md`. A
+  betűtípusok dinamikus (nem csak a seedelt témára statikus) betöltése
+  Fázis E-ben készült el, lásd alább.
 
 ---
 
