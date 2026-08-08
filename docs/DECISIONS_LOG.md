@@ -457,3 +457,35 @@ nem lehetett ellenőrizni, ez a felhasználó feladata marad.
 Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` "Töréspontok és
 reszponzív konvenciók" szakasz, a módszertani korlát (kód-szintű, nem élő
 böngészős audit) explicit dokumentálásával.
+
+## 2026-08-08 — Fázis H: Komponens-konzisztencia audit
+
+Végigsöpörve minden felület minden oldala, a nyers HTML-elemek és
+kézzel írt hex-színek helyett a Fázis F0-ban épült komponens-könyvtár
+(`Button`, `ChoiceButton`, `TimerRing`, `PinDisplay`, `TeamChip`,
+`PodiumCard`, `Input`, `Select`, `Checkbox`) és `var(--token)` hivatkozások.
+Új komponens: `Textarea.svelte` (label + textarea, `monospace` prop a
+`--font-led`-hez) — ez a Fázis H során ténylegesen ismétlődő mintaként
+merült fel (kérdés-prompt, vizuális téma JSON-szerkesztő), ezért indokolt
+volt bővíteni vele a könyvtárat, a `question_type_id` select-et és az
+egyetlen `true_false` rádiógomb-párt viszont tudatosan nem absztraháltuk
+(lásd `DESIGN_SYSTEM.md`).
+
+Útközben előkerült egy Fázis F-es regresszió: 10 admin al-oldal duplikált
+`<main>` landmarkot tartalmazott, mert saját `<main>`-jük megmaradt azután
+is, hogy a Fázis F-es `/admin/+layout.svelte` már burkolta őket egy
+`<main class="admin-content">`-ba. Javítva mind a 10 oldalon.
+
+Emellett: `/login/+page.svelte` egy redundáns `createSupabaseBrowserClient()`
+hívást használt a többi oldaltól eltérően (amik a gyökér `+layout.ts`
+által biztosított `data.supabase`-t használják) — ez a Fázis H sweep alatt
+került elő, most már ez az oldal is `data.supabase`-t használ.
+
+Minden érintett fájl `npm run check` (0 hiba/figyelmeztetés), `npm run
+lint` és `npm run build` ellenőrzéssel lezárva. Élő böngészős vizuális
+ellenőrzés — a sandbox HTTPS-blokkolása miatt — itt sem történt, ez
+továbbra is a felhasználó feladata marad.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` "Komponens-konzisztencia
+audit (Fázis H)" szakasz + a komponens-könyvtár táblázat kiegészítve
+`Textarea`-val és a hiányzó propokkal.

@@ -1,10 +1,16 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { defaultTokens } from '$lib/theme/tokens';
+	import Input from '$lib/components/Input.svelte';
+	import Checkbox from '$lib/components/Checkbox.svelte';
+	import Textarea from '$lib/components/Textarea.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
 
+	let title = $state('');
+	let isDefault = $state(false);
 	let tokensText = $state(JSON.stringify(defaultTokens, null, 2));
 	let parseError = $derived.by(() => {
 		try {
@@ -16,44 +22,51 @@
 	});
 </script>
 
-<main>
-	<h1>Új design téma</h1>
+<h1>Új design téma</h1>
 
-	{#if form?.error}
-		<p class="error">{form.error}</p>
+{#if form?.error}
+	<p class="error">{form.error}</p>
+{/if}
+
+<form method="POST" action="?/create" use:enhance>
+	<Input
+		label="Név"
+		name="title"
+		bind:value={title}
+		required
+		maxlength={60}
+		placeholder="pl. Kocsmai Krétatábla"
+	/>
+
+	<Checkbox
+		label="Legyen ez az alapértelmezett téma"
+		name="is_default"
+		value="true"
+		bind:checked={isDefault}
+	/>
+
+	<Textarea
+		label="Design tokenek (JSON — szín/font kulcs-érték párok)"
+		name="design_tokens"
+		bind:value={tokensText}
+		rows={16}
+		spellcheck={false}
+		monospace
+	/>
+	{#if parseError}
+		<p class="error">{parseError}</p>
 	{/if}
 
-	<form method="POST" action="?/create" use:enhance>
-		<label>
-			Név
-			<input
-				type="text"
-				name="title"
-				required
-				maxlength="60"
-				placeholder="pl. Kocsmai Krétatábla"
-			/>
-		</label>
-
-		<label class="checkbox">
-			<input type="checkbox" name="is_default" value="true" />
-			Legyen ez az alapértelmezett téma
-		</label>
-
-		<label>
-			Design tokenek (JSON — szín/font kulcs-érték párok)
-			<textarea name="design_tokens" bind:value={tokensText} rows="16" spellcheck="false"
-			></textarea>
-		</label>
-		{#if parseError}
-			<p class="error">{parseError}</p>
-		{/if}
-
-		<button type="submit" disabled={!!parseError}>Létrehozás</button>
-	</form>
-</main>
+	<Button type="submit" disabled={!!parseError}>Létrehozás</Button>
+</form>
 
 <style>
+	h1 {
+		font-family: var(--font-display);
+		font-size: 1.1rem;
+		color: var(--cyan);
+	}
+
 	form {
 		display: flex;
 		flex-direction: column;
@@ -61,23 +74,7 @@
 		max-width: 32rem;
 	}
 
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	.checkbox {
-		flex-direction: row;
-		align-items: center;
-	}
-
-	textarea {
-		font-family: monospace;
-		font-size: 0.8125rem;
-	}
-
 	.error {
-		color: #b91c1c;
+		color: var(--danger);
 	}
 </style>

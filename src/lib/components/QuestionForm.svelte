@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
+	import Input from './Input.svelte';
+	import Textarea from './Textarea.svelte';
+	import Select from './Select.svelte';
+	import Checkbox from './Checkbox.svelte';
+	import Button from './Button.svelte';
 
 	type Theme = { id: string; title: string };
 	type QuestionType = {
@@ -45,6 +50,7 @@
 		error?: string;
 	} = $props();
 
+	let themeId = $state(untrack(() => initial?.theme_id ?? ''));
 	let questionTypeId = $state(untrack(() => initial?.question_type_id ?? questionTypes[0]?.id));
 	let selectedType = $derived(questionTypes.find((t) => t.id === questionTypeId));
 
@@ -101,16 +107,17 @@
 		<p class="error">{error}</p>
 	{/if}
 
-	<label>
-		Téma
-		<select name="theme_id">
-			<option value="">— nincs téma —</option>
-			{#each themes as theme (theme.id)}
-				<option value={theme.id} selected={theme.id === initial?.theme_id}>{theme.title}</option>
-			{/each}
-		</select>
-	</label>
+	<Select label="Téma" name="theme_id" bind:value={themeId}>
+		<option value="">— nincs téma —</option>
+		{#each themes as theme (theme.id)}
+			<option value={theme.id}>{theme.title}</option>
+		{/each}
+	</Select>
 
+	<!-- Marad natív <select>: a bind:value numerikus koercióját (a
+	     questionTypeId szám, nem string) csak egy közvetlenül fordított
+	     <select> elem tudja — egy generikus Select wrapper (string-alapú
+	     value) ezt eltörné, és a selectedType keresés típushibássá válna. -->
 	<label>
 		Kérdés típusa
 		<select name="question_type_id" bind:value={questionTypeId}>
@@ -120,54 +127,50 @@
 		</select>
 	</label>
 
-	<label>
-		Kérdés szövege
-		<textarea name="prompt" required>{initial?.prompt ?? ''}</textarea>
-	</label>
+	<Textarea label="Kérdés szövege" name="prompt" value={initial?.prompt ?? ''} required />
 
-	<label>
-		Kép URL (opcionális)
-		<input type="url" name="image_url" value={initial?.image_url ?? ''} />
-	</label>
+	<Input
+		label="Kép URL (opcionális)"
+		type="url"
+		name="image_url"
+		value={initial?.image_url ?? ''}
+	/>
 
 	<div class="row">
-		<label>
-			Pontszám
-			<input type="number" name="points" value={initial?.points ?? 1000} min="0" required />
-		</label>
+		<Input
+			label="Pontszám"
+			type="number"
+			name="points"
+			value={String(initial?.points ?? 1000)}
+			min="0"
+			required
+		/>
 
-		<label>
-			Pont-szorzó
-			<input
-				type="number"
-				name="points_multiplier"
-				value={initial?.points_multiplier ?? 1}
-				min="1"
-				step="0.5"
-				required
-			/>
-		</label>
+		<Input
+			label="Pont-szorzó"
+			type="number"
+			name="points_multiplier"
+			value={String(initial?.points_multiplier ?? 1)}
+			min="1"
+			step="0.5"
+			required
+		/>
 
-		<label>
-			Időlimit (mp)
-			<input
-				type="number"
-				name="time_limit_seconds"
-				value={initial?.time_limit_seconds ?? 30}
-				min="5"
-				required
-			/>
-		</label>
+		<Input
+			label="Időlimit (mp)"
+			type="number"
+			name="time_limit_seconds"
+			value={String(initial?.time_limit_seconds ?? 30)}
+			min="5"
+			required
+		/>
 
-		<label class="checkbox">
-			<input
-				type="checkbox"
-				name="points_decay"
-				value="true"
-				checked={initial?.points_decay ?? true}
-			/>
-			Pontcsökkenés idővel
-		</label>
+		<Checkbox
+			label="Pontcsökkenés idővel"
+			name="points_decay"
+			value="true"
+			checked={initial?.points_decay ?? true}
+		/>
 	</div>
 
 	{#if selectedType?.code === 'single_choice' || selectedType?.code === 'multi_choice'}
@@ -178,24 +181,28 @@
 			<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
 			{#each choiceTexts as _choiceText, i (i)}
 				<div class="option-row">
-					<input
-						type="checkbox"
+					<Checkbox
+						label=""
 						name="correct_index"
-						value={i}
+						value={String(i)}
 						checked={correctIndexes.includes(i)}
 						onchange={() => toggleCorrect(i, selectedType?.code === 'multi_choice')}
 					/>
-					<input type="text" name="option_text" bind:value={choiceTexts[i]} required />
+					<Input name="option_text" bind:value={choiceTexts[i]} required />
 					{#if choiceTexts.length > (selectedType.min_options ?? 2)}
-						<button type="button" onclick={() => removeChoice(i)}>Törlés</button>
+						<Button variant="ghost" onclick={() => removeChoice(i)}>Törlés</Button>
 					{/if}
 				</div>
 			{/each}
 			{#if choiceTexts.length < (selectedType.max_options ?? choiceTexts.length)}
-				<button type="button" onclick={addChoice}>+ Opció</button>
+				<Button variant="secondary" onclick={addChoice}>+ Opció</Button>
 			{/if}
 		</fieldset>
 	{:else if selectedType?.code === 'true_false'}
+		<!-- Marad natív <input type="radio">: ez az egyetlen rádiógomb a teljes
+		     alkalmazásban, nem éri meg érte önálló Radio komponenst bevezetni a
+		     könyvtárba (Fázis H — csak akkor bővítjük a könyvtárat, ha egy minta
+		     ténylegesen több helyen ismétlődik). -->
 		<fieldset>
 			<legend>Helyes válasz</legend>
 			<input type="hidden" name="option_text" value="Igaz" />
@@ -225,56 +232,46 @@
 		<fieldset>
 			<legend>Csúszka beállítások</legend>
 			<div class="row">
-				<label>
-					Min. érték
-					<input
-						type="number"
-						name="min_value"
-						value={initial?.sliderConfig?.min_value ?? 0}
-						step="any"
-						required
-					/>
-				</label>
-				<label>
-					Max. érték
-					<input
-						type="number"
-						name="max_value"
-						value={initial?.sliderConfig?.max_value ?? 100}
-						step="any"
-						required
-					/>
-				</label>
-				<label>
-					Lépésköz
-					<input
-						type="number"
-						name="step"
-						value={initial?.sliderConfig?.step ?? 1}
-						step="any"
-						required
-					/>
-				</label>
-				<label>
-					Helyes érték
-					<input
-						type="number"
-						name="correct_value"
-						value={initial?.sliderConfig?.correct_value ?? 0}
-						step="any"
-						required
-					/>
-				</label>
-				<label>
-					Tolerancia (±)
-					<input
-						type="number"
-						name="tolerance"
-						value={initial?.sliderConfig?.tolerance ?? 0}
-						step="any"
-						required
-					/>
-				</label>
+				<Input
+					label="Min. érték"
+					type="number"
+					name="min_value"
+					value={String(initial?.sliderConfig?.min_value ?? 0)}
+					step="any"
+					required
+				/>
+				<Input
+					label="Max. érték"
+					type="number"
+					name="max_value"
+					value={String(initial?.sliderConfig?.max_value ?? 100)}
+					step="any"
+					required
+				/>
+				<Input
+					label="Lépésköz"
+					type="number"
+					name="step"
+					value={String(initial?.sliderConfig?.step ?? 1)}
+					step="any"
+					required
+				/>
+				<Input
+					label="Helyes érték"
+					type="number"
+					name="correct_value"
+					value={String(initial?.sliderConfig?.correct_value ?? 0)}
+					step="any"
+					required
+				/>
+				<Input
+					label="Tolerancia (±)"
+					type="number"
+					name="tolerance"
+					value={String(initial?.sliderConfig?.tolerance ?? 0)}
+					step="any"
+					required
+				/>
 			</div>
 		</fieldset>
 	{:else if selectedType?.code === 'ordering'}
@@ -284,17 +281,17 @@
 			{#each orderingTexts as _orderingText, i (i)}
 				<div class="option-row">
 					<span>{i + 1}.</span>
-					<input type="text" name="item_text" bind:value={orderingTexts[i]} required />
+					<Input name="item_text" bind:value={orderingTexts[i]} required />
 					{#if orderingTexts.length > 2}
-						<button type="button" onclick={() => removeOrderingItem(i)}>Törlés</button>
+						<Button variant="ghost" onclick={() => removeOrderingItem(i)}>Törlés</Button>
 					{/if}
 				</div>
 			{/each}
-			<button type="button" onclick={addOrderingItem}>+ Elem</button>
+			<Button variant="secondary" onclick={addOrderingItem}>+ Elem</Button>
 		</fieldset>
 	{/if}
 
-	<button type="submit">Mentés</button>
+	<Button type="submit">Mentés</Button>
 </form>
 
 <style>
@@ -311,19 +308,14 @@
 		gap: 0.25rem;
 	}
 
-	label.checkbox {
-		flex-direction: row;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
 	.row {
 		display: flex;
 		gap: 1rem;
 		flex-wrap: wrap;
 	}
 
-	.row label {
+	.row :global(.field),
+	.row :global(.checkbox-field) {
 		flex: 1;
 		min-width: 8rem;
 	}
@@ -340,7 +332,7 @@
 		gap: 0.5rem;
 	}
 
-	.option-row input[type='text'] {
+	.option-row :global(.field) {
 		flex: 1;
 	}
 

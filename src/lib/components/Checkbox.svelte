@@ -3,17 +3,19 @@
 		label,
 		name,
 		checked = $bindable(false),
-		value
+		value,
+		onchange
 	}: {
 		label: string;
 		name?: string;
 		checked?: boolean;
 		value?: string;
+		onchange?: (event: Event) => void;
 	} = $props();
 </script>
 
 <label class="checkbox-field">
-	<input type="checkbox" {name} bind:checked {value} />
+	<input type="checkbox" {name} bind:checked {value} {onchange} />
 	<span>{label}</span>
 </label>
 

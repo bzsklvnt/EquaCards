@@ -12,6 +12,10 @@
 	} from '$lib/realtime/protocol';
 	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import { playTick, playCountdownEnd, playReveal, playLeaderboard } from '$lib/audio/sfx';
+	import PinDisplay from '$lib/components/PinDisplay.svelte';
+	import TeamChip from '$lib/components/TeamChip.svelte';
+	import PodiumCard from '$lib/components/PodiumCard.svelte';
+	import TimerRing from '$lib/components/TimerRing.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -129,28 +133,24 @@
 	{#if finalLeaderboard}
 		<div class="screen" in:fade={{ duration: 250 }}>
 			<h1>Végeredmény</h1>
-			<ol class="standings">
+			<div class="podium-list">
 				{#each finalLeaderboard.standings as row, i (row.team_id)}
-					<li in:fly={{ x: -40, delay: i * 150, duration: 350 }}>
-						<span class="rank">{row.rank}.</span>
-						<span class="name">{row.name}</span>
-						<span class="score">{row.total_score} pont</span>
-					</li>
+					<div in:fly={{ x: -40, delay: i * 150, duration: 350 }}>
+						<PodiumCard rank={row.rank} name={row.name} score={row.total_score} />
+					</div>
 				{/each}
-			</ol>
+			</div>
 		</div>
 	{:else if roundLeaderboard}
 		<div class="screen" in:fade={{ duration: 250 }}>
 			<h1>{roundLeaderboard.round_title} — Top 3</h1>
-			<ol class="standings">
+			<div class="podium-list">
 				{#each roundLeaderboard.top3 as row, i (row.team_id)}
-					<li in:fly={{ x: -40, delay: i * 150, duration: 350 }}>
-						<span class="rank">{row.rank}.</span>
-						<span class="name">{row.name}</span>
-						<span class="score">{row.round_score} pont</span>
-					</li>
+					<div in:fly={{ x: -40, delay: i * 150, duration: 350 }}>
+						<PodiumCard rank={row.rank} name={row.name} score={row.round_score} />
+					</div>
 				{/each}
-			</ol>
+			</div>
 		</div>
 	{:else if revealInfo}
 		<div class="screen" in:fade={{ duration: 250 }}>
@@ -167,22 +167,22 @@
 			</div>
 		{/key}
 		{#if timerInfo}
-			<p class="timer" class:urgent={secondsLeft <= 5}>{secondsLeft}</p>
+			<div class="timer-wrap">
+				<TimerRing {secondsLeft} duration={timerInfo.duration} size={200} />
+			</div>
 		{/if}
 	{:else if gameStatus === 'lobby'}
 		<div class="screen lobby">
 			<h1>{game.title}</h1>
-			<div class="pin">{game.pin}</div>
-			{#if qrDataUrl}
-				<img src={qrDataUrl} alt="QR kód a csatlakozáshoz" />
-			{/if}
-			<p class="join-hint">Csatlakozz a <strong>{joinUrl}</strong> címen!</p>
+			<PinDisplay pin={game.pin} {qrDataUrl} {joinUrl} />
 			<p class="team-count">{teams.length} csapat csatlakozott</p>
-			<ul class="team-list">
+			<div class="team-list">
 				{#each teams as team (team.team_id)}
-					<li in:fly={{ y: 8, duration: 200 }}>{team.name}</li>
+					<div in:fly={{ y: 8, duration: 200 }}>
+						<TeamChip name={team.name} />
+					</div>
 				{/each}
-			</ul>
+			</div>
 		</div>
 	{:else if gameStatus === 'finished'}
 		<div class="screen">
@@ -243,33 +243,14 @@
 		color: var(--power);
 	}
 
-	.timer {
-		font-family: var(--font-led);
-		font-size: clamp(3rem, 10vw, 6rem);
-		font-weight: bold;
-		color: var(--power);
-	}
-
-	.timer.urgent {
-		color: var(--danger);
-	}
-
-	.lobby .pin {
-		font-family: var(--font-led);
-		font-size: clamp(3rem, 8vw, 5rem);
-		letter-spacing: 0.5rem;
-		color: var(--coin);
-		margin: 1rem 0;
-	}
-
-	.lobby img {
-		width: min(20rem, 60vw);
-	}
-
-	.join-hint {
-		color: var(--marquee-dim);
-		font-size: 1.1rem;
+	.timer-wrap {
+		display: flex;
+		justify-content: center;
 		margin-top: 1rem;
+	}
+
+	.lobby :global(.pin-panel) {
+		margin: 1rem auto 0;
 	}
 
 	.team-count {
@@ -280,8 +261,6 @@
 	}
 
 	.team-list {
-		list-style: none;
-		padding: 0;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
@@ -289,46 +268,15 @@
 		margin-top: 1rem;
 	}
 
-	.team-list li {
-		background: var(--cabinet-2);
-		border: 1px solid var(--violet);
-		border-radius: 999px;
-		padding: 0.25rem 0.875rem;
-		font-size: 0.9rem;
-	}
-
-	.standings {
-		list-style: none;
-		padding: 0;
+	.podium-list {
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
 		margin-top: 1.5rem;
 	}
 
-	.standings li {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
+	.podium-list :global(.podium-card) {
 		font-size: clamp(1.1rem, 3vw, 2.25rem);
-		background: var(--cabinet-2);
-		border-radius: 0.75rem;
-		padding: 0.75rem 1.5rem;
-	}
-
-	.standings .rank {
-		font-family: var(--font-led);
-		color: var(--coin);
-		width: 2ch;
-	}
-
-	.standings .name {
-		flex: 1;
-		text-align: left;
-	}
-
-	.standings .score {
-		color: var(--power);
-		font-weight: bold;
+		padding: 1rem 2rem;
 	}
 </style>

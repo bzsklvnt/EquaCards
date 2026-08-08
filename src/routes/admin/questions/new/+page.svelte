@@ -5,12 +5,18 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
 
-<main>
-	<h1>Új kérdés</h1>
-	<QuestionForm
-		themes={data.themes}
-		questionTypes={data.questionTypes}
-		action="?/create"
-		error={form?.error}
-	/>
-</main>
+<h1>Új kérdés</h1>
+<QuestionForm
+	themes={data.themes}
+	questionTypes={data.questionTypes}
+	action="?/create"
+	error={form?.error}
+/>
+
+<style>
+	h1 {
+		font-family: var(--font-display);
+		font-size: 1.1rem;
+		color: var(--cyan);
+	}
+</style>

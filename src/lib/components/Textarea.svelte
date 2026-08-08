@@ -1,50 +1,29 @@
 <script lang="ts">
-	import type { HTMLInputAttributes } from 'svelte/elements';
-
 	let {
 		label,
 		name,
-		type = 'text',
 		value = $bindable(''),
 		placeholder,
 		required = false,
-		maxlength,
-		minlength,
-		min,
-		max,
-		step,
-		autocomplete
+		rows = 3,
+		spellcheck,
+		monospace = false
 	}: {
 		label?: string;
 		name?: string;
-		type?: string;
 		value?: string;
 		placeholder?: string;
 		required?: boolean;
-		maxlength?: number;
-		minlength?: number;
-		min?: string | number;
-		max?: string | number;
-		step?: string | number;
-		autocomplete?: HTMLInputAttributes['autocomplete'];
+		rows?: number;
+		spellcheck?: boolean;
+		monospace?: boolean;
 	} = $props();
 </script>
 
 <label class="field">
 	{#if label}<span class="field-label">{label}</span>{/if}
-	<input
-		{name}
-		{type}
-		bind:value
-		{placeholder}
-		{required}
-		{maxlength}
-		{minlength}
-		{min}
-		{max}
-		{step}
-		{autocomplete}
-	/>
+	<textarea {name} bind:value {placeholder} {required} {rows} {spellcheck} class:monospace
+	></textarea>
 </label>
 
 <style>
@@ -61,7 +40,7 @@
 		color: var(--marquee-dim);
 	}
 
-	input {
+	textarea {
 		font-family: var(--font-body);
 		font-size: 1rem;
 		padding: 0.5rem 0.75rem;
@@ -69,11 +48,16 @@
 		border: 2px solid var(--marquee-dim);
 		background: var(--cabinet-2);
 		color: var(--marquee);
-		min-height: 44px;
+		resize: vertical;
 	}
 
-	input:focus-visible {
+	textarea:focus-visible {
 		outline: none;
 		border-color: var(--cyan);
+	}
+
+	textarea.monospace {
+		font-family: var(--font-led), monospace;
+		font-size: 0.8125rem;
 	}
 </style>

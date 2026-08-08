@@ -6,6 +6,8 @@
 		type = 'button',
 		disabled = false,
 		href,
+		target,
+		rel,
 		onclick,
 		children
 	}: {
@@ -13,6 +15,8 @@
 		type?: 'button' | 'submit' | 'reset';
 		disabled?: boolean;
 		href?: string;
+		target?: string;
+		rel?: string;
 		onclick?: (event: MouseEvent) => void;
 		children: Snippet;
 	} = $props();
@@ -20,7 +24,7 @@
 
 {#if href}
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is caller-supplied; callers must pass an already-resolve()d path for internal routes. -->
-	<a {href} class="btn {variant}" class:disabled aria-disabled={disabled} {onclick}>
+	<a {href} {target} {rel} class="btn {variant}" class:disabled aria-disabled={disabled} {onclick}>
 		{@render children()}
 	</a>
 {:else}

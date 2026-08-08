@@ -1,4 +1,14 @@
-<main>
-	<h1>Admin</h1>
-	<p>Válassz a fenti menüből: témák, kérdésbank, kvízesték.</p>
-</main>
+<h1>Vezérlőpult</h1>
+<p>Válassz az oldalsávból: kérdésbank, témák, vizuális témák, kvízesték.</p>
+
+<style>
+	h1 {
+		font-family: var(--font-display);
+		font-size: 1.1rem;
+		color: var(--cyan);
+	}
+
+	p {
+		color: var(--marquee-dim);
+	}
+</style>

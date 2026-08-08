@@ -15,6 +15,11 @@
 	import { playReveal, playLeaderboard, playJokerActivate } from '$lib/audio/sfx';
 	import { getConnectionStatusContext } from '$lib/realtime/connection-status.svelte';
 	import { getHostProgressContext } from '$lib/realtime/host-progress.svelte';
+	import PinDisplay from '$lib/components/PinDisplay.svelte';
+	import TeamChip from '$lib/components/TeamChip.svelte';
+	import PodiumCard from '$lib/components/PodiumCard.svelte';
+	import Select from '$lib/components/Select.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -487,45 +492,41 @@
 	{/if}
 
 	{#if game.status === 'lobby'}
-		<div class="join-box">
-			<div class="pin">{game.pin}</div>
-			{#if qrDataUrl}
-				<img src={qrDataUrl} alt="QR kód a csatlakozáshoz" />
-			{/if}
-			<p>Csatlakozás: <code>{joinUrl}</code></p>
-		</div>
+		<PinDisplay pin={game.pin} {qrDataUrl} {joinUrl} />
 
-		<label class="theme-picker">
-			Vizuális köntös
-			<select
+		<div class="theme-picker">
+			<Select
+				label="Vizuális köntös"
 				value={game.design_theme_id ?? ''}
-				onchange={(e) => selectDesignTheme(e.currentTarget.value)}
+				onchange={(e) => selectDesignTheme((e.currentTarget as HTMLSelectElement).value)}
 			>
 				<option value="">Alapértelmezett</option>
 				{#each designThemes as theme (theme.id)}
 					<option value={theme.id}>{theme.title}</option>
 				{/each}
-			</select>
-		</label>
+			</Select>
+		</div>
 
-		<button onclick={startGame}>Kvíz indítása</button>
-		<a
-			class="tv-link"
-			href={resolve('/tv/[game_id]', { game_id: game.id })}
-			target="_blank"
-			rel="noopener"
-		>
-			Kivetítő megnyitása (TV mód) →
-		</a>
+		<div class="actions">
+			<Button onclick={startGame}>Kvíz indítása</Button>
+			<Button
+				variant="secondary"
+				href={resolve('/tv/[game_id]', { game_id: game.id })}
+				target="_blank"
+				rel="noopener"
+			>
+				Kivetítő megnyitása (TV mód) →
+			</Button>
+		</div>
 
 		<h2>Csapatok ({teams.length})</h2>
-		<ul>
+		<div class="team-list">
 			{#each teams as team (team.team_id)}
-				<li>{team.name}</li>
+				<TeamChip name={team.name} />
 			{:else}
-				<li class="empty">Még senki sem csatlakozott.</li>
+				<p class="empty">Még senki sem csatlakozott.</p>
 			{/each}
-		</ul>
+		</div>
 	{:else if game.status === 'active'}
 		<p class="round-label">{rounds.find((r) => r.id === game.current_round_id)?.title}</p>
 		<p class="progress">Kérdés {currentIndex + 1} / {roundQuestions.length}</p>
@@ -543,57 +544,57 @@
 		<div class="controls">
 			{#if uiStep === 'idle'}
 				{#if currentIndex + 1 < roundQuestions.length}
-					<button onclick={showNextQuestion}>Következő kérdés</button>
+					<Button onclick={showNextQuestion}>Következő kérdés</Button>
 				{/if}
 			{:else if uiStep === 'shown'}
-				<button onclick={startTimer}>Timer indítása</button>
+				<Button onclick={startTimer}>Timer indítása</Button>
 			{:else if uiStep === 'timing'}
-				<button onclick={lockAnswers}>Zárás most</button>
+				<Button onclick={lockAnswers}>Zárás most</Button>
 			{:else if uiStep === 'locked'}
-				<button onclick={revealAnswer}>Megoldás feltárása</button>
+				<Button onclick={revealAnswer}>Megoldás feltárása</Button>
 			{:else if uiStep === 'revealed'}
 				{#if currentIndex + 1 < roundQuestions.length}
-					<button onclick={showNextQuestion}>Következő kérdés</button>
+					<Button onclick={showNextQuestion}>Következő kérdés</Button>
 				{:else if nextRoundAfterCurrent()}
-					<button onclick={revealRoundLeaderboard}>Kör eredményének feltárása</button>
+					<Button onclick={revealRoundLeaderboard}>Kör eredményének feltárása</Button>
 				{:else}
-					<button onclick={revealFinalLeaderboard}>Végeredmény feltárása</button>
+					<Button onclick={revealFinalLeaderboard}>Végeredmény feltárása</Button>
 				{/if}
 			{:else if uiStep === 'round_summary'}
 				<div class="leaderboard" in:fade={{ duration: 200 }}>
 					<h3>Kör vége — Top 3</h3>
-					<ol>
+					<div class="podium-list">
 						{#each roundTop3 as row, i (row.team_id)}
-							<li in:fly={{ x: -24, delay: i * 120, duration: 300 }}>
-								{row.name} — {row.round_score} pont
-							</li>
+							<div in:fly={{ x: -24, delay: i * 120, duration: 300 }}>
+								<PodiumCard rank={row.rank} name={row.name} score={row.round_score} />
+							</div>
 						{/each}
-					</ol>
-					<button onclick={advanceToNextRound}>Következő kör</button>
+					</div>
+					<Button onclick={advanceToNextRound}>Következő kör</Button>
 				</div>
 			{:else if uiStep === 'final_summary'}
 				<div class="leaderboard" in:fade={{ duration: 200 }}>
 					<h3>Végeredmény</h3>
-					<ol>
+					<div class="podium-list">
 						{#each finalStandings as row, i (row.team_id)}
-							<li in:fly={{ x: -24, delay: i * 120, duration: 300 }}>
-								{row.name} — {row.total_score} pont
-							</li>
+							<div in:fly={{ x: -24, delay: i * 120, duration: 300 }}>
+								<PodiumCard rank={row.rank} name={row.name} score={row.total_score} />
+							</div>
 						{/each}
-					</ol>
-					<button onclick={finishGame}>Játék lezárása</button>
+					</div>
+					<Button onclick={finishGame}>Játék lezárása</Button>
 				</div>
 			{/if}
 		</div>
 
 		<h2>Csapatok ({teams.length})</h2>
-		<ul>
+		<div class="team-list">
 			{#each teams as team (team.team_id)}
-				<li>{team.name}</li>
+				<TeamChip name={team.name} />
 			{:else}
-				<li class="empty">Még senki sem csatlakozott.</li>
+				<p class="empty">Még senki sem csatlakozott.</p>
 			{/each}
-		</ul>
+		</div>
 	{:else if game.status === 'finished'}
 		<p>Ez a kvízeste lezárult.</p>
 	{/if}
@@ -611,63 +612,17 @@
 		min-height: 100%;
 	}
 
-	main.cabinet a {
-		color: var(--marquee-dim);
-	}
-
-	main.cabinet button {
-		font-family: var(--font-body);
-		font-weight: 600;
-		font-size: 1rem;
-		background: var(--violet);
-		color: var(--marquee);
-		border: 2px solid var(--magenta);
-		border-radius: 0.5rem;
-		padding: 0.6rem 1.25rem;
-		min-height: 44px;
-		cursor: pointer;
-	}
-
-	main.cabinet button:hover {
-		background: var(--magenta);
-	}
-
 	.theme-picker {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
 		max-width: 16rem;
-		margin: 0 auto 1.5rem;
-		color: var(--marquee-dim);
-		font-size: 0.875rem;
+		margin: 1.5rem auto;
 	}
 
-	.theme-picker select {
-		padding: 0.4rem;
-		min-height: 44px;
-		border-radius: 0.375rem;
-	}
-
-	.tv-link {
-		display: block;
-		margin-top: 0.75rem;
-		font-size: 0.875rem;
-	}
-
-	.join-box {
+	.actions {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 0.5rem;
-		margin: 2rem 0;
-	}
-
-	.pin {
-		font-family: var(--font-led);
-		font-size: 3rem;
-		font-weight: bold;
-		letter-spacing: 0.5rem;
-		color: var(--coin);
+		margin-bottom: 1.5rem;
 	}
 
 	.round-label {
@@ -694,9 +649,10 @@
 		margin: 1.5rem 0;
 	}
 
-	.leaderboard ol {
-		padding-left: 1.5rem;
-		text-align: left;
+	.podium-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 		max-width: 20rem;
 		margin: 1rem auto;
 	}
@@ -711,12 +667,11 @@
 		color: var(--coin);
 	}
 
-	ul {
-		list-style: none;
-		padding: 0;
+	.team-list {
 		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.5rem;
 	}
 
 	.empty {

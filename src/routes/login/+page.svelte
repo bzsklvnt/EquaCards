@@ -1,20 +1,35 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { untrack } from 'svelte';
-	import type { ActionData } from './$types';
+	import { onMount, untrack } from 'svelte';
+	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import Input from '$lib/components/Input.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let mode = $state<'signin' | 'signup'>(
 		untrack(() => (form?.mode === 'signup' ? 'signup' : 'signin'))
 	);
+
+	let displayName = $state('');
+	let email = $state(untrack(() => form?.email ?? ''));
+	let password = $state('');
+
+	let themeCss = $state('');
+
+	onMount(() => {
+		getActiveTokens(data.supabase, null).then((tokens) => {
+			themeCss = tokensToCssText(tokens);
+		});
+	});
 </script>
 
 <svelte:head>
 	<title>Bejelentkezés — EquaCards</title>
 </svelte:head>
 
-<main>
+<main class="cabinet" style={themeCss}>
 	<h1>{mode === 'signin' ? 'Bejelentkezés' : 'Regisztráció'}</h1>
 
 	{#if form?.success}
@@ -22,56 +37,73 @@
 	{:else}
 		<form method="POST" action={mode === 'signin' ? '?/signin' : '?/signup'} use:enhance>
 			{#if mode === 'signup'}
-				<label>
-					Név
-					<input type="text" name="display_name" autocomplete="name" required />
-				</label>
-			{/if}
-
-			<label>
-				Email
-				<input type="email" name="email" autocomplete="email" value={form?.email ?? ''} required />
-			</label>
-
-			<label>
-				Jelszó
-				<input
-					type="password"
-					name="password"
-					autocomplete={mode === 'signin' ? 'current-password' : 'new-password'}
-					minlength="6"
+				<Input
+					label="Név"
+					name="display_name"
+					autocomplete="name"
+					bind:value={displayName}
 					required
 				/>
-			</label>
+			{/if}
+
+			<Input
+				label="Email"
+				type="email"
+				name="email"
+				autocomplete="email"
+				bind:value={email}
+				required
+			/>
+
+			<Input
+				label="Jelszó"
+				type="password"
+				name="password"
+				autocomplete={mode === 'signin' ? 'current-password' : 'new-password'}
+				bind:value={password}
+				minlength={6}
+				required
+			/>
 
 			{#if form?.error}
 				<p class="error">{form.error}</p>
 			{/if}
 
-			<button type="submit">{mode === 'signin' ? 'Bejelentkezés' : 'Regisztráció'}</button>
+			<Button type="submit">{mode === 'signin' ? 'Bejelentkezés' : 'Regisztráció'}</Button>
 		</form>
 
 		{#if mode === 'signin'}
 			<p>
 				Nincs még fiókod?
-				<button type="button" onclick={() => (mode = 'signup')}>Regisztrálj</button>
+				<Button variant="ghost" onclick={() => (mode = 'signup')}>Regisztrálj</Button>
 			</p>
 		{:else}
 			<p>
 				Van már fiókod?
-				<button type="button" onclick={() => (mode = 'signin')}>Jelentkezz be</button>
+				<Button variant="ghost" onclick={() => (mode = 'signin')}>Jelentkezz be</Button>
 			</p>
 		{/if}
 	{/if}
 </main>
 
 <style>
-	main {
+	main.cabinet {
 		max-width: 24rem;
-		margin: 4rem auto;
+		margin: 0 auto;
+		padding: 4rem 1rem 2rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
+		background: linear-gradient(160deg, var(--cabinet), var(--cabinet-2) 60%, var(--cabinet-3));
+		color: var(--marquee);
+		font-family: var(--font-body);
+		min-height: 100vh;
+	}
+
+	h1 {
+		font-family: var(--font-display);
+		font-size: 1.1rem;
+		color: var(--cyan);
 	}
 
 	form {
@@ -80,26 +112,11 @@
 		gap: 0.75rem;
 	}
 
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
 	.error {
-		color: #b91c1c;
+		color: var(--danger);
 	}
 
 	.success {
-		color: #15803d;
-	}
-
-	button[type='button'] {
-		background: none;
-		border: none;
-		padding: 0;
-		color: #2563eb;
-		text-decoration: underline;
-		cursor: pointer;
+		color: var(--power);
 	}
 </style>

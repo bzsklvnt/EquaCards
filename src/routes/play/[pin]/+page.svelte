@@ -20,6 +20,11 @@
 		playJokerActivate,
 		playLeaderboard
 	} from '$lib/audio/sfx';
+	import ChoiceButton from '$lib/components/ChoiceButton.svelte';
+	import TimerRing from '$lib/components/TimerRing.svelte';
+	import PodiumCard from '$lib/components/PodiumCard.svelte';
+	import Input from '$lib/components/Input.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -51,6 +56,7 @@
 	let sliderValue = $state(0);
 	let orderedItems = $state<{ id: string; item_text: string }[]>([]);
 	let dragIndex = $state<number | null>(null);
+	let joinName = $state('');
 
 	let channel: ReturnType<typeof data.supabase.channel> | undefined;
 
@@ -329,30 +335,34 @@
 		{#if finalLeaderboard}
 			<div class="leaderboard" in:fade={{ duration: 200 }}>
 				<h2>Végeredmény</h2>
-				<ol>
+				<div class="podium-list">
 					{#each finalLeaderboard.standings as row, i (row.team_id)}
-						<li
-							class:own={row.team_id === joined.teamId}
-							in:fly={{ x: -24, delay: i * 120, duration: 300 }}
-						>
-							{row.name} — {row.total_score} pont
-						</li>
+						<div in:fly={{ x: -24, delay: i * 120, duration: 300 }}>
+							<PodiumCard
+								rank={row.rank}
+								name={row.name}
+								score={row.total_score}
+								own={row.team_id === joined.teamId}
+							/>
+						</div>
 					{/each}
-				</ol>
+				</div>
 			</div>
 		{:else if roundLeaderboard}
 			<div class="leaderboard" in:fade={{ duration: 200 }}>
 				<h2>{roundLeaderboard.round_title} — Top 3</h2>
-				<ol>
+				<div class="podium-list">
 					{#each roundLeaderboard.top3 as row, i (row.team_id)}
-						<li
-							class:own={row.team_id === joined.teamId}
-							in:fly={{ x: -24, delay: i * 120, duration: 300 }}
-						>
-							{row.name} — {row.round_score} pont
-						</li>
+						<div in:fly={{ x: -24, delay: i * 120, duration: 300 }}>
+							<PodiumCard
+								rank={row.rank}
+								name={row.name}
+								score={row.round_score}
+								own={row.team_id === joined.teamId}
+							/>
+						</div>
 					{/each}
-				</ol>
+				</div>
 				<p>Várj a következő körre…</p>
 			</div>
 		{:else if revealInfo}
@@ -380,7 +390,9 @@
 				</div>
 			{/key}
 			{#if timerInfo}
-				<p class="timer" class:urgent={secondsLeft <= 5}>{secondsLeft}s</p>
+				<div class="timer-wrap">
+					<TimerRing {secondsLeft} duration={timerInfo.duration} />
+				</div>
 			{/if}
 
 			{#if submitted}
@@ -391,27 +403,21 @@
 				{#if currentQuestion.question_type === 'single_choice' || currentQuestion.question_type === 'true_false'}
 					<div class="options">
 						{#each currentQuestion.options ?? [] as option (option.id)}
-							<button
-								type="button"
-								class="option"
-								class:selected={selectedOptionId === option.id}
+							<ChoiceButton
+								text={option.option_text}
+								selected={selectedOptionId === option.id}
 								onclick={() => (selectedOptionId = option.id)}
-							>
-								{option.option_text}
-							</button>
+							/>
 						{/each}
 					</div>
 				{:else if currentQuestion.question_type === 'multi_choice'}
 					<div class="options">
 						{#each currentQuestion.options ?? [] as option (option.id)}
-							<button
-								type="button"
-								class="option"
-								class:selected={selectedOptionIds.includes(option.id)}
+							<ChoiceButton
+								text={option.option_text}
+								selected={selectedOptionIds.includes(option.id)}
 								onclick={() => toggleMultiOption(option.id)}
-							>
-								{option.option_text}
-							</button>
+							/>
 						{/each}
 					</div>
 				{:else if currentQuestion.question_type === 'slider'}
@@ -444,10 +450,12 @@
 					<p class="error">{submitError}</p>
 				{/if}
 
-				<button type="button" onclick={submitAnswer}>Válasz elküldése</button>
+				<Button onclick={submitAnswer}>Válasz elküldése</Button>
 
 				{#if !jokerUsed}
-					<button type="button" class="joker" onclick={activateJoker}>Duplázás 🃏</button>
+					<div class="joker-wrap">
+						<Button onclick={activateJoker}>Duplázás 🃏</Button>
+					</div>
 				{/if}
 			{/if}
 		{:else}
@@ -458,19 +466,16 @@
 		<h1>{data.game.title}</h1>
 		<form method="POST" action="?/join" use:enhance>
 			<input type="hidden" name="device_token" value={deviceToken} />
-			<label>
-				Csapatnév
-				<input type="text" name="name" required maxlength="40" />
-			</label>
+			<Input label="Csapatnév" name="name" bind:value={joinName} required maxlength={40} />
 			{#if form?.error}
 				<p class="error">{form.error}</p>
 			{/if}
-			<button type="submit">Csatlakozás</button>
+			<Button type="submit">Csatlakozás</Button>
 		</form>
 	{:else}
 		<h1>Nem található</h1>
 		<p>A PIN nem található, vagy a játék már elindult.</p>
-		<a href={resolve('/play')}>Vissza</a>
+		<Button variant="ghost" href={resolve('/play')}>Vissza</Button>
 	{/if}
 </main>
 
@@ -493,40 +498,11 @@
 		color: var(--cyan);
 	}
 
-	main.cabinet a {
-		color: var(--marquee-dim);
-	}
-
-	main.cabinet button {
-		font-family: var(--font-body);
-		font-weight: 600;
-		font-size: 1rem;
-		background: var(--violet);
-		color: var(--marquee);
-		border: 2px solid var(--magenta);
-		border-radius: 0.5rem;
-		padding: 0.6rem 1.25rem;
-		min-height: 44px;
-		cursor: pointer;
-	}
-
 	form {
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
 		text-align: left;
-	}
-
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	input[type='text'] {
-		padding: 0.5rem;
-		border-radius: 0.375rem;
-		border: none;
 	}
 
 	.round-title {
@@ -539,38 +515,16 @@
 		margin: 1rem 0;
 	}
 
-	.timer {
-		font-family: var(--font-led);
-		font-size: 2rem;
-		font-weight: bold;
-		color: var(--power);
-	}
-
-	.timer.urgent {
-		color: var(--danger);
+	.timer-wrap {
+		display: flex;
+		justify-content: center;
+		margin: 1rem 0;
 	}
 
 	.options {
 		display: grid;
 		gap: 0.5rem;
 		margin: 1rem 0;
-	}
-
-	.option {
-		font-family: var(--font-body);
-		font-size: 1rem;
-		padding: 0.75rem;
-		min-height: 44px;
-		border: 2px solid var(--marquee-dim);
-		border-radius: 0.5rem;
-		background: var(--cabinet-2);
-		color: var(--marquee);
-		cursor: pointer;
-	}
-
-	.option.selected {
-		border-color: var(--cyan);
-		background: color-mix(in srgb, var(--cyan) 20%, var(--cabinet-2));
 	}
 
 	.slider {
@@ -619,11 +573,20 @@
 		cursor: grab;
 	}
 
-	.joker {
+	.joker-wrap {
 		margin-top: 0.75rem;
+	}
+
+	.joker-wrap :global(.btn) {
 		background: var(--coin);
 		color: var(--cabinet);
-		border: 2px solid var(--danger);
+		border-color: var(--danger);
+	}
+
+	.joker-wrap :global(.btn:hover:not(:disabled):not(.disabled)) {
+		background: var(--danger);
+		color: var(--marquee);
+		box-shadow: none;
 	}
 
 	.leaderboard h2 {
@@ -632,16 +595,11 @@
 		color: var(--coin);
 	}
 
-	.leaderboard ol {
-		list-style: decimal;
-		text-align: left;
-		padding-left: 1.5rem;
+	.podium-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 		margin: 1rem 0;
-	}
-
-	.leaderboard li.own {
-		font-weight: bold;
-		color: var(--cyan);
 	}
 
 	.correct {
