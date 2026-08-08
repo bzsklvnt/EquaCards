@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="hu">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>EquaCards — Style Guide (Retro Arcade)</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap"
+		/>
+		<style>
+			:root {
+				/* A design_themes seed ("Retro Arcade") pontos értékei —
+		   supabase/migrations/20260808123000_design_themes.sql.
+		   Ez a dokumentum ezekre a tokenekre épül, NEM önálló, hardcode-olt
+		   palettára — ha a seed változik, ezt is frissíteni kell. */
+				--cabinet: #150e2c;
+				--cabinet-2: #211640;
+				--cabinet-3: #2c1d54;
+				--marquee: #f5f0ff;
+				--marquee-dim: #a79bc9;
+				--cyan: #35e7ff;
+				--magenta: #ff3e9a;
+				--power: #b6ff3e;
+				--danger: #ff5a36;
+				--coin: #ffd23e;
+				--violet: #9b5cff;
+				--font-display: 'Press Start 2P', monospace;
+				--font-led: 'Silkscreen', monospace;
+				--font-body: 'Inter', sans-serif;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				background: linear-gradient(160deg, var(--cabinet), var(--cabinet-2) 60%, var(--cabinet-3));
+				color: var(--marquee);
+				font-family: var(--font-body);
+				line-height: 1.6;
+				padding: 2rem;
+			}
+
+			main {
+				max-width: 64rem;
+				margin: 0 auto;
+				display: flex;
+				flex-direction: column;
+				gap: 3rem;
+			}
+
+			h1 {
+				font-family: var(--font-display);
+				font-size: clamp(1.25rem, 3vw, 2rem);
+				color: var(--cyan);
+				text-shadow: 0 0 16px color-mix(in srgb, var(--cyan) 60%, transparent);
+			}
+
+			h2 {
+				font-family: var(--font-display);
+				font-size: 1rem;
+				color: var(--coin);
+				border-bottom: 2px solid var(--cabinet-3);
+				padding-bottom: 0.75rem;
+			}
+
+			h3 {
+				font-family: var(--font-body);
+				font-weight: 700;
+				font-size: 1rem;
+				color: var(--marquee);
+				margin-bottom: 0.5rem;
+			}
+
+			p {
+				color: var(--marquee-dim);
+			}
+
+			code {
+				font-family: var(--font-led);
+				background: var(--cabinet-2);
+				padding: 0.1rem 0.4rem;
+				border-radius: 0.25rem;
+				color: var(--cyan);
+			}
+
+			section {
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
+			}
+
+			/* --- Arcade panel: az alap kártya-minta minden borítéknál (kérdés-kártya,
+	   ranglista-kártya, PIN/QR panel) --- */
+			.arcade-panel {
+				position: relative;
+				background: var(--cabinet-2);
+				border: 2px solid var(--violet);
+				border-radius: 1rem;
+				padding: 1.5rem;
+				overflow: hidden;
+			}
+
+			.arcade-panel::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: repeating-linear-gradient(
+					to bottom,
+					rgba(255, 255, 255, 0.035) 0px,
+					rgba(255, 255, 255, 0.035) 1px,
+					transparent 1px,
+					transparent 3px
+				);
+				pointer-events: none;
+			}
+
+			.swatches {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+				gap: 1rem;
+			}
+
+			.swatch {
+				border-radius: 0.75rem;
+				overflow: hidden;
+				border: 1px solid var(--cabinet-3);
+			}
+
+			.swatch .fill {
+				height: 4rem;
+			}
+
+			.swatch .label {
+				background: var(--cabinet-2);
+				padding: 0.5rem 0.75rem;
+				font-size: 0.8rem;
+			}
+
+			.swatch .label strong {
+				display: block;
+				font-family: var(--font-led);
+				color: var(--marquee);
+			}
+
+			.swatch .label span {
+				color: var(--marquee-dim);
+			}
+
+			.type-specimen {
+				display: flex;
+				flex-direction: column;
+				gap: 0.25rem;
+			}
+
+			.type-specimen .sample {
+				font-size: 1.5rem;
+			}
+
+			.font-display-sample {
+				font-family: var(--font-display);
+				color: var(--cyan);
+			}
+
+			.font-led-sample {
+				font-family: var(--font-led);
+				color: var(--coin);
+				font-size: 2.5rem;
+			}
+
+			.font-body-sample {
+				font-family: var(--font-body);
+			}
+
+			.rule {
+				font-size: 0.85rem;
+				color: var(--marquee-dim);
+			}
+
+			.row {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.75rem;
+				align-items: center;
+			}
+
+			/* --- Button --- (tükrözi src/lib/components/Button.svelte-t) */
+			.btn {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				gap: 0.5rem;
+				font-family: var(--font-body);
+				font-weight: 600;
+				font-size: 1rem;
+				border-radius: 0.5rem;
+				padding: 0.6rem 1.25rem;
+				cursor: pointer;
+				border: 2px solid transparent;
+				text-decoration: none;
+			}
+
+			.btn.primary {
+				background: var(--violet);
+				color: var(--marquee);
+				border-color: var(--magenta);
+			}
+
+			.btn.secondary {
+				background: var(--cabinet-2);
+				color: var(--marquee);
+				border-color: var(--marquee-dim);
+			}
+
+			.btn.danger {
+				background: color-mix(in srgb, var(--danger) 20%, var(--cabinet-2));
+				color: var(--marquee);
+				border-color: var(--danger);
+			}
+
+			.btn.ghost {
+				background: transparent;
+				color: var(--marquee-dim);
+				border-color: transparent;
+			}
+
+			/* --- ChoiceButton --- */
+			.choice {
+				font-family: var(--font-body);
+				padding: 0.875rem;
+				border: 2px solid var(--marquee-dim);
+				border-radius: 0.5rem;
+				background: var(--cabinet-2);
+				color: var(--marquee);
+				min-width: 10rem;
+			}
+
+			.choice.selected {
+				border-color: var(--cyan);
+				background: color-mix(in srgb, var(--cyan) 20%, var(--cabinet-2));
+			}
+
+			/* --- TeamChip --- */
+			.chip {
+				display: inline-block;
+				font-size: 0.9rem;
+				background: var(--cabinet-2);
+				border: 1px solid var(--violet);
+				border-radius: 999px;
+				padding: 0.25rem 0.875rem;
+			}
+
+			.chip.own {
+				border-color: var(--cyan);
+				color: var(--cyan);
+				font-weight: bold;
+			}
+
+			/* --- PodiumCard --- */
+			.podium-card {
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+				background: var(--cabinet-2);
+				border: 2px solid var(--marquee-dim);
+				border-radius: 0.75rem;
+				padding: 0.75rem 1.25rem;
+				max-width: 24rem;
+			}
+
+			.podium-card.top3 {
+				border-color: var(--coin);
+			}
+
+			.podium-card .rank {
+				font-family: var(--font-led);
+				color: var(--coin);
+				width: 2.5ch;
+			}
+
+			.podium-card .name {
+				flex: 1;
+			}
+
+			.podium-card .score {
+				color: var(--power);
+				font-weight: bold;
+			}
+
+			/* --- TimerRing (statikus demó — a valós komponens SVG-alapú) --- */
+			.timer-demo {
+				display: flex;
+				gap: 2rem;
+				align-items: center;
+			}
+
+			.ring {
+				width: 100px;
+				height: 100px;
+				border-radius: 50%;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-family: var(--font-led);
+				font-size: 2rem;
+			}
+
+			.ring.full {
+				border: 8px solid var(--cyan);
+				color: var(--marquee);
+			}
+
+			.ring.low {
+				border: 8px solid var(--danger);
+				color: var(--danger);
+			}
+
+			table {
+				border-collapse: collapse;
+				width: 100%;
+			}
+
+			th,
+			td {
+				text-align: left;
+				padding: 0.5rem 0.75rem;
+				border-bottom: 1px solid var(--cabinet-3);
+			}
+
+			th {
+				color: var(--marquee-dim);
+				font-size: 0.85rem;
+				font-weight: 600;
+			}
+
+			.role-cyan {
+				color: var(--cyan);
+			}
+			.role-power {
+				color: var(--power);
+			}
+			.role-danger {
+				color: var(--danger);
+			}
+			.role-coin {
+				color: var(--coin);
+			}
+			.role-magenta {
+				color: var(--magenta);
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<section>
+				<h1>EquaCards — Style Guide</h1>
+				<p>
+					Élő referencia a "Retro Arcade" design témához
+					(<code>supabase/migrations/20260808123000_design_themes.sql</code>). Ez a séma (<code
+						>docs/architecture/DATA_MODEL.md</code
+					>
+					8. szakasz) tetszőleges további design témával bővíthető — ez a dokumentum a jelenlegi,
+					alapértelmezett témát rögzíti vizuális referenciaként a
+					<code>src/lib/components/</code> komponens-könyvtárhoz.
+				</p>
+			</section>
+
+			<section>
+				<h2>Színpaletta és szerepek</h2>
+				<p>
+					Minden szín egy konkrét <strong>szerephez</strong> van rendelve — ne keveredjenek (pl.
+					<code>--danger</code> csak hibát/sürgetést jelöl, sose dekoratív elem).
+				</p>
+				<table>
+					<thead>
+						<tr>
+							<th>Token</th>
+							<th>Szerep</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td class="role-cyan"><code>--cyan</code></td>
+							<td>Elsődleges interaktív elem (kiválasztott állapot, fókusz, linkek)</td>
+						</tr>
+						<tr>
+							<td class="role-power"><code>--power</code></td>
+							<td>Helyes válasz, pozitív visszajelzés, pontszám</td>
+						</tr>
+						<tr>
+							<td class="role-danger"><code>--danger</code></td>
+							<td>Helytelen válasz, sürgető timer (utolsó 5 mp)</td>
+						</tr>
+						<tr>
+							<td class="role-coin"><code>--coin</code></td>
+							<td>PIN, rangsor-helyezés, kiemelt szám</td>
+						</tr>
+						<tr>
+							<td class="role-magenta"><code>--magenta</code></td>
+							<td>Joker, elsődleges gomb hover</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="swatches">
+					<div class="swatch">
+						<div class="fill" style="background: var(--cabinet)"></div>
+						<div class="label"><strong>--cabinet</strong><span>háttér, sötétebb</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--cabinet-2)"></div>
+						<div class="label"><strong>--cabinet-2</strong><span>kártya-háttér</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--cabinet-3)"></div>
+						<div class="label"><strong>--cabinet-3</strong><span>háttér, világosabb</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--marquee)"></div>
+						<div class="label"><strong>--marquee</strong><span>elsődleges szöveg</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--marquee-dim)"></div>
+						<div class="label"><strong>--marquee-dim</strong><span>másodlagos szöveg</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--cyan)"></div>
+						<div class="label"><strong>--cyan</strong><span>elsődleges akcent</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--magenta)"></div>
+						<div class="label"><strong>--magenta</strong><span>joker akcent</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--power)"></div>
+						<div class="label"><strong>--power</strong><span>helyes / pozitív</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--danger)"></div>
+						<div class="label"><strong>--danger</strong><span>helytelen / sürgető</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--coin)"></div>
+						<div class="label"><strong>--coin</strong><span>PIN / pontszám</span></div>
+					</div>
+					<div class="swatch">
+						<div class="fill" style="background: var(--violet)"></div>
+						<div class="label"><strong>--violet</strong><span>gomb-kitöltés</span></div>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>Tipográfia</h2>
+				<div class="type-specimen">
+					<h3>Press Start 2P — <code>var(--font-display)</code></h3>
+					<p class="rule">
+						Csak RÖVID címekhez/kérdésekhez — sose hosszú prózához (nehezen olvasható nagy
+						mennyiségben).
+					</p>
+					<p class="sample font-display-sample">Ki alapította Rómát?</p>
+				</div>
+				<div class="type-specimen">
+					<h3>Silkscreen — <code>var(--font-led)</code></h3>
+					<p class="rule">Minden szám-jellegű kijelzés: timer, pontszám, PIN.</p>
+					<p class="sample font-led-sample">12&nbsp;&nbsp;4210&nbsp;&nbsp;773204</p>
+				</div>
+				<div class="type-specimen">
+					<h3>Inter — <code>var(--font-body)</code></h3>
+					<p class="rule">Minden más: gombszöveg, leírások, listák, form mezők.</p>
+					<p class="sample font-body-sample">
+						A csapat helyes válasza esetén a rendszer kiszámolja a pontot, figyelembe véve a decay
+						szorzót és a jokert.
+					</p>
+				</div>
+			</section>
+
+			<section>
+				<h2>Arcade panel</h2>
+				<p>
+					A kártyaszerű felületek (kérdés-kártya, ranglista, PIN/QR panel) alap mintája: neon-keret
+					+ finom scanline textúra.
+				</p>
+				<div class="arcade-panel">
+					<h3 style="position: relative; z-index: 1">Kérdés 4/8</h3>
+					<p style="position: relative; z-index: 1">Ki alapította Rómát a monda szerint?</p>
+				</div>
+			</section>
+
+			<section>
+				<h2>Komponensek</h2>
+
+				<h3>Button (<code>src/lib/components/Button.svelte</code>)</h3>
+				<div class="row">
+					<button class="btn primary">Primary</button>
+					<button class="btn secondary">Secondary</button>
+					<button class="btn danger">Danger</button>
+					<button class="btn ghost">Ghost</button>
+				</div>
+
+				<h3>ChoiceButton (<code>ChoiceButton.svelte</code>)</h3>
+				<div class="row">
+					<button class="choice">A opció</button>
+					<button class="choice selected">B opció (kiválasztva)</button>
+				</div>
+
+				<h3>TimerRing (<code>TimerRing.svelte</code>)</h3>
+				<div class="timer-demo">
+					<div class="ring full">18</div>
+					<div class="ring low">4</div>
+					<p class="rule">
+						Nyugodt cián sok hátralévő idővel, pulzáló <code>--danger</code> az utolsó 5
+						másodpercben.
+					</p>
+				</div>
+
+				<h3>TeamChip (<code>TeamChip.svelte</code>)</h3>
+				<div class="row">
+					<span class="chip">Sör Barátok</span>
+					<span class="chip own">Kvíz Királyok (saját csapat)</span>
+				</div>
+
+				<h3>PodiumCard (<code>PodiumCard.svelte</code>)</h3>
+				<div class="row" style="flex-direction: column; align-items: stretch">
+					<div class="podium-card top3">
+						<span class="rank">🥇</span><span class="name">Kvíz Királyok</span
+						><span class="score">4200 pont</span>
+					</div>
+					<div class="podium-card">
+						<span class="rank">4.</span><span class="name">Sör Barátok</span
+						><span class="score">2100 pont</span>
+					</div>
+				</div>
+			</section>
+		</main>
+	</body>
+</html>

@@ -351,3 +351,36 @@ Dokumentáció: `docs/features/design-themes.md` (új), `docs/features/tv-mode.m
 szakaszban, `docs/architecture/REALTIME_PROTOCOL.md` frissítve (TV Presence-
 minta, TV kliens-teendők a `question_show`/`timer_start`/`game_finished`
 eseményeknél).
+
+## 2026-08-08 — Fázis F0: Style guide + komponens-könyvtár (NEXT_STEPS.md előfeltétele)
+
+A `main`-re felkerült `NEXT_STEPS.md` (a `PROJECT_REVIEW.md` alapján írt
+roadmap) F–L fázisai egy `docs/design/STYLE_GUIDE.html`-re és egy
+"Fázis 3-ban létrehozott komponens-könyvtárra" hivatkoznak mint már meglévő
+alapra — egyik sem létezett a repóban (a tényleges Fázis 3 a PIN/QR/lobby
+flow volt, nem egy komponens-könyvtár; `src/lib/components/` eddig csak a
+`QuestionForm.svelte`-t tartalmazta). Rákérdeztem a felhasználónál — a
+válasz: építsem fel nulláról, a már meglévő `design_themes` token-rendszerre
+(Retro Arcade paletta) alapozva, mint az F–L fázisok tényleges alapja.
+
+`docs/design/STYLE_GUIDE.html`: önálló, statikus HTML referencia (nem
+SvelteKit route) — színpaletta-szerepek táblázata, tipográfia-specimenek,
+"arcade panel" minta (scanline textúra), és a komponens-könyvtár élő
+demója. A tokenek hardcode-olva vannak benne a seed pontos értékeivel
+(`supabase/migrations/20260808123000_design_themes.sql`) — ha a seed
+változik, ezt is frissíteni kell, dokumentálva a fájl fejlécében.
+
+`src/lib/components/`: `Button` (primary/secondary/danger/ghost, `href`
+esetén linkként renderel), `ChoiceButton` (válasz-opció, selected állapot),
+`TimerRing` (SVG körvisszaszámláló, `low` állapot ≤5 mp-nél pulzáló
+`--danger`-re vált — ugyanaz a küszöb, mint a Fázis 6 `sfx.ts`
+`playTick()`-jénél), `PinDisplay`, `TeamChip`, `PodiumCard` (top 3-nál
+érem-emoji), plusz `Input`/`Select`/`Checkbox` form-primitívek (a Fázis H
+és a leendő admin form-ok — B, C — előre láthatóan igényelni fogják).
+Minden komponens a legközelebbi ős `.cabinet`/token-`style` elemtől örökli
+a CSS custom property-ket, nincs saját beépített színkészletük.
+
+`docs/architecture/DESIGN_SYSTEM.md` (új): szín-szerepek, tipográfia-
+szabályok, arcade panel minta, komponens API-referencia — ez a dokumentum
+bővül tovább a G/H/J fázisokban (töréspontok, konzisztencia-jegyzetek,
+kontraszt/fókusz konvenciók).

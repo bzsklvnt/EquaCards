@@ -374,18 +374,19 @@ felsorolva, ha bármi a checklistából szándékosan kimaradt, és miért.
 
 ## Csomag-összefoglaló (mind a fenti fázisokhoz)
 
-| Csomag | Mire | Miért ez, nem saját megoldás |
-|---|---|---|
-| `sveltekit-superforms` + `zod` | Admin form-ok (Fázis B, C) | Bevett SvelteKit minta, validáció + hibakezelés dobozból, kevesebb boilerplate |
-| `svelte-french-toast` | Admin akció-visszajelzések | Könnyű, nem igényel saját toast-rendszer építést |
-| `chart.js` | Riport diagramok (Fázis D) | Már ismerős eszköz nálad más projektekből, jól karbantartható |
-| `canvas-confetti` | Kör-végi/végső top 3 ünneplés (Fázis I) | Kicsi, függőségmentes, nem kell saját konfetti-rendszert építeni |
+| Csomag                         | Mire                                    | Miért ez, nem saját megoldás                                                   |
+| ------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------ |
+| `sveltekit-superforms` + `zod` | Admin form-ok (Fázis B, C)              | Bevett SvelteKit minta, validáció + hibakezelés dobozból, kevesebb boilerplate |
+| `svelte-french-toast`          | Admin akció-visszajelzések              | Könnyű, nem igényel saját toast-rendszer építést                               |
+| `chart.js`                     | Riport diagramok (Fázis D)              | Már ismerős eszköz nálad más projektekből, jól karbantartható                  |
+| `canvas-confetti`              | Kör-végi/végső top 3 ünneplés (Fázis I) | Kicsi, függőségmentes, nem kell saját konfetti-rendszert építeni               |
 
 ---
 
 ## Amit szándékosan nem teszek be ebbe a listába
 
 A review 6. szakasza (Deliberate scope cuts) néhány dolgot tudatos kompromisszumként azonosít — ezeket **nem** javaslom most megoldani, mert nem blokkolják a hobbi-szintű használatot:
+
 - `evaluate_answer` RPC-ként, nem Edge Function-ként — funkcionálisan egyenértékű, csak akkor kellene portolni, ha valaha külső webhookként kellene hívni
 - Csapat-azonosítás `localStorage` tokennel, nem valódi auth — rendben van 40 fős, baráti közegben, nem lenne rendben pénzes/ellenséges környezetben
 - TV mód auth nélkül — a UUID nem kitalálható, és nincs rajta érzékeny adat
