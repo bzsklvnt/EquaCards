@@ -30,7 +30,8 @@
 		label,
 		color,
 		gridColor,
-		textColor
+		textColor,
+		yStepSize
 	}: {
 		type: 'bar' | 'line';
 		labels: string[];
@@ -39,6 +40,11 @@
 		color: string;
 		gridColor: string;
 		textColor: string;
+		/** Csak kis, ismert tartományú egész-szám metrikákhoz (pl. csapatszám) —
+		 * nagyobb/ismeretlen tartományú számláló-adatnál (pl. téma-használat)
+		 * ne add meg, mert stepSize:1 nagy értékeknél túl sűrű tengelyt adna;
+		 * a `precision: 0` alább önmagában is kizárja a törtszám-tick-eket. */
+		yStepSize?: number;
 	} = $props();
 
 	let canvas: HTMLCanvasElement;
@@ -68,8 +74,19 @@
 					legend: { display: false }
 				},
 				scales: {
-					x: { ticks: { color: textColor }, grid: { color: gridColor } },
-					y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+					x: {
+						ticks: { color: textColor, maxRotation: 45, minRotation: 0, autoSkip: true },
+						grid: { color: gridColor }
+					},
+					y: {
+						ticks: {
+							color: textColor,
+							precision: 0,
+							...(yStepSize ? { stepSize: yStepSize } : {})
+						},
+						grid: { color: gridColor },
+						beginAtZero: true
+					}
 				}
 			}
 		});
@@ -87,6 +104,8 @@
 <style>
 	.chart-wrap {
 		position: relative;
-		height: 16rem;
+		width: 100%;
+		min-width: 0;
+		height: 18rem;
 	}
 </style>

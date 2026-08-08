@@ -1084,3 +1084,32 @@ tisztán kozmetikai kérésre.
    `::before` címkés flex-sorrá alakul. Dokumentálva:
    `docs/architecture/DESIGN_SYSTEM.md` "Töréspontok" szakasz új
    "Admin táblázatok mobilon" alszakasza.
+
+---
+
+## 2026-08-08 — Fázis N4: Riport diagram javítások
+
+Két Chart.js konfigurációs hiba javítva a `/reports` oldalon:
+
+1. **Törtszám y-tengely.** A csapatszám-trend vonaldiagramja törtszám
+   lépésközt is mutathatott egy olyan metrikán, ami sosem lehet tört. A
+   megosztott `ReportChart.svelte` `y` skálája mostantól mindig
+   `precision: 0`-t kap; a csapatszám-diagram emellett egy új,
+   opcionális `yStepSize` prop-on keresztül explicit `1` lépésközt is
+   kap. Ezt a lépésközt **szándékosan nem** alkalmaztuk a téma-használati
+   oszlopdiagramokra is — azok nagyobb/ismeretlen tartományú számláló-
+   adatok, ahol egy fix `stepSize: 1` túl sűrű tengelyt eredményezne; ott
+   a `precision: 0` önmagában elég az egész-szám kényszerhez, a
+   tényleges lépésköz méretét Chart.js választja a tartomány alapján.
+2. **Oszlopdiagram túlcsordulás.** Az `x` tengely `ticks` konfigurációja
+   kiegészült `maxRotation: 45`/`autoSkip: true`-val (hosszabb téma-
+   címkék elfordulnak ahelyett, hogy átfednék egymást vagy levágódnának),
+   a `.chart-wrap` konténer magassága `16rem`-ről `18rem`-re nőtt, és
+   explicit `width: 100%`/`min-width: 0`-t kapott.
+
+Mindkét javítás a megosztott `ReportChart.svelte`-ben történt, tehát
+mindhárom jelenlegi diagram (csapatszám-trend, vizuális téma-használat,
+tartalmi téma-használat) egyaránt profitál belőle.
+
+Dokumentáció: `docs/features/reports.md` új "Diagram-konfiguráció
+javítások (Fázis N4)" alszakasz.

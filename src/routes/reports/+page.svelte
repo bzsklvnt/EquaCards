@@ -76,6 +76,7 @@
 					color={tokens['--cyan']}
 					gridColor={tokens['--cabinet-3']}
 					textColor={tokens['--marquee-dim']}
+					yStepSize={1}
 				/>
 			</div>
 		{/if}

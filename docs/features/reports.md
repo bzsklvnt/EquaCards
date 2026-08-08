@@ -84,6 +84,27 @@ erre a fázisra — lásd `docs/architecture/DATA_MODEL.md` 4. szakasz
   design-token színek (`--cyan`/`--violet`/`--coin`, `--cabinet-3`
   rácsvonal, `--marquee-dim` tengelyszöveg) átadásával.
 
+### Diagram-konfiguráció javítások (Fázis N4)
+
+Élő böngészős teszt két konkrét Chart.js-hibát talált:
+
+- **Törtszám y-tengely egész-szám metrikán:** a csapatszám-trend
+  vonaldiagramja alapból törtszám lépésközt (`0.1` stb.) is mutathat,
+  holott a csapatszám sosem lehet tört. Az `y` skála mostantól mindig
+  `precision: 0`-t kap (kizárja a törtszám-tick-eket), a vonaldiagram
+  emellett egy opcionális `yStepSize` prop-on keresztül explicit `1`
+  lépésközt is kap — ezt **csak** a csapatszám-trendnél adjuk át
+  (kis, ismert tartományú szám), a téma-használati oszlopdiagramoknál
+  nem, mert ott nagyobb/ismeretlen tartományú számláló-adat lehet, és a
+  fix `stepSize: 1` ott túl sűrű tengelyt adna — a `precision: 0` önmagában
+  elég az egész-szám kényszerhez, a lépésköz méretét Chart.js választja.
+- **Oszlopdiagram túlcsordulás/hiányzó tengelycímke:** az `x` tengely
+  `ticks` mostantól `maxRotation: 45`/`autoSkip: true`-t kap, hogy a
+  hosszabb téma-címkék elforduljanak, ne fedjék egymást vagy vágódjanak
+  le; a `.chart-wrap` konténer `height: 16rem`-ről `18rem`-re nőtt és
+  explicit `width: 100%`/`min-width: 0`-t kapott a defenzív layout
+  miatt.
+
 ## Elfogadott értelmezési döntés: "leggyorsabb válaszidő" → átlag
 
 A terv szövege "leggyorsabb válaszidők kérdéstípusonként"-t mond, de a
