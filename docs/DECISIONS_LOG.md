@@ -63,3 +63,32 @@ ellenőriztem: a build/lint/typecheck tiszta, a form action helyesen építi fel
 és küldi a kérést (a hálózati hívás pontosan itt bukott el, kódszinten nem),
 és a DB-oldalt közvetlenül SQL-lel (`pg_trigger`, `pg_policies`) + a Supabase
 security/performance advisorokkal igazoltam vissza.
+
+## 2026-08-08 — Fázis 2: Kérdésbank CRUD + témák + random húzás + cooldown
+
+Migráció (`supabase/migrations/20260808001114_question_bank.sql`):
+`themes`, `question_types` (+ seed), `questions`, `app_settings` (+ cooldown
+seed), `question_choice_options`/`question_slider_config`/
+`question_ordering_items`, `round_questions` + `last_used_at` trigger, audit
+trigger a `questions` + a három opció-táblán, `draw_random_questions_for_round()`
+RPC — mind a DATA_MODEL.md 2. szakasza alapján, dokumentálva a
+`docs/features/random-draw.md`-ben.
+
+Strukturális eltérés: a `round_questions.round_id` FK-ja miatt a `games`/
+`rounds` táblákat (4. szakasz, eredetileg Fázis 3-ra ütemezve) előre kellett
+hozni minimális oszlopkészlettel — enélkül a round_questions egyáltalán nem
+lett volna létrehozható. Fázis 3 erre épít rá (PIN/QR/lobby, `teams` tábla,
+a `games.pin` részleges unique indexe). A biztonsági/teljesítmény advisorok
+által jelzett problémákat (PUBLIC + anon/authenticated RPC-elérés az új
+`draw_random_questions_for_round`-on) ugyanúgy egyetlen migrációs fájlba
+fésülve javítottam, mint Fázis 1-ben.
+
+Admin felület: `/admin/themes` (CRUD), `/admin/questions` (lista + szűrés +
+típusonkénti dinamikus űrlap öt kérdéstípushoz), `/admin/games` +
+`/admin/games/[id]` (kvízeste/kör-előkészítés + Random húzás gomb).
+
+A böngészős E2E tesztelés itt is a Fázis 1-nél leírt sandbox-hálózati
+korlátba ütközött, ezért a `draw_random_questions_for_round` RPC-t,
+a cooldown-szűrést, a duplikátum-kizárást és a `last_used_at` triggert
+közvetlenül SQL-lel, valós teszt-adatokkal futtatva igazoltam vissza (majd
+a teszt-adatokat és a hozzájuk tartozó audit_logs bejegyzéseket töröltem).

@@ -188,6 +188,25 @@ limit 8;
 
 **Igaz/Hamis** a `question_choice_options`-t használja fixen 2 sorral ("Igaz" / "Hamis") — nem kell külön tábla.
 
+### Implementáció (Fázis 2, `supabase/migrations/20260808001114_question_bank.sql`)
+
+- **`games`/`rounds` előrehozva Fázis 3-ból:** a `round_questions.round_id`
+  FK-ja miatt a `games`/`rounds` táblák (4. szakasz) minimális
+  oszlopkészlettel már itt létrejöttek — enélkül a `round_questions` nem
+  lenne létrehozható. Fázis 3 erre építi rá a valós PIN/QR/lobby folyamatot,
+  a `teams` táblát, és a `games.pin`-re tervezett részleges unique
+  indexet (a jelenlegi `pin` oszlop egyszerű `unique not null`).
+- **`draw_random_questions_for_round(p_theme_id, p_round_id, p_count)`**
+  függvény valósítja meg a fenti random-húzás lekérdezést, kiegészítve egy
+  "már ebben a körben van" kizárással (ismételt húzásnál ne próbáljon
+  duplikátumot beszúrni a `round_questions` elsődleges kulcsa ellen) —
+  részletek: `docs/features/random-draw.md`.
+- RLS: `themes`/`question_types`/`questions`/`round_questions`/opció-táblák
+  `role_id in (1,2)`-re (a fenti szöveges szabály szerint); `games`/`rounds`
+  `role_id in (1,2,3)`-ra (host is vezérelheti). Az `app_settings` "mindenki
+  olvashatja" szabályát `authenticated`-re értelmeztük (nem `anon`-ra),
+  ugyanúgy, ahogy a Fázis 1 `profiles`/`roles` szabályainál.
+
 ---
 
 ## 3. Válaszok — normalizálva, típusonként külön tábla (valódi FK-kkal)

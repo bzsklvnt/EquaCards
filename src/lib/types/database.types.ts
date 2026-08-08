@@ -12,6 +12,35 @@ export type Database = {
 	};
 	public: {
 		Tables: {
+			app_settings: {
+				Row: {
+					key: string;
+					updated_at: string | null;
+					updated_by: string | null;
+					value: Json;
+				};
+				Insert: {
+					key: string;
+					updated_at?: string | null;
+					updated_by?: string | null;
+					value: Json;
+				};
+				Update: {
+					key?: string;
+					updated_at?: string | null;
+					updated_by?: string | null;
+					value?: Json;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'app_settings_updated_by_fkey';
+						columns: ['updated_by'];
+						isOneToOne: false;
+						referencedRelation: 'profiles';
+						referencedColumns: ['id'];
+					}
+				];
+			};
 			audit_logs: {
 				Row: {
 					action: string;
@@ -56,6 +85,67 @@ export type Database = {
 					}
 				];
 			};
+			games: {
+				Row: {
+					created_at: string | null;
+					current_question_id: string | null;
+					current_round_id: string | null;
+					finished_at: string | null;
+					host_id: string | null;
+					id: string;
+					pin: string;
+					started_at: string | null;
+					status: string;
+					title: string;
+				};
+				Insert: {
+					created_at?: string | null;
+					current_question_id?: string | null;
+					current_round_id?: string | null;
+					finished_at?: string | null;
+					host_id?: string | null;
+					id?: string;
+					pin: string;
+					started_at?: string | null;
+					status?: string;
+					title: string;
+				};
+				Update: {
+					created_at?: string | null;
+					current_question_id?: string | null;
+					current_round_id?: string | null;
+					finished_at?: string | null;
+					host_id?: string | null;
+					id?: string;
+					pin?: string;
+					started_at?: string | null;
+					status?: string;
+					title?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'games_current_question_id_fkey';
+						columns: ['current_question_id'];
+						isOneToOne: false;
+						referencedRelation: 'questions';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'games_current_round_id_fkey';
+						columns: ['current_round_id'];
+						isOneToOne: false;
+						referencedRelation: 'rounds';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'games_host_id_fkey';
+						columns: ['host_id'];
+						isOneToOne: false;
+						referencedRelation: 'profiles';
+						referencedColumns: ['id'];
+					}
+				];
+			};
 			profiles: {
 				Row: {
 					created_at: string | null;
@@ -85,6 +175,199 @@ export type Database = {
 					}
 				];
 			};
+			question_choice_options: {
+				Row: {
+					id: string;
+					image_url: string | null;
+					is_correct: boolean;
+					option_text: string;
+					order_index: number;
+					question_id: string | null;
+				};
+				Insert: {
+					id?: string;
+					image_url?: string | null;
+					is_correct?: boolean;
+					option_text: string;
+					order_index: number;
+					question_id?: string | null;
+				};
+				Update: {
+					id?: string;
+					image_url?: string | null;
+					is_correct?: boolean;
+					option_text?: string;
+					order_index?: number;
+					question_id?: string | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'question_choice_options_question_id_fkey';
+						columns: ['question_id'];
+						isOneToOne: false;
+						referencedRelation: 'questions';
+						referencedColumns: ['id'];
+					}
+				];
+			};
+			question_ordering_items: {
+				Row: {
+					correct_position: number;
+					id: string;
+					item_text: string;
+					question_id: string | null;
+				};
+				Insert: {
+					correct_position: number;
+					id?: string;
+					item_text: string;
+					question_id?: string | null;
+				};
+				Update: {
+					correct_position?: number;
+					id?: string;
+					item_text?: string;
+					question_id?: string | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'question_ordering_items_question_id_fkey';
+						columns: ['question_id'];
+						isOneToOne: false;
+						referencedRelation: 'questions';
+						referencedColumns: ['id'];
+					}
+				];
+			};
+			question_slider_config: {
+				Row: {
+					correct_value: number;
+					max_value: number;
+					min_value: number;
+					question_id: string;
+					step: number;
+					tolerance: number;
+				};
+				Insert: {
+					correct_value: number;
+					max_value: number;
+					min_value: number;
+					question_id: string;
+					step?: number;
+					tolerance?: number;
+				};
+				Update: {
+					correct_value?: number;
+					max_value?: number;
+					min_value?: number;
+					question_id?: string;
+					step?: number;
+					tolerance?: number;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'question_slider_config_question_id_fkey';
+						columns: ['question_id'];
+						isOneToOne: true;
+						referencedRelation: 'questions';
+						referencedColumns: ['id'];
+					}
+				];
+			};
+			question_types: {
+				Row: {
+					code: string;
+					description: string | null;
+					id: number;
+					label: string;
+					max_options: number | null;
+					min_options: number | null;
+				};
+				Insert: {
+					code: string;
+					description?: string | null;
+					id: number;
+					label: string;
+					max_options?: number | null;
+					min_options?: number | null;
+				};
+				Update: {
+					code?: string;
+					description?: string | null;
+					id?: number;
+					label?: string;
+					max_options?: number | null;
+					min_options?: number | null;
+				};
+				Relationships: [];
+			};
+			questions: {
+				Row: {
+					created_at: string | null;
+					created_by: string | null;
+					id: string;
+					image_url: string | null;
+					last_used_at: string | null;
+					points: number | null;
+					points_decay: boolean | null;
+					points_multiplier: number | null;
+					prompt: string;
+					question_type_id: number;
+					theme_id: string | null;
+					time_limit_seconds: number | null;
+				};
+				Insert: {
+					created_at?: string | null;
+					created_by?: string | null;
+					id?: string;
+					image_url?: string | null;
+					last_used_at?: string | null;
+					points?: number | null;
+					points_decay?: boolean | null;
+					points_multiplier?: number | null;
+					prompt: string;
+					question_type_id: number;
+					theme_id?: string | null;
+					time_limit_seconds?: number | null;
+				};
+				Update: {
+					created_at?: string | null;
+					created_by?: string | null;
+					id?: string;
+					image_url?: string | null;
+					last_used_at?: string | null;
+					points?: number | null;
+					points_decay?: boolean | null;
+					points_multiplier?: number | null;
+					prompt?: string;
+					question_type_id?: number;
+					theme_id?: string | null;
+					time_limit_seconds?: number | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'questions_created_by_fkey';
+						columns: ['created_by'];
+						isOneToOne: false;
+						referencedRelation: 'profiles';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'questions_question_type_id_fkey';
+						columns: ['question_type_id'];
+						isOneToOne: false;
+						referencedRelation: 'question_types';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'questions_theme_id_fkey';
+						columns: ['theme_id'];
+						isOneToOne: false;
+						referencedRelation: 'themes';
+						referencedColumns: ['id'];
+					}
+				];
+			};
 			roles: {
 				Row: {
 					code: string;
@@ -103,12 +386,115 @@ export type Database = {
 				};
 				Relationships: [];
 			};
+			round_questions: {
+				Row: {
+					order_index: number;
+					question_id: string;
+					round_id: string;
+					used_at: string | null;
+				};
+				Insert: {
+					order_index: number;
+					question_id: string;
+					round_id: string;
+					used_at?: string | null;
+				};
+				Update: {
+					order_index?: number;
+					question_id?: string;
+					round_id?: string;
+					used_at?: string | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'round_questions_question_id_fkey';
+						columns: ['question_id'];
+						isOneToOne: false;
+						referencedRelation: 'questions';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'round_questions_round_id_fkey';
+						columns: ['round_id'];
+						isOneToOne: false;
+						referencedRelation: 'rounds';
+						referencedColumns: ['id'];
+					}
+				];
+			};
+			rounds: {
+				Row: {
+					game_id: string | null;
+					id: string;
+					order_index: number;
+					title: string;
+				};
+				Insert: {
+					game_id?: string | null;
+					id?: string;
+					order_index: number;
+					title: string;
+				};
+				Update: {
+					game_id?: string | null;
+					id?: string;
+					order_index?: number;
+					title?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'rounds_game_id_fkey';
+						columns: ['game_id'];
+						isOneToOne: false;
+						referencedRelation: 'games';
+						referencedColumns: ['id'];
+					}
+				];
+			};
+			themes: {
+				Row: {
+					id: string;
+					title: string;
+				};
+				Insert: {
+					id?: string;
+					title: string;
+				};
+				Update: {
+					id?: string;
+					title?: string;
+				};
+				Relationships: [];
+			};
 		};
 		Views: {
 			[_ in never]: never;
 		};
 		Functions: {
 			current_user_role_id: { Args: never; Returns: number };
+			draw_random_questions_for_round: {
+				Args: { p_count?: number; p_round_id: string; p_theme_id: string };
+				Returns: {
+					created_at: string | null;
+					created_by: string | null;
+					id: string;
+					image_url: string | null;
+					last_used_at: string | null;
+					points: number | null;
+					points_decay: boolean | null;
+					points_multiplier: number | null;
+					prompt: string;
+					question_type_id: number;
+					theme_id: string | null;
+					time_limit_seconds: number | null;
+				}[];
+				SetofOptions: {
+					from: '*';
+					to: 'questions';
+					isOneToOne: false;
+					isSetofReturn: true;
+				};
+			};
 		};
 		Enums: {
 			[_ in never]: never;
