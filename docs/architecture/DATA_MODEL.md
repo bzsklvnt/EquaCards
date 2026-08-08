@@ -27,6 +27,7 @@ insert into roles (id, code, label) values
 create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null,
+  email text,                                -- Fázis B, lásd docs/features/user-management.md
   role_id smallint references roles(id) not null default 4,
   created_at timestamptz default now()
 );
@@ -47,6 +48,16 @@ A fenti terven felül a megvalósítás a következőket vezette be, mert a műk
 - **`current_user_role_id()` segédfüggvény** (`security definer`, csak `authenticated`-nek grantelve): a bejelentkezett felhasználó `role_id`-ját adja vissza, hogy a `profiles`/`audit_logs` RLS szabályok ne okozzanak rekurzív policy-kiértékelést a `profiles` táblán saját magán.
 - **Konkrét RLS policy-k** a `roles`/`profiles`/`audit_logs` táblákon a fenti szöveges szabály alapján: mindenki olvashatja a saját profilját és a `roles` referenciatáblát; `role_id in (1,2)` olvashatja az összes profilt; csak `super_admin` (1) módosíthat bármely profilt (pl. role kiosztás), egy felhasználó a sajátját szerkesztheti, de a `role_id`-t nem tudja saját magának módosítani.
 - A `handle_new_user`/`log_table_change` trigger-függvényeken és a `current_user_role_id()`-n a public/anon RPC-elérés le van tiltva (`revoke execute ... from anon, authenticated`, `current_user_role_id`-nál csak `authenticated`-nek visszaadva) — a Supabase security advisor ezt jelezte, mivel alapból minden új public-séma függvényre EXECUTE jogot ad `anon`/`authenticated`-nek is.
+
+### Implementáció (Fázis B, `supabase/migrations/20260808131500_profiles_email.sql`)
+
+- **`profiles.email`** új oszlop — a `/admin/users` felhasználólistája
+  megjeleníti, a `handle_new_user()` trigger mostantól ezt is átmásolja
+  `auth.users.email`-ből signupkor (nem szinkronizálódik utólagos
+  email-változtatásnál, ugyanaz a korlát, mint a `display_name`-nél).
+  **Nem volt szükség új RLS policy-ra** — a `profiles_update_super_admin`
+  (csak `role_id = 1` módosíthat bármely profilt) már a Fázis 1 óta
+  pontosan ezt a célt szolgálja. Részletek: `docs/features/user-management.md`.
 
 ### Globális beállítások (superadmin szerkeszti)
 

@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { Toaster } from 'svelte-sonner';
 	import Button from '$lib/components/Button.svelte';
 
 	let { data, children } = $props();
@@ -42,6 +43,14 @@
 </script>
 
 <div class="admin-shell" style={themeCss}>
+	<Toaster
+		theme="dark"
+		toastOptions={{
+			style:
+				'background: var(--cabinet-2); color: var(--marquee); border: 2px solid var(--cyan); font-family: var(--font-body);'
+		}}
+	/>
+
 	<button
 		type="button"
 		class="hamburger"

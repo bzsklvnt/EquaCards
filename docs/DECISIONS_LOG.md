@@ -699,3 +699,42 @@ Dokumentáció: új `docs/features/timer.md` a végleges timer-mechanizmusról
 (beleértve az ismert korlátot: egy, a `timer_start`-ot teljesen lemaradó,
 majd csak lezárás után visszacsatlakozó kliens nem lát vizuális
 visszaszámlálót, de a beküldése akkor is biztonságosan elutasításra kerül).
+
+## 2026-08-08 — Fázis B: Admin felhasználó- és jogosultságkezelő UI
+
+A review #1 admin-hézaga: eddig minden role-váltás kézi SQL volt. Migráció
+(`supabase/migrations/20260808131500_profiles_email.sql`): `profiles.email`
+új oszlop, a `handle_new_user()` trigger mostantól ezt is kitölti
+signupkor (service-role kliens/admin API helyett — nincs is
+service-role kulcs konfigurálva ebben az appban, és bevezetni egyet csak
+egy email-oszlop kedvéért nagyobb biztonsági felület lett volna egy kis
+appban, mint kiegészíteni egy már meglévő triggert).
+
+`/admin/users` (`role_id = 1` guard, route-szinten, mint `/admin/settings`):
+`profiles` + `roles` lista, soronkénti `Select` + auto-submit role-váltó
+form (`?/updateRole` action). **Nem kellett új RLS policy** — a
+`profiles_update_super_admin` (csak super_admin módosíthat bármely
+profilt) már a Fázis 1 óta létezik pontosan erre a célra. Minden
+role-váltás a meglévő `log_table_change()` audit triggeren keresztül
+automatikusan naplózódik.
+
+**Önmagam lefokozása elleni védelem**: alkalmazás-szinten (nem RLS-ben,
+mert ez nem jogosultság-kiszivárgás, hanem elkerülhető önmagunknak okozott
+kizárás) — ha a bejelentkezett super_admin a saját role_id-ját próbálná
+1-ről másra váltani, az action elutasítja egy magyarázó hibaüzenettel.
+
+**Két tudatos eltérés a NEXT_STEPS.md csomag-javaslataitól** (indoklás
+részletesen `docs/features/user-management.md`-ben):
+
+- `svelte-french-toast` helyett `svelte-sonner` — az előbbi
+  `peerDependencies`-e csak Svelte 3/4-et enged, ez az app Svelte 5-ös; a
+  `svelte-sonner` explicit Svelte 5-kompatibilis. A javaslat szándéka (ne
+  építsünk saját toast-rendszert) ettől függetlenül teljesül.
+- Nincs `sveltekit-superforms`/`zod` — a repo egyetlen másik admin CRUD
+  képernyője sem használ superforms-ot (mind natív form action + kézi
+  validáció), egy darab, egymezős dropdown-form miatt új mintát bevezetni
+  inkonzisztenciát okozott volna a meglévő négy CRUD-képernyővel.
+
+Dokumentáció: új `docs/features/user-management.md`,
+`docs/architecture/DATA_MODEL.md` 1. szakasz (`profiles.email` +
+"Implementáció (Fázis B)" alszakasz).

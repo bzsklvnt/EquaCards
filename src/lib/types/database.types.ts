@@ -361,18 +361,21 @@ export type Database = {
 				Row: {
 					created_at: string | null;
 					display_name: string;
+					email: string | null;
 					id: string;
 					role_id: number;
 				};
 				Insert: {
 					created_at?: string | null;
 					display_name: string;
+					email?: string | null;
 					id: string;
 					role_id?: number;
 				};
 				Update: {
 					created_at?: string | null;
 					display_name?: string;
+					email?: string | null;
 					id?: string;
 					role_id?: number;
 				};
