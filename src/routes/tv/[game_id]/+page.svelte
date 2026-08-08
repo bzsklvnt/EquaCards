@@ -18,6 +18,7 @@
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
+	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -173,10 +174,12 @@
 	{:else if currentQuestion}
 		{#key currentQuestion.question_id}
 			<div class="screen" in:fly={{ y: 24, duration: 350 }}>
-				<p class="round-title">
-					{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
-				</p>
-				<p class="prompt">{currentQuestion.prompt}</p>
+				<ArcadePanel>
+					<p class="round-title">
+						{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
+					</p>
+					<p class="prompt">{currentQuestion.prompt}</p>
+				</ArcadePanel>
 			</div>
 		{/key}
 		{#if timerInfo}

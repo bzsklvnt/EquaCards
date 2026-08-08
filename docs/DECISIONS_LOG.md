@@ -582,3 +582,57 @@ telepítve a sandboxban) audit futott, nem csak kód-átolvasás.
 Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Kontraszt és
 fókusz-konvenciók (Fázis J)" szakasz, `docs/design/STYLE_GUIDE.html`
 frissítve a javított `.btn.primary` háttérrel és `min-height`/`min-width`-szel.
+
+## 2026-08-08 — Fázis K: Vizuális QA a STYLE_GUIDE.html alapján
+
+Tételes összevetés a `docs/design/STYLE_GUIDE.html` referencia és a
+tényleges `src/lib/components/*` + `/admin`/`/host`/`/play`/`/tv`
+implementáció között (kód-szintű, plusz a Fázis J-ben megismert
+axe-core-os ellenőrzés magára a STYLE_GUIDE.html-re). Talált és javított
+eltérések:
+
+- **Hardcode-olt hex szín**: `QuestionForm.svelte` `.error { color:
+#b91c1c }` — nem a token-rendszerből jött, `var(--danger)`-re cserélve.
+  Ez volt az **egyetlen** hardcode-olt hex az egész `src/`-ben (ellenőrizve
+  `grep`-pel).
+- **Hiányzó scanline a PIN/QR panelen**: a `PinDisplay.svelte` csak a
+  keretet/hátteret örökölte az "arcade panel" mintából, a scanline
+  `::before` réteg soha nem került bele (Fázis F0-s mulasztás). Pótolva.
+- **A kérdés-kártya sosem létezett ténylegesen**: a STYLE_GUIDE.html
+  "Arcade panel" demója kifejezetten a kérdés-promptot mutatja be neon-
+  kerettel + scanline-nal, de a valóságban `/host`, `/play/[pin]` és `/tv`
+  a kérdés-promptot sosem csomagolta be semmilyen panelbe — csupasz
+  szöveg volt a háttér-gradiensen. Új, megosztott `ArcadePanel.svelte`
+  (mert a minta pontosan ugyanúgy ismétlődik mindhárom felületen — ez a
+  "csak akkor absztrahálunk, ha tényleg ismétlődik" elv tankönyvi esete),
+  bevezetve mindhárom helyen.
+- **`--magenta` dokumentált szerepe elavult volt**: a színszerep-táblázat
+  (STYLE_GUIDE.html + DESIGN_SYSTEM.md) még Fázis F0 óta "Joker,
+  elsődleges gomb hover" feliratot viselt, de a joker gomb Fázis H óta
+  ténylegesen `--coin`/`--danger` kombót használ (tudatos döntés,
+  dokumentálva is volt a Fázis H bejegyzésben) — csak a szín-szerep
+  táblázat nem lett frissítve. Javítva mindkét dokumentumban, és
+  hozzáadva egy tényleges joker-gomb demó a STYLE_GUIDE.html-hez (eddig
+  ez sem volt benne).
+- **Hiányzó PinDisplay demó**: a STYLE_GUIDE.html "Komponensek"
+  szakaszában soha nem volt `PinDisplay` demó (Button, ChoiceButton,
+  TimerRing, TeamChip, PodiumCard igen) — pótolva.
+- **`PodiumCard` vs. arcade-panel szöveg pontosítva**: az "Arcade panel"
+  szakasz szövege (mindkét dokumentumban) korábban explicit
+  "ranglista-kártya"-ként sorolta fel az arcade-panel egyik
+  alkalmazásaként, holott a `PodiumCard` már a STYLE_GUIDE.html saját
+  demójában is a rangsor-alapú keretszínezést használja (nem
+  `--violet`/scanline). Ez nem kód-hiba, csak dokumentáció-pontatlanság
+  volt — javítva, és explicit rögzítve, hogy ez tudatos UX döntés, nem
+  elkanyarodás.
+
+Axe-core megerősítette: a STYLE_GUIDE.html minden módosítás után is 0
+violation. Az `ArcadePanel`/`PinDisplay` változtatások élő böngészős
+vizuális hatását — a `/host`/`/play`/`/tv` oldalak Supabase-függősége
+miatt — a felhasználónak kell ellenőriznie éles böngészőben.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` "Arcade panel" szakasz
+átírva + `ArcadePanel.svelte` felvéve a komponens-könyvtár táblázatba,
+`--magenta` szerep-leírás javítva; `docs/design/STYLE_GUIDE.html` PinDisplay
+
+- joker-gomb demóval és a javított szövegekkel/CSS-sel kiegészítve.

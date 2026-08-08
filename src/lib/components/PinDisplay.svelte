@@ -11,17 +11,20 @@
 </script>
 
 <div class="pin-panel">
-	<div class="pin">{pin}</div>
-	{#if qrDataUrl}
-		<img src={qrDataUrl} alt="QR kód a csatlakozáshoz" />
-	{/if}
-	{#if joinUrl}
-		<p class="join-url">{joinUrl}</p>
-	{/if}
+	<div class="pin-panel-content">
+		<div class="pin">{pin}</div>
+		{#if qrDataUrl}
+			<img src={qrDataUrl} alt="QR kód a csatlakozáshoz" />
+		{/if}
+		{#if joinUrl}
+			<p class="join-url">{joinUrl}</p>
+		{/if}
+	</div>
 </div>
 
 <style>
 	.pin-panel {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -31,6 +34,33 @@
 		border-radius: 1rem;
 		padding: 1.5rem 2rem;
 		box-shadow: 0 0 24px color-mix(in srgb, var(--violet) 35%, transparent);
+		overflow: hidden;
+	}
+
+	/* Fázis K — az "arcade panel" mintának (docs/design/STYLE_GUIDE.html)
+	   ez a scanline-textúrája hiányzott innen; a többi kártyaszerű
+	   elemmel (kérdés-kártya) most már konzisztens. */
+	.pin-panel::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: repeating-linear-gradient(
+			to bottom,
+			rgba(255, 255, 255, 0.035) 0px,
+			rgba(255, 255, 255, 0.035) 1px,
+			transparent 1px,
+			transparent 3px
+		);
+		pointer-events: none;
+	}
+
+	.pin-panel-content {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
 	}
 
 	.pin {

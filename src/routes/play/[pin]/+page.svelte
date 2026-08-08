@@ -27,6 +27,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
+	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -397,10 +398,12 @@
 		{:else if currentQuestion}
 			{#key currentQuestion.question_id}
 				<div in:fly={{ y: 16, duration: 300 }}>
-					<p class="round-title">
-						{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
-					</p>
-					<p class="prompt">{currentQuestion.prompt}</p>
+					<ArcadePanel>
+						<p class="round-title">
+							{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
+						</p>
+						<p class="prompt">{currentQuestion.prompt}</p>
+					</ArcadePanel>
 				</div>
 			{/key}
 			{#if timerInfo}

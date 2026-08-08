@@ -337,7 +337,7 @@
 	}
 
 	.error {
-		color: #b91c1c;
+		color: var(--danger);
 	}
 
 	/* Fázis J — a natív <select>/<input type="radio"> szándékosan nem

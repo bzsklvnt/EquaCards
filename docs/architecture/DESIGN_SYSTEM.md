@@ -16,17 +16,17 @@ független, kőbe vésett paletta. Ha a seed változik, ezeket is frissíteni ke
 
 ## Szín-szerepek
 
-| Token                                       | Szerep                                                                  |
-| ------------------------------------------- | ----------------------------------------------------------------------- |
-| `--cyan`                                    | Elsődleges interaktív elem (kiválasztott állapot, fókusz-gyűrű, linkek) |
-| `--power`                                   | Helyes válasz, pozitív visszajelzés, pontszám kiemelés                  |
-| `--danger`                                  | Helytelen válasz, sürgető timer (utolsó 5 másodperc)                    |
-| `--coin`                                    | PIN, rangsor-helyezés, kiemelt szám                                     |
-| `--magenta`                                 | Joker, elsődleges gomb hover-állapota                                   |
-| `--violet`                                  | Gomb-kitöltés (elsődleges gomb alapállapota)                            |
-| `--cabinet` / `--cabinet-2` / `--cabinet-3` | Háttér-gradiens (sötéttől világosabb felé)                              |
-| `--marquee`                                 | Elsődleges szöveg                                                       |
-| `--marquee-dim`                             | Másodlagos szöveg, placeholder, inaktív elem                            |
+| Token                                       | Szerep                                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------------- |
+| `--cyan`                                    | Elsődleges interaktív elem (kiválasztott állapot, fókusz-gyűrű, linkek)   |
+| `--power`                                   | Helyes válasz, pozitív visszajelzés, pontszám kiemelés                    |
+| `--danger`                                  | Helytelen válasz, sürgető timer (utolsó 5 másodperc)                      |
+| `--coin`                                    | PIN, rangsor-helyezés, kiemelt szám, joker akcent (`--danger`-rel párban) |
+| `--magenta`                                 | Elsődleges gomb hover-állapota                                            |
+| `--violet`                                  | Gomb-kitöltés (elsődleges gomb alapállapota)                              |
+| `--cabinet` / `--cabinet-2` / `--cabinet-3` | Háttér-gradiens (sötéttől világosabb felé)                                |
+| `--marquee`                                 | Elsődleges szöveg                                                         |
+| `--marquee-dim`                             | Másodlagos szöveg, placeholder, inaktív elem                              |
 
 **Szabály:** ne keveredjenek a szerepek — pl. `--danger` sose dekoratív
 elem, csak hiba/sürgetés jelzésére. Ha egy komponensnek új szín-szerep
@@ -43,27 +43,43 @@ vezess be ad-hoc hex-kódot.
 
 ## Arcade panel
 
-A kártyaszerű felületek (kérdés-kártya, ranglista-kártya, PIN/QR panel)
-alap mintája: `var(--cabinet-2)` háttér, `2px solid var(--violet)` keret,
-`1rem` lekerekítés, finom scanline textúra (`repeating-linear-gradient`
-vízszintes csíkokkal, ~3.5% opacitású fehér). Lásd
-`docs/design/STYLE_GUIDE.html` "Arcade panel" szakasza az élő példáért.
+A kártyaszerű felületek alap mintája: `var(--cabinet-2)` háttér,
+`2px solid var(--violet)` keret, `1rem` lekerekítés, finom scanline
+textúra (`repeating-linear-gradient` vízszintes csíkokkal, ~3.5%
+opacitású fehér). Lásd `docs/design/STYLE_GUIDE.html` "Arcade panel"
+szakasza az élő példáért. Két konkrét alkalmazása:
+
+- **`ArcadePanel.svelte`** (Fázis K) — a kérdés-kártyát csomagolja be
+  vele mindhárom élő felület (`/host`, `/play/[pin]`, `/tv`), pontosan a
+  STYLE_GUIDE.html demójának megfelelően.
+- **`PinDisplay.svelte`** — saját, hasonló de nem azonos implementáció
+  (extra `box-shadow` glow), Fázis K-ban kapta meg a hiányzó
+  scanline-t (korábban csak a keretet/hátteret örökölte az
+  arcade-panel mintából).
+
+**`PodiumCard.svelte` (ranglista-sor) szándékosan _nem_ az arcade-panel
+mintát követi** — ezt a STYLE_GUIDE.html saját demója is így mutatja:
+rangsor-alapú keretszín (`--marquee-dim` alapból, `--coin` a top 3-nál,
+`--cyan` a sajátnál), scanline és `--violet` keret nélkül. Ez tudatos UX
+döntés (a helyezés vizuálisan megkülönbözteti a sorokat), nem az
+arcade-panel mintától való véletlen elkanyarodás.
 
 ## Komponens-könyvtár (`src/lib/components/`)
 
-| Komponens                 | Props                                                                                                                                  | Jegyzet                                                                                                    |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `Button.svelte`           | `variant` (`primary`\|`secondary`\|`danger`\|`ghost`), `type`, `disabled`, `href`, `onclick`, `children`                               | `href` esetén `<a>`-ként renderel, egyébként `<button>`-ként                                               |
-| `ChoiceButton.svelte`     | `text`, `selected`, `disabled`, `onclick`                                                                                              | Egy/több-választós válasz-opció                                                                            |
-| `TimerRing.svelte`        | `secondsLeft`, `duration`, `size`, `inactive`                                                                                          | SVG körvisszaszámláló, `low` (≤5 mp) pulzáló `--danger`, `inactive` szürke forgó "dolgozom" állapot        |
-| `PinDisplay.svelte`       | `pin`, `qrDataUrl`, `joinUrl`                                                                                                          | PIN + QR + csatlakozási URL egy arcade panelben                                                            |
-| `TeamChip.svelte`         | `name`, `own`                                                                                                                          | Csapatnév pill-jelvény, `own` kiemeli a sajátot                                                            |
-| `PodiumCard.svelte`       | `rank`, `name`, `score`, `scoreLabel`, `own`                                                                                           | Ranglista-sor, top 3-nál érem-emoji                                                                        |
-| `Input.svelte`            | `label`, `name`, `type`, `value` (bindable), `placeholder`, `required`, `maxlength`, `minlength`, `min`, `max`, `step`, `autocomplete` | Label + input, min. 44px magasság érintéshez                                                               |
-| `Select.svelte`           | `label`, `name`, `value` (bindable), `required`, `children`, `onchange`                                                                | Label + select, `children` az `<option>` elemekhez                                                         |
-| `Checkbox.svelte`         | `label`, `name`, `checked` (bindable), `value`, `onchange`                                                                             | Label + checkbox, `accent-color: var(--cyan)`                                                              |
-| `Textarea.svelte`         | `label`, `name`, `value` (bindable), `placeholder`, `required`, `rows`, `spellcheck`, `monospace`                                      | `monospace` a `--font-led`-et alkalmazza (pl. JSON-szerkesztőknél)                                         |
-| `ReconnectOverlay.svelte` | `message`                                                                                                                              | Teljes képernyős "Kapcsolat helyreállítása…" overlay `inactive` `TimerRing`-gel — `/play`, `/tv` (Fázis I) |
+| Komponens                 | Props                                                                                                                                  | Jegyzet                                                                                                                    |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `Button.svelte`           | `variant` (`primary`\|`secondary`\|`danger`\|`ghost`), `type`, `disabled`, `href`, `onclick`, `children`                               | `href` esetén `<a>`-ként renderel, egyébként `<button>`-ként                                                               |
+| `ChoiceButton.svelte`     | `text`, `selected`, `disabled`, `onclick`                                                                                              | Egy/több-választós válasz-opció                                                                                            |
+| `TimerRing.svelte`        | `secondsLeft`, `duration`, `size`, `inactive`                                                                                          | SVG körvisszaszámláló, `low` (≤5 mp) pulzáló `--danger`, `inactive` szürke forgó "dolgozom" állapot                        |
+| `PinDisplay.svelte`       | `pin`, `qrDataUrl`, `joinUrl`                                                                                                          | PIN + QR + csatlakozási URL egy arcade panelben                                                                            |
+| `TeamChip.svelte`         | `name`, `own`                                                                                                                          | Csapatnév pill-jelvény, `own` kiemeli a sajátot                                                                            |
+| `PodiumCard.svelte`       | `rank`, `name`, `score`, `scoreLabel`, `own`                                                                                           | Ranglista-sor, top 3-nál érem-emoji                                                                                        |
+| `Input.svelte`            | `label`, `name`, `type`, `value` (bindable), `placeholder`, `required`, `maxlength`, `minlength`, `min`, `max`, `step`, `autocomplete` | Label + input, min. 44px magasság érintéshez                                                                               |
+| `Select.svelte`           | `label`, `name`, `value` (bindable), `required`, `children`, `onchange`                                                                | Label + select, `children` az `<option>` elemekhez                                                                         |
+| `Checkbox.svelte`         | `label`, `name`, `checked` (bindable), `value`, `onchange`                                                                             | Label + checkbox, `accent-color: var(--cyan)`                                                                              |
+| `Textarea.svelte`         | `label`, `name`, `value` (bindable), `placeholder`, `required`, `rows`, `spellcheck`, `monospace`                                      | `monospace` a `--font-led`-et alkalmazza (pl. JSON-szerkesztőknél)                                                         |
+| `ReconnectOverlay.svelte` | `message`                                                                                                                              | Teljes képernyős "Kapcsolat helyreállítása…" overlay `inactive` `TimerRing`-gel — `/play`, `/tv` (Fázis I)                 |
+| `ArcadePanel.svelte`      | `children`                                                                                                                             | Generikus arcade-panel wrapper (keret + scanline) — a kérdés-kártyát csomagolja be `/host`, `/play/[pin]`, `/tv` (Fázis K) |
 
 **Szándékosan nem lett belőlük komponens:** a `question_type_id` `<select>`
 (a Svelte fordító csak egy literál, nem-absztrahált elemen tudja alkalmazni

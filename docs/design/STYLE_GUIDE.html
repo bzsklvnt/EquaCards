@@ -94,8 +94,9 @@
 				gap: 1rem;
 			}
 
-			/* --- Arcade panel: az alap kártya-minta minden borítéknál (kérdés-kártya,
-	   ranglista-kártya, PIN/QR panel) --- */
+			/* --- Arcade panel: az alap kártya-minta (kérdés-kártya, PIN/QR panel) —
+	   a PodiumCard/ranglista-sor szándékosan NEM ezt követi, lásd
+	   docs/architecture/DESIGN_SYSTEM.md "Arcade panel" szakasza --- */
 			.arcade-panel {
 				position: relative;
 				background: var(--cabinet-2);
@@ -232,6 +233,14 @@
 				border-color: transparent;
 			}
 
+			/* --- Joker gomb (/play/[pin] .joker-wrap felülírás a Button primary
+			   variánsán) --- */
+			.btn.joker {
+				background: var(--coin);
+				color: var(--cabinet);
+				border-color: var(--danger);
+			}
+
 			/* --- ChoiceButton --- */
 			.choice {
 				font-family: var(--font-body);
@@ -323,6 +332,58 @@
 				color: var(--danger);
 			}
 
+			/* --- PinDisplay --- */
+			.pin-panel {
+				position: relative;
+				display: inline-flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 0.75rem;
+				background: var(--cabinet-2);
+				border: 2px solid var(--violet);
+				border-radius: 1rem;
+				padding: 1.5rem 2rem;
+				box-shadow: 0 0 24px color-mix(in srgb, var(--violet) 35%, transparent);
+				overflow: hidden;
+			}
+
+			.pin-panel::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: repeating-linear-gradient(
+					to bottom,
+					rgba(255, 255, 255, 0.035) 0px,
+					rgba(255, 255, 255, 0.035) 1px,
+					transparent 1px,
+					transparent 3px
+				);
+				pointer-events: none;
+			}
+
+			.pin-panel-content {
+				position: relative;
+				z-index: 1;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 0.75rem;
+			}
+
+			.pin-panel .pin {
+				font-family: var(--font-led);
+				font-size: clamp(2.5rem, 8vw, 4rem);
+				letter-spacing: 0.4rem;
+				color: var(--coin);
+				text-shadow: 0 0 16px color-mix(in srgb, var(--coin) 50%, transparent);
+			}
+
+			.pin-panel .join-url {
+				font-family: var(--font-body);
+				color: var(--marquee-dim);
+				font-size: 0.9rem;
+			}
+
 			table {
 				border-collapse: collapse;
 				width: 100%;
@@ -405,7 +466,7 @@
 						</tr>
 						<tr>
 							<td class="role-magenta"><code>--magenta</code></td>
-							<td>Joker, elsődleges gomb hover</td>
+							<td>Elsődleges gomb hover-állapota</td>
 						</tr>
 					</tbody>
 				</table>
@@ -436,7 +497,7 @@
 					</div>
 					<div class="swatch">
 						<div class="fill" style="background: var(--magenta)"></div>
-						<div class="label"><strong>--magenta</strong><span>joker akcent</span></div>
+						<div class="label"><strong>--magenta</strong><span>primary gomb hover</span></div>
 					</div>
 					<div class="swatch">
 						<div class="fill" style="background: var(--power)"></div>
@@ -485,8 +546,9 @@
 			<section>
 				<h2>Arcade panel</h2>
 				<p>
-					A kártyaszerű felületek (kérdés-kártya, ranglista, PIN/QR panel) alap mintája: neon-keret
-					+ finom scanline textúra.
+					A kártyaszerű felületek (kérdés-kártya, PIN/QR panel) alap mintája: neon-keret + finom
+					scanline textúra. A PodiumCard/ranglista-sor szándékosan más, rangsor-alapú keretszínezést
+					használ — lásd lentebb.
 				</p>
 				<div class="arcade-panel">
 					<h3 style="position: relative; z-index: 1">Kérdés 4/8</h3>
@@ -503,7 +565,14 @@
 					<button class="btn secondary">Secondary</button>
 					<button class="btn danger">Danger</button>
 					<button class="btn ghost">Ghost</button>
+					<button class="btn joker">Duplázás 🃏</button>
 				</div>
+				<p class="rule">
+					A joker gomb a <code>/play/[pin]</code> saját <code>.joker-wrap</code> felülírása a
+					<code>Button</code> primary variánsán — szándékosan
+					<code>--coin</code>/<code>--danger</code>, nem <code>--magenta</code>, mert ez az
+					egyetlen, kifejezetten figyelemfelkeltőnek szánt elem.
+				</p>
 
 				<h3>ChoiceButton (<code>ChoiceButton.svelte</code>)</h3>
 				<div class="row">
@@ -519,6 +588,14 @@
 						Nyugodt cián sok hátralévő idővel, pulzáló <code>--danger</code> az utolsó 5
 						másodpercben.
 					</p>
+				</div>
+
+				<h3>PinDisplay (<code>PinDisplay.svelte</code>)</h3>
+				<div class="pin-panel">
+					<div class="pin-panel-content">
+						<div class="pin">482913</div>
+						<p class="join-url">equacards.app/play/482913</p>
+					</div>
 				</div>
 
 				<h3>TeamChip (<code>TeamChip.svelte</code>)</h3>

@@ -20,6 +20,7 @@
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -531,14 +532,16 @@
 		<p class="loading">Kérdések betöltése…</p>
 	{:else if game.status === 'active'}
 		<p class="round-label">{rounds.find((r) => r.id === game.current_round_id)?.title}</p>
-		<p class="progress">Kérdés {currentIndex + 1} / {roundQuestions.length}</p>
 
 		{#if roundQuestions[currentIndex]}
-			{#key roundQuestions[currentIndex].question_id}
-				<p class="prompt" in:fly={{ y: 16, duration: 300 }}>
-					{roundQuestions[currentIndex].prompt}
-				</p>
-			{/key}
+			<ArcadePanel>
+				<p class="progress">Kérdés {currentIndex + 1} / {roundQuestions.length}</p>
+				{#key roundQuestions[currentIndex].question_id}
+					<p class="prompt" in:fly={{ y: 16, duration: 300 }}>
+						{roundQuestions[currentIndex].prompt}
+					</p>
+				{/key}
+			</ArcadePanel>
 		{/if}
 
 		<p class="submissions">Beérkezett válaszok: {submissionCount} / {teams.length}</p>
