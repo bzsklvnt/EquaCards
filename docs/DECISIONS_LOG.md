@@ -384,3 +384,43 @@ a CSS custom property-ket, nincs saját beépített színkészletük.
 szabályok, arcade panel minta, komponens API-referencia — ez a dokumentum
 bővül tovább a G/H/J fázisokban (töréspontok, konzisztencia-jegyzetek,
 kontraszt/fókusz konvenciók).
+
+## 2026-08-08 — Fázis F: Globális layout héjak felületenként
+
+`/admin` (`src/routes/admin/+layout.svelte`): sidebar + hamburger-menü
+mobilon, most már a Retro Arcade vizuális témával (`getActiveTokens(supabase,
+null)` — az admin nincs `games` sorhoz kötve, mindig az alapértelmezett
+témát kapja). A sidebar mutat a még meg nem épült Felhasználók/Beállítások/
+Riportok oldalakra is (nem törött link, placeholder tartalom) — a
+Felhasználók/Beállítások `role_id = 1`-re szűkítve jelenik meg a menüben
+(a route-guard is ezt kényszeríti ki), a Riportok mindenkinek.
+
+Három új placeholder route jött létre a sidebar linkjeihez:
+`/admin/users`, `/admin/settings` (mindkettő `role_id = 1` guard-dal — az
+`/admin` layout guard-ja 1,2-re tágabb, ez a szűkítés a route-hoz kötve
+él), és `/reports` (önálló, top-level route, `role_id in (1,2,3,4)`
+guard-dal — ez a `viewer` szerepkör egyetlen jelenleg elérhető felülete).
+Mindhárom tényleges tartalma Fázis B/C/D feladata.
+
+`/host/[game_id]`: minimális header (`+layout.svelte`) — este címe,
+PIN-jelvény, kör/kérdés progress, kapcsolat-állapot jelző, "Kilépés" link.
+A `game`/`rounds`/`designThemes` betöltés Fázis 4 óta a page saját
+`load`-jában élt — Fázis F-ben átkerült a `+layout.server.ts`-be, mert a
+header ugyanezt az adatot használja (a `[game_id]/+page.server.ts`
+`git mv`-vel lett `+layout.server.ts`, elkerülve a duplikált DB-lekérdezést
+és a történet elvesztését). A header viszont két adatra is rászorul, ami
+kizárólag a page kliens-oldali állapotában létezik (a `roundQuestions`
+lista hossza/indexe, illetve a realtime channel `subscribe()`
+callback-jének állapota) — ezekhez Svelte context hidalja át a page → layout
+irányt (`src/lib/realtime/connection-status.svelte.ts`,
+`src/lib/realtime/host-progress.svelte.ts`), mivel SvelteKit-ben a layout
+nem kaphat propot a gyerek page-től, csak context-en keresztül.
+
+`/play/[pin]` és `/tv/[game_id]`: **tudatosan nem kaptak külön layout
+héjat.** A terv mindkettőnél megengedi a "nincs header" opciót — a
+csapat felület már eleve csak egy vékony `<h1>`-et mutat, a TV már eleve
+teljesen immerzív. Egy újabb `+layout.svelte` bevezetése itt csak
+duplikálná a meglévő megoldást, funkcionális nyereség nélkül.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` "Layout héjak
+felületenként" szakasz.

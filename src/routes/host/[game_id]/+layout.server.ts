@@ -1,7 +1,7 @@
 import { error as kitError } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import type { LayoutServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
+export const load: LayoutServerLoad = async ({ params, locals: { supabase } }) => {
 	const { data: game } = await supabase
 		.from('games')
 		.select('id, title, pin, status, current_round_id, current_question_id, design_theme_id')

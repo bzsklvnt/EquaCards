@@ -74,3 +74,44 @@ Minden interaktív komponens explicit `:focus-visible` stílust kap
 (`outline: 3px solid var(--cyan)`), mert a sötét, neon-akcentú design
 könnyen "eltünteti" a böngésző alapértelmezett fókusz-gyűrűjét. Az érintési
 célpontok (gombok, checkbox, input) minimum 44×44px-esek.
+
+## Layout héjak felületenként (Fázis F)
+
+A `docs/architecture/DATA_MODEL.md` 7. szakaszának négy felülete eltérő
+célra szabott layout-keretet kap:
+
+- **`/admin`** (`src/routes/admin/+layout.svelte`): perzisztens header +
+  bal oldali sidebar navigáció (Kérdésbank, Témák, Vizuális témák,
+  Kvízesték, mindig; Felhasználók/Beállítások csak `role_id = 1`-nek;
+  Riportok mindenkinek). A még meg nem épült oldalakra (Felhasználók,
+  Beállítások, Riportok) is mutat — placeholder oldal, nem törött link
+  (a tényleges megvalósítás: Fázis B/C/D). Mobilon (`≤768px`) a sidebar
+  hamburger-menübe csukódik. Az admin felület is a
+  `getActiveTokens(supabase, null)` alapértelmezett vizuális témát kapja
+  (nincs `games` sorhoz kötve, mint a host/csapat/TV).
+- **`/host/[game_id]`** (`src/routes/host/[game_id]/+layout.svelte`):
+  minimális header — este címe, PIN-jelvény, kör/kérdés progress
+  (`3. kör / N · Kérdés 4/8`, csak aktív játéknál), kapcsolat-állapot
+  jelző (`connected`/`reconnecting`/`disconnected` — színes pötty +
+  felirat), "Kilépés" link az admin este-oldalára. A `game`/`rounds`/
+  `designThemes` betöltés a Fázis 4-ben a `+page.server.ts`-ben élt,
+  Fázis F-ben átkerült a `+layout.server.ts`-be, mert a header
+  ugyanezekre az adatokra támaszkodik (elkerülve a duplikált lekérdezést).
+  A kör/kérdés progress és a kapcsolat-állapot viszont a page komponens
+  saját, kliens-oldali állapota (`roundQuestions`, a channel
+  `subscribe()` callback-je) — ezeket Svelte context hidalja át a page →
+  layout irányba (`src/lib/realtime/connection-status.svelte.ts`,
+  `src/lib/realtime/host-progress.svelte.ts`).
+- **`/play/[pin]`**: **szándékosan nincs külön layout héj.** A terv
+  "NINCS header, vagy csak egy vékony csík" opciói közül az utóbbit már
+  eleve megvalósítja a meglévő, oldal-tetején lévő `<h1>{gameTitle}</h1>`
+  — egy újabb layout-fájl bevezetése csak duplikálná ezt, funkcionális
+  nyereség nélkül.
+- **`/tv/[game_id]`**: **szándékosan nincs semmilyen header/chrome** — ez
+  már eleve teljesen immerzív, a terv előírása szerint.
+
+## Töréspontok (Fázis G-ben pontosítva)
+
+Egyelőre az admin sidebar `768px`-nél csukódik hamburger-menübe — a
+töréspontok teljes, minden felületre kiterjedő konvencióját Fázis G
+rögzíti.

@@ -13,10 +13,14 @@
 	} from '$lib/realtime/protocol';
 	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import { playReveal, playLeaderboard, playJokerActivate } from '$lib/audio/sfx';
+	import { getConnectionStatusContext } from '$lib/realtime/connection-status.svelte';
+	import { getHostProgressContext } from '$lib/realtime/host-progress.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const designThemes = untrack(() => data.designThemes);
+	const connectionStatus = getConnectionStatusContext();
+	const progress = getHostProgressContext();
 
 	type RoundQuestionRow = {
 		order_index: number;
@@ -44,6 +48,19 @@
 	let currentIndex = $derived(
 		roundQuestions.findIndex((q) => q.question_id === game.current_question_id)
 	);
+
+	// A host header (Fázis F, src/routes/host/[game_id]/+layout.svelte) a
+	// jelenlegi kérdés-progresst context-en keresztül olvassa, mivel a
+	// roundQuestions ennek a page komponensnek a saját, kliens-oldali állapota.
+	$effect(() => {
+		if (game.status === 'active' && roundQuestions.length > 0) {
+			progress.current = currentIndex + 1;
+			progress.total = roundQuestions.length;
+		} else {
+			progress.current = null;
+			progress.total = null;
+		}
+	});
 
 	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — a games.design_theme_id
 	// alapján feloldott token-készlet a gyökér elemre kerül inline style-ként.
@@ -162,7 +179,11 @@
 			}
 		});
 
-		channel.subscribe();
+		channel.subscribe((status) => {
+			if (status === 'SUBSCRIBED') connectionStatus.status = 'connected';
+			else if (status === 'CLOSED') connectionStatus.status = 'disconnected';
+			else connectionStatus.status = 'reconnecting';
+		});
 
 		return () => {
 			disposed = true;
@@ -461,10 +482,6 @@
 </svelte:head>
 
 <main class="cabinet" style={themeCss}>
-	<a href={resolve('/admin/games/[id]', { id: game.id })}>← Vissza az estéhez</a>
-
-	<h1>{game.title}</h1>
-
 	{#if statusMessage}
 		<p class="status-message">{statusMessage}</p>
 	{/if}
@@ -591,19 +608,11 @@
 		background: linear-gradient(160deg, var(--cabinet), var(--cabinet-2) 60%, var(--cabinet-3));
 		color: var(--marquee);
 		font-family: var(--font-body);
-		min-height: 100vh;
+		min-height: 100%;
 	}
 
 	main.cabinet a {
 		color: var(--marquee-dim);
-	}
-
-	main.cabinet h1 {
-		font-family: var(--font-display);
-		font-size: 1.25rem;
-		line-height: 1.6;
-		color: var(--cyan);
-		text-shadow: 0 0 12px color-mix(in srgb, var(--cyan) 60%, transparent);
 	}
 
 	main.cabinet button {
