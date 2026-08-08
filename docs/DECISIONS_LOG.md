@@ -961,3 +961,59 @@ baráti körben tartott pub kvízestére.**
 
 Dokumentáció: `docs/architecture/DATA_MODEL.md` 2., 4. és 6. szakasz új
 "Ismert MVP-korlátok" alszakaszok, új `docs/features/rate-limiting.md`.
+
+---
+
+## 2026-08-08 — Fázis N1: élő böngészős teszt sürgősségi javításai
+
+Az `equa-cards.vercel.app` első valódi böngészős bejárása (a sandbox
+egress-blokkolása miatt eddig soha nem volt lehetséges) 13 konkrét
+problémát talált — ez a fázis az első öt, funkcionális/CSS jellegű
+hibát zárja le.
+
+1. **Random húzás.** Élő SQL-szimulációval (Supabase MCP, valódi
+   `super_admin` JWT-vel, `set local role authenticated`, `begin`/
+   `rollback` tranzakcióban) igazoltam, hogy a
+   `draw_random_questions_for_round()` RPC és a mögötte lévő RLS/grant
+   lánc **ténylegesen helyesen működik** — egy konkrét, a tesztelő által
+   használt éles kör/téma kombináción (`Test` este, `Zene` téma)
+   valódi találatokat adott és be is szúrta a `round_questions` sorokat.
+   A tényleges hiányosság — amit a hibajegy maga is felvetett — az volt,
+   hogy **0 találat esetén** (pl. kimerült cooldown-mentes készlet egy
+   témában, vagy minden találat már ebben a körben van) a `draw` action
+   csendben "sikeresen" tért vissza, semmilyen hibaüzenet nélkül. Javítva:
+   az action most ellenőrzi az RPC visszatérési sorainak számát, és
+   `fail(400, ...)`-ot ad, ha üres — ezt a `/admin/games/[id]` oldal már
+   meglévő általános `form?.error` blokkja jeleníti meg, nem kellett új UI.
+2. **Hamburger menü.** Mobil nézetben az admin oldalsáv `position: fixed`
+   hamburger gombja (`z-index: 20`) a nyitott oldalsáv (`z-index: 10`)
+   tartalma **fölé** rajzolódott, mert a `.sidebar` felső paddingje nem
+   számolt a fixen elhelyezett gomb helyfoglalásával — a márka-link és a
+   nav első eleme a gomb alatt/mögött jelent meg. Javítva: `.sidebar`
+   mobil nézetben `padding-top: 4.5rem`-et kapott (ugyanaz az érték, amit
+   az `.admin-content` már korábban is használt erre a célra).
+3. **Design téma törlés védelem.** Az `is_default` téma törlés elleni
+   szerver-oldali védelem **már létezett** (Fázis 6 óta) — ez kiegészült
+   egy második védelmi réteggel: ha összesen csak **egy** design téma
+   létezik (akkor is, ha valamiért nem `is_default`-ként van jelölve),
+   a törlés szerver-oldalon is elutasított. Kliens-oldalon a Törlés gomb
+   mostantól el sem jelenik `is_default` vagy egyetlen-sor esetén — helyette
+   egy "nem törölhető" felirat, hogy ne kelljen a felhasználónak a
+   szerver hibaüzenetéből megtudnia.
+4. **TV mód új fülön.** Ellenőrizve: a `/host/[game_id]` "Kivetítő
+   megnyitása (TV mód)" gombja **már** `target="_blank" rel="noopener"`
+   attribútumokkal rendelkezett — ez a tétel a kódban már korábban
+   helyesen volt megoldva, nem igényelt módosítást.
+5. **Globális fehér villanás overscroll-nál.** Minden oldal saját
+   `.cabinet` gyökere `style={themeCss}`-ből (futásidőben feloldott
+   `var(--cabinet)`) kapja a hátterét, de a `<html>`/`<body>` elemeknek
+   sosem volt saját háttere — trackpad rubber-band scroll-nál vagy rövid
+   tartalomnál átvillant a böngésző alapértelmezett fehér háttere.
+   Javítva: `src/app.html`-ben statikus `html, body { background: #150e2c;
+min-height: 100% }` (nem `var(--cabinet)`, mert az csak lejjebb, az
+   egyes oldalak `.cabinet` elemén van definiálva — a `<body>`, mint
+   ősük, nem örökölhetné felfelé egy leszármazott custom property-jét).
+
+Mind az öt javítás élesben tesztelt/ellenőrzött logikára épül (a
+Supabase MCP-n keresztül valódi RLS-kontextusban futtatott
+szimulációkkal, ahol releváns), nem csak feltételezésre.

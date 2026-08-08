@@ -90,7 +90,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Válassz témát a húzáshoz.' });
 		}
 
-		const { error } = await supabase.rpc('draw_random_questions_for_round', {
+		const { data, error } = await supabase.rpc('draw_random_questions_for_round', {
 			p_theme_id: themeId,
 			p_round_id: roundId,
 			p_count: count
@@ -98,6 +98,13 @@ export const actions: Actions = {
 
 		if (error) {
 			return fail(400, { error: error.message });
+		}
+
+		if (!data || data.length === 0) {
+			return fail(400, {
+				error:
+					'Nincs elérhető kérdés ebben a témában — lehet, hogy mindegyik cooldown alatt van, vagy már mind szerepel ebben a körben.'
+			});
 		}
 	},
 

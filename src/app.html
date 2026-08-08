@@ -18,6 +18,22 @@
 			rel="stylesheet"
 			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap"
 		/>
+		<!--
+			Overscroll/rubber-band villanás elleni védelem: minden oldal saját
+			.cabinet gyökere dinamikus style={themeCss}-ből kapja a hátterét
+			(var(--cabinet)), de a <html>/<body> maga sosem — trackpad "bounce"
+			scroll-nál vagy rövid tartalomnál emiatt átvillanhat a böngésző
+			alapértelmezett fehér háttere. Statikus, a defaultTokens-szel
+			megegyező színérték (nem var(), mert az csak lejjebb, a .cabinet
+			elemen van definiálva, a <body> nem örökölhetné felfelé).
+		-->
+		<style>
+			html,
+			body {
+				background: #150e2c;
+				min-height: 100%;
+			}
+		</style>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

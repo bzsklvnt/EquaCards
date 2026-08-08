@@ -225,6 +225,7 @@
 			position: fixed;
 			inset: 0 25% 0 0;
 			z-index: 10;
+			padding-top: 4.5rem;
 			transform: translateX(-100%);
 			transition: transform 0.2s ease;
 			overflow-y: auto;

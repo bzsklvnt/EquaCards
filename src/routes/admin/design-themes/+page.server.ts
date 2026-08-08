@@ -27,6 +27,16 @@ export const actions: Actions = {
 			});
 		}
 
+		const { count } = await supabase
+			.from('design_themes')
+			.select('id', { count: 'exact', head: true });
+
+		if ((count ?? 0) <= 1) {
+			return fail(400, {
+				error: 'Ez az utolsó design téma — legalább egynek léteznie kell.'
+			});
+		}
+
 		const { error } = await supabase.from('design_themes').delete().eq('id', id);
 		if (error) {
 			return fail(400, { error: error.message });

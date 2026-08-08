@@ -30,10 +30,18 @@
 			{#if theme.is_default}
 				<span class="badge">alapértelmezett</span>
 			{/if}
-			<form method="POST" action="?/delete" use:enhance>
-				<input type="hidden" name="id" value={theme.id} />
-				<Button type="submit" variant="danger">Törlés</Button>
-			</form>
+			{#if theme.is_default || data.designThemes.length === 1}
+				<span class="hint-inline"
+					>nem törölhető{theme.is_default
+						? ' — előbb jelölj ki egy másikat alapértelmezettnek'
+						: ''}</span
+				>
+			{:else}
+				<form method="POST" action="?/delete" use:enhance>
+					<input type="hidden" name="id" value={theme.id} />
+					<Button type="submit" variant="danger">Törlés</Button>
+				</form>
+			{/if}
 		</li>
 	{:else}
 		<li class="empty">Még nincs design téma.</li>
@@ -82,6 +90,11 @@
 
 	.empty {
 		color: var(--marquee-dim);
+	}
+
+	.hint-inline {
+		color: var(--marquee-dim);
+		font-size: 0.8rem;
 	}
 
 	.error {
