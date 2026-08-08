@@ -500,11 +500,13 @@
 	main.cabinet button {
 		font-family: var(--font-body);
 		font-weight: 600;
+		font-size: 1rem;
 		background: var(--violet);
 		color: var(--marquee);
 		border: 2px solid var(--magenta);
 		border-radius: 0.5rem;
 		padding: 0.6rem 1.25rem;
+		min-height: 44px;
 		cursor: pointer;
 	}
 
@@ -533,7 +535,7 @@
 	}
 
 	.prompt {
-		font-size: 1.25rem;
+		font-size: clamp(1.1rem, 5vw, 1.5rem);
 		margin: 1rem 0;
 	}
 
@@ -556,7 +558,9 @@
 
 	.option {
 		font-family: var(--font-body);
+		font-size: 1rem;
 		padding: 0.75rem;
+		min-height: 44px;
 		border: 2px solid var(--marquee-dim);
 		border-radius: 0.5rem;
 		background: var(--cabinet-2);
@@ -571,6 +575,21 @@
 
 	.slider {
 		margin: 1.5rem 0;
+	}
+
+	.slider input[type='range'] {
+		width: 100%;
+		height: 44px;
+	}
+
+	.slider input[type='range']::-webkit-slider-thumb {
+		width: 28px;
+		height: 28px;
+	}
+
+	.slider input[type='range']::-moz-range-thumb {
+		width: 28px;
+		height: 28px;
 	}
 
 	.slider-value {
@@ -588,7 +607,10 @@
 	}
 
 	.ordering li {
-		padding: 0.5rem;
+		padding: 0.75rem 0.5rem;
+		min-height: 44px;
+		display: flex;
+		align-items: center;
 		border: 1px solid var(--marquee-dim);
 		border-radius: 0.25rem;
 		margin-bottom: 0.25rem;

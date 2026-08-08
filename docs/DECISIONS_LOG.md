@@ -424,3 +424,36 @@ duplikálná a meglévő megoldást, funkcionális nyereség nélkül.
 
 Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` "Layout héjak
 felületenként" szakasz.
+
+## 2026-08-08 — Fázis G: Reszponzív audit
+
+Kód-szintű audit (típusellenőrzés + CSS kézi átolvasás) mind a négy
+felületen — a sandbox HTTPS-blokkolása miatt élő böngészős méréssel
+nem lehetett ellenőrizni, ez a felhasználó feladata marad.
+
+- `/play/[pin]` + `/play` (PIN-beviteli oldal): minden interaktív elem
+  (válasz-gombok, csúszka, sorrendező lista, submit/joker gombok)
+  explicit `min-height: 44px`-et kapott az érintési célpont-méret miatt —
+  korábban a `padding`-re hagyatkoztak, ami a submit/joker gomboknál
+  ~35px-es tényleges magasságot adott volna, a 44px ajánlás alatt. A
+  csúszka thumb-ja felnagyítva touch-hoz. A PIN-beviteli oldal
+  (`/play/+page.svelte`) korábban **egyáltalán nem kapott vizuális témát**
+  (egyszerű böngésző-alap stílus volt) — ez a felhasználó első érintkezése
+  az alkalmazással, ezért a reszponzív audit része lett a `main.cabinet`
+  minta + touch-friendly gomb/input bevezetése is, konzisztensen a
+  csatlakozás utáni oldallal.
+- `/host/[game_id]`: gomb és select touch-célpont javítva (`min-height:
+44px`), a header (Fázis F) `flex-wrap`-je már eleve véd keskenyebb
+  ablakok ellen.
+- `/admin`: a Fázis F-ben épült mobil hamburger-menü kiegészítve
+  háttér-elsötétítéssel (kattintásra zár) és navigációkor automatikus
+  záródással — korábban csak a hamburger gombbal lehetett bezárni.
+- `/tv/[game_id]`: a `clamp()`-es fluid tipográfia felső határai
+  megemelve (pl. a kérdés-prompt 3rem→4.5rem-re) — a terv explicit
+  elvárása szerint 1920×1080-as kivetítőn, 3-5 méteres távolságból is
+  olvashatónak kell lennie, a korábbi értékek ehhez képest óvatosak
+  voltak.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` "Töréspontok és
+reszponzív konvenciók" szakasz, a módszertani korlát (kód-szintű, nem élő
+böngészős audit) explicit dokumentálásával.

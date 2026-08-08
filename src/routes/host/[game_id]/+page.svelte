@@ -618,11 +618,13 @@
 	main.cabinet button {
 		font-family: var(--font-body);
 		font-weight: 600;
+		font-size: 1rem;
 		background: var(--violet);
 		color: var(--marquee);
 		border: 2px solid var(--magenta);
 		border-radius: 0.5rem;
 		padding: 0.6rem 1.25rem;
+		min-height: 44px;
 		cursor: pointer;
 	}
 
@@ -642,6 +644,7 @@
 
 	.theme-picker select {
 		padding: 0.4rem;
+		min-height: 44px;
 		border-radius: 0.375rem;
 	}
 

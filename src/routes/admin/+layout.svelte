@@ -19,6 +19,14 @@
 		});
 	});
 
+	// A mobil hamburger-menü záródjon be automatikusan navigációkor — a
+	// pathname olvasása regisztrálja a reaktív függőséget az $effect-ben.
+	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		page.url.pathname;
+		mobileNavOpen = false;
+	});
+
 	const navItems = [
 		{ href: resolve('/admin'), label: 'Vezérlőpult' },
 		{ href: resolve('/admin/questions'), label: 'Kérdésbank' },
@@ -44,6 +52,15 @@
 		<span></span><span></span><span></span>
 		<span class="sr-only">Menü</span>
 	</button>
+
+	{#if mobileNavOpen}
+		<button
+			type="button"
+			class="backdrop"
+			aria-label="Menü bezárása"
+			onclick={() => (mobileNavOpen = false)}
+		></button>
+	{/if}
 
 	<aside class="sidebar" id="admin-sidebar" class:open={mobileNavOpen}>
 		<a class="brand" href={resolve('/admin')}>EquaCards</a>
@@ -206,6 +223,16 @@
 
 		.sidebar.open {
 			transform: translateX(0);
+		}
+
+		.backdrop {
+			position: fixed;
+			inset: 0;
+			z-index: 5;
+			border: none;
+			padding: 0;
+			background: rgb(0 0 0 / 55%);
+			cursor: pointer;
 		}
 
 		.admin-content {

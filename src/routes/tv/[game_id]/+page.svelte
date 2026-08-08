@@ -209,12 +209,13 @@
 	}
 
 	.screen {
-		max-width: 60rem;
+		max-width: 70rem;
+		width: 100%;
 	}
 
 	h1 {
 		font-family: var(--font-display);
-		font-size: clamp(1.5rem, 4vw, 3rem);
+		font-size: clamp(1.5rem, 5vw, 4rem);
 		color: var(--cyan);
 		line-height: 1.5;
 		text-shadow: 0 0 16px color-mix(in srgb, var(--cyan) 60%, transparent);
@@ -222,22 +223,22 @@
 
 	h2 {
 		font-family: var(--font-display);
-		font-size: clamp(1.1rem, 2.5vw, 1.75rem);
+		font-size: clamp(1.1rem, 3vw, 2.25rem);
 		color: var(--coin);
 	}
 
 	.round-title {
 		color: var(--marquee-dim);
-		font-size: clamp(1rem, 2vw, 1.5rem);
+		font-size: clamp(1rem, 2.5vw, 1.75rem);
 	}
 
 	.prompt {
-		font-size: clamp(1.5rem, 5vw, 3rem);
+		font-size: clamp(1.5rem, 6vw, 4.5rem);
 		margin: 1.5rem 0;
 	}
 
 	.answer {
-		font-size: clamp(1.5rem, 4vw, 2.5rem);
+		font-size: clamp(1.5rem, 5vw, 3.5rem);
 		font-weight: bold;
 		color: var(--power);
 	}
@@ -309,7 +310,7 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		font-size: clamp(1.1rem, 2.5vw, 1.75rem);
+		font-size: clamp(1.1rem, 3vw, 2.25rem);
 		background: var(--cabinet-2);
 		border-radius: 0.75rem;
 		padding: 0.75rem 1.5rem;

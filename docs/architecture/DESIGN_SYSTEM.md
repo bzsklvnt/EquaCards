@@ -110,8 +110,35 @@ célra szabott layout-keretet kap:
 - **`/tv/[game_id]`**: **szándékosan nincs semmilyen header/chrome** — ez
   már eleve teljesen immerzív, a terv előírása szerint.
 
-## Töréspontok (Fázis G-ben pontosítva)
+## Töréspontok és reszponzív konvenciók (Fázis G)
 
-Egyelőre az admin sidebar `768px`-nél csukódik hamburger-menübe — a
-töréspontok teljes, minden felületre kiterjedő konvencióját Fázis G
-rögzíti.
+Egyetlen számszerű töréspont van jelenleg a kódban: az admin sidebar
+`768px`-nél csukódik hamburger-menübe. A többi felület nem egyedi
+töréspontokkal, hanem folyékony (fluid) technikákkal reszponzív:
+
+- **`/play/[pin]`**: mobile-first, `max-width: 24rem`-es (384px) központi
+  oszlop — ez eleve tisztán elfér 360px-es viewport-on is (a legkisebb
+  elterjedt telefon-szélesség), nincs szüksége külön töréspontra. Minden
+  interaktív elem (`ChoiceButton`, gombok, csúszka, sorrendező lista
+  elemei) explicit `min-height: 44px`-et kap az érintési célpont-méret
+  miatt; a csúszka `<input type="range">` thumb-ja is felnagyítva
+  (`::-webkit-slider-thumb`/`::-moz-range-thumb`, 28px). A kérdés-prompt
+  `clamp(1.1rem, 5vw, 1.5rem)`-mel skálázódik a szűkebb/tágabb telefon-
+  szélességek között.
+- **`/host/[game_id]`**: tablet/desktop-célú (`max-width: 32rem`-es
+  központi oszlop a törzsben), de mivel nincs fix pixel-szélesség sehol,
+  triviálisan nem törik el kisebb laptop-képernyőn sem. A header
+  (Fázis F) `flex-wrap: wrap`-pel véd a keskenyebb ablakok ellen.
+- **`/admin`**: desktop-first (adatbeviteli munka) — a sidebar `≤768px`-nél
+  hamburger-menübe csukódik, háttér-elsötétítéssel (`.backdrop`) és
+  automatikus záródással navigációkor (mindkettő Fázis G-ben pótolva).
+- **`/tv/[game_id]`**: nagy kijelzőre optimalizált, `clamp()`-alapú fluid
+  tipográfia (pl. a kérdés-prompt `clamp(1.5rem, 6vw, 4.5rem)`) — Fázis
+  G-ben megemelve a korábbi, kisebb felső határokról, hogy 1920×1080-as
+  kivetítőn, kb. 3-5 méteres távolságból is jól olvasható legyen.
+
+**Módszertani megjegyzés:** a sandbox HTTPS-blokkolása miatt (lásd
+`docs/DECISIONS_LOG.md` korábbi fázisai) ez az audit kód-szintű —
+típusellenőrzéssel és a CSS szabályok kézi átolvasásával történt, nem élő
+böngészős méréssel különböző képernyőméreteken. A tényleges vizuális
+eredményt a felhasználónak kell ellenőriznie éles böngészőben.
