@@ -339,4 +339,14 @@
 	.error {
 		color: #b91c1c;
 	}
+
+	/* Fázis J — a natív <select>/<input type="radio"> szándékosan nem
+	   Select/Checkbox-wrapped (lásd fenti indoklás), de látható,
+	   --cyan-alapú fókusz-állapotot kapniuk kell, mint a könyvtár többi
+	   interaktív elemének. */
+	select:focus-visible,
+	input[type='radio']:focus-visible {
+		outline: 3px solid var(--cyan, #35e7ff);
+		outline-offset: 2px;
+	}
 </style>

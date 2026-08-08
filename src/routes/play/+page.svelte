@@ -3,6 +3,8 @@
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import Input from '$lib/components/Input.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -31,18 +33,15 @@
 <main class="cabinet" style={themeCss}>
 	<h1>Csatlakozás kvízhez</h1>
 	<form onsubmit={submit}>
-		<label>
-			PIN kód
-			<input
-				type="text"
-				inputmode="numeric"
-				pattern="[0-9]*"
-				bind:value={pin}
-				maxlength="6"
-				required
-			/>
-		</label>
-		<button type="submit">Csatlakozás</button>
+		<Input
+			label="PIN kód"
+			bind:value={pin}
+			inputmode="numeric"
+			pattern="[0-9]*"
+			maxlength={6}
+			required
+		/>
+		<Button type="submit">Csatlakozás</Button>
 	</form>
 </main>
 
@@ -72,41 +71,12 @@
 		text-align: left;
 	}
 
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		color: var(--marquee-dim);
-	}
-
-	input {
+	/* PIN-mező: a --font-led kijelző-hangulat, ahogy a design system előírja
+	   minden szám-jellegű kijelzéshez (timer, pontszám, PIN). */
+	form :global(input) {
 		font-family: var(--font-led);
 		font-size: 1.5rem;
 		text-align: center;
 		letter-spacing: 0.25rem;
-		padding: 0.5rem;
-		min-height: 44px;
-		border-radius: 0.375rem;
-		border: 2px solid var(--marquee-dim);
-		background: var(--cabinet-2);
-		color: var(--marquee);
-	}
-
-	input:focus-visible {
-		outline: none;
-		border-color: var(--cyan);
-	}
-
-	button {
-		font-family: var(--font-body);
-		font-weight: 600;
-		font-size: 1rem;
-		background: var(--violet);
-		color: var(--marquee);
-		border: 2px solid var(--magenta);
-		border-radius: 0.5rem;
-		padding: 0.6rem 1.25rem;
-		min-height: 44px;
-		cursor: pointer;
 	}
 </style>

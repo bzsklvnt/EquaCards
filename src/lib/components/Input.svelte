@@ -13,7 +13,9 @@
 		min,
 		max,
 		step,
-		autocomplete
+		autocomplete,
+		inputmode,
+		pattern
 	}: {
 		label?: string;
 		name?: string;
@@ -27,6 +29,8 @@
 		max?: string | number;
 		step?: string | number;
 		autocomplete?: HTMLInputAttributes['autocomplete'];
+		inputmode?: HTMLInputAttributes['inputmode'];
+		pattern?: string;
 	} = $props();
 </script>
 
@@ -44,6 +48,8 @@
 		{max}
 		{step}
 		{autocomplete}
+		{inputmode}
+		{pattern}
 	/>
 </label>
 

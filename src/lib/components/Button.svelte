@@ -44,6 +44,8 @@
 		font-size: 1rem;
 		border-radius: 0.5rem;
 		padding: 0.6rem 1.25rem;
+		min-height: 44px;
+		min-width: 44px;
 		cursor: pointer;
 		border: 2px solid transparent;
 		text-decoration: none;
@@ -68,13 +70,19 @@
 	}
 
 	.primary {
-		background: var(--violet);
+		/* Fázis J — a natúr --violet fill csak 3.5:1 kontrasztot ad
+		--marquee szöveggel (WCAG AA normál szöveg küszöb: 4.5:1); a
+		--cabinet felé sötétített változat ~4.8:1-re javítja, a token
+		magát változatlanul hagyva (a keret/glow más felhasználásoknál
+		maradhat a fényes --violet). */
+		background: color-mix(in srgb, var(--violet) 80%, var(--cabinet));
 		color: var(--marquee);
 		border-color: var(--magenta);
 	}
 
 	.primary:hover:not(:disabled):not(.disabled) {
-		background: var(--magenta);
+		/* Ugyanez a hover-állapotra: a natúr --magenta csak 2.9:1-et ad. */
+		background: color-mix(in srgb, var(--magenta) 70%, var(--cabinet));
 		box-shadow: 0 0 12px color-mix(in srgb, var(--magenta) 60%, transparent);
 	}
 
@@ -96,7 +104,8 @@
 	}
 
 	.danger:hover:not(:disabled):not(.disabled) {
-		background: var(--danger);
+		/* Fázis J — natúr --danger fill csak 2.8:1-et adna --marquee-vel. */
+		background: color-mix(in srgb, var(--danger) 65%, var(--cabinet-2));
 	}
 
 	.ghost {

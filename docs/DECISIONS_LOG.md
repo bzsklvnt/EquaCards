@@ -532,3 +532,53 @@ Dokumentáció: új `docs/features/game-experience-polish.md`,
 `docs/architecture/DESIGN_SYSTEM.md` komponens-könyvtár táblázat
 kiegészítve a `TimerRing` új `inactive` propjával és a
 `ReconnectOverlay.svelte`-vel.
+
+## 2026-08-08 — Fázis J: Akadálymentesség és kontraszt átvizsgálás
+
+**Módszertani előrelépés:** kiderült, hogy a Supabase MCP szerver
+(`mcp__Supabase__*` eszközök) **nem** a sandbox blokkolt HTTPS-proxyján
+megy keresztül — külön, működő csatorna. Ez nem oldja fel az élő
+böngészős tesztelés korlátját (egy böngészőben futó app JS-kódja
+továbbra sem éri el a `*.supabase.co`-t innen), de élő DB-lekérdezést és
+migráció-alkalmazást lehetővé tesz. Megerősítve: a `wnmgilblkdqunhpwoulj`
+("PubQuiz") projekt a repo `.env`-jében szereplő éles projekt.
+Emellett a `docs/design/STYLE_GUIDE.html` Supabase-mentes statikus
+fájl — ezen egy tényleges Chromium + `axe-core` (Playwright, előre
+telepítve a sandboxban) audit futott, nem csak kód-átolvasás.
+
+- **Kontraszt (axe-core + kézi WCAG-számítás minden token-párra):** 1
+  valódi hiba — `Button.svelte` `.primary` (natúr `--violet` háttér,
+  3.5:1) — és két, csak kézi számítással előkerült hover-állapotbeli hiba
+  (`.primary:hover` natúr `--magenta`, 2.9:1; `.danger:hover` natúr
+  `--danger`, 2.8:1; a `/play/[pin]` joker-gomb saját hover-felülírása
+  ugyanezt a hibát duplikálta). Javítás: a háttér-színt
+  `color-mix(in srgb, var(--token) 65-80%, var(--cabinet[-2]))`-vel
+  sötétítettük a Button.svelte-ben — a token maga változatlan (a
+  border/glow felhasználásoknál a fényesebb szín marad). Axe-core
+  megerősítette: 1 violation → 0 violation.
+- **`/play/+page.svelte` (PIN-beviteli oldal):** menet közben kiderült,
+  hogy ez volt az egyetlen oldal, ami Fázis H után is natúr
+  `<input>`/`<button>`-t használt (a Fázis H-s összefoglalóban ez
+  nyitott pontként szerepelt) — most átalakítva `Input`/`Button`-ra,
+  ezzel automatikusan örökölve a kontraszt-javítást is. Az `Input.svelte`
+  kapott két új propot (`inputmode`, `pattern`) a numerikus PIN-mezőhöz.
+- **Fókusz-állapotok:** a könyvtáron kívül maradt natív elemek
+  (`QuestionForm.svelte` `question_type_id` select + `true_false`
+  rádiógombok, `/play/[pin]` csúszka + sorrendező lista) mind kaptak
+  explicit `--cyan` `:focus-visible` gyűrűt.
+- **Sorrendező lista — új billentyűzet-hozzáférés:** eddig kizárólag
+  egérrel/érintéssel volt húzható-átrendezhető — egy teljes kérdés-típus
+  volt elérhetetlen billentyűzettel. Pótolva: `tabindex="0"` + `↑`/`↓`
+  nyíl-kezelő minden listaelemen (a meglévő `reorder()` függvényt hívja),
+  `role="listbox"`/`role="option"` (a Svelte a11y linter natúr `<li>`-re
+  nem enged keyboard handlert), `aria-label` a pozícióval és a kezeléssel.
+- **Érintési célpontok:** a megosztott `Button.svelte` **soha nem
+  kapott** `min-height`-et — ez Fázis G-ben a régi natúr `<button>`-ökön
+  még megvolt, de Fázis H-ban a `Button` komponensre cserélve némán
+  elveszett (padding vizuálisan elég közel volt hozzá, senki nem vette
+  észre). Pótolva `min-height`/`min-width: 44px`-cel — minden felületet
+  érinti. Csúszka thumb `28px` → `44px`.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Kontraszt és
+fókusz-konvenciók (Fázis J)" szakasz, `docs/design/STYLE_GUIDE.html`
+frissítve a javított `.btn.primary` háttérrel és `min-height`/`min-width`-szel.

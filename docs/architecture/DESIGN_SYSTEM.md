@@ -202,3 +202,62 @@ Minden fájl `npm run check` (0 hiba/figyelmeztetés) és `npm run lint` +
 `npm run build` ellenőrzéssel lezárva. Élő böngészős vizuális
 ellenőrzés — a sandbox HTTPS-blokkolása miatt — továbbra sem történt itt;
 ez a felhasználó feladata.
+
+## Kontraszt és fókusz-konvenciók (Fázis J)
+
+**Módszertani megjegyzés — ez a fázis részben mégis élő böngészős volt.**
+A `docs/design/STYLE_GUIDE.html` egy önálló statikus HTML fájl, nincs
+Supabase-függősége — ezért (a korábbi fázisoktól eltérően, ahol a
+Supabase-hívások miatt csak kód-szintű ellenőrzés volt lehetséges) ez
+tényleges Chromiumban (Playwright, előre telepítve a sandboxban) futó
+`axe-core` (4.13) ellenőrzés volt a stíluskönyvtár összes komponens-demóján.
+A valódi `games`/`questions` adatot igénylő oldalak (`/host`, `/play/[pin]`,
+`/tv`, `/admin/*`) továbbra sem tesztelhetők élőben itt.
+
+**WCAG AA kontraszt-eredmény:** minden szín-szerep pár (`--marquee`,
+`--marquee-dim`, `--cyan`, `--coin`, `--power`, `--danger`, `--magenta` a
+`--cabinet`/`--cabinet-2`/`--cabinet-3` hátterek felett) megfelel a 4.5:1
+küszöbnek — **egy kivétellel**: a `Button.svelte` `.primary` variánsa
+(`--marquee` szöveg natúr `--violet` háttéren) csak 3.5:1-et adott, a
+hover-állapota (natúr `--magenta`) 2.9:1-et, a `.danger` hover-állapota
+(natúr `--danger`) 2.8:1-et — mindhárom a review által előre jelzett
+kockázat konkrét beigazolódása. Javítás: a token maga (`--violet`,
+`--magenta`, `--danger`) **változatlan maradt** (border/glow
+felhasználásoknál a fényesebb szín jobban néz ki, és ott nincs
+kontraszt-követelmény) — helyette a Button.svelte a kitöltés-színt
+`color-mix(in srgb, var(--token) 65-80%, var(--cabinet[-2]))`-vel
+sötétíti, kontextus-specifikusan. Az axe-core futás megerősítette: 1
+violation → 0 violation a javítás után.
+
+**Fókusz-állapot:** a könyvtár komponensei (`Button`, `ChoiceButton`,
+`Checkbox`) explicit `outline: 3px solid var(--cyan)` `:focus-visible`
+stílust kapnak a Fázis F0 óta; az `Input`/`Select` a natív outline-t
+`border-color: var(--cyan)`-ra cseréli. Fázis J-ben ugyanezt pótoltuk a
+könyvtáron kívül maradt natív elemeknél is: a `QuestionForm.svelte`
+`question_type_id` `<select>`-je és a `true_false` rádiógombjai, illetve a
+`/play/[pin]` csúszkája (`input[type='range']`) és a sorrendező lista
+elemei (`<li>`) mind kaptak explicit `--cyan` `:focus-visible` gyűrűt.
+
+**Sorrendező lista — billentyűzet-hozzáférés:** a drag-and-drop-only
+sorrendező lista eddig **egyáltalán nem volt billentyűzettel elérhető**
+(nincs `tabindex`, nincs keyboard handler) — ez egy teljes kérdés-típust
+tett használhatatlanná képernyőolvasó/billentyűzet-only felhasználóknak.
+Pótolva: `tabindex="0"` + `↑`/`↓` nyíl-kezelő minden `<li>`-n (a meglévő
+`reorder(from, to)` függvényt hívja), `role="listbox"`/`role="option"` a
+natív `<ol>`/`<li>` interaktívvá tételéhez (a Svelte a11y linter enélkül
+hibát dobott — natúr `<li>`-re nem tehető keyboard handler), és egy
+`aria-label`, ami a pozíciót és a kezelést is elmondja. A Svelte keyed
+`{#each ... (item.id)}` blokk miatt a DOM-elem megmarad átrendezéskor,
+tehát a fókusz természetesen követi a mozgatott elemet.
+
+**Érintési célpontok:** a `/play/[pin]` végigellenőrizve — közben előkerült,
+hogy a megosztott `Button.svelte` **soha nem kapott** `min-height: 44px`-et
+(ez a Fázis G-ben a régi, natúr `<button>`-ökön explicit be volt állítva,
+de amikor Fázis H-ban lecserélték őket a `Button` komponensre, ez a szabály
+elveszett, és senki nem vette észre, mert vizuálisan a padding elég közel
+volt hozzá). Pótolva: `min-height`/`min-width: 44px` a `.btn`-en — ez minden
+felületet érint, ahol `Button`-t használnak. A csúszka thumb-ja
+`28px`→`44px` (a Fázis G-ben csak részlegesen lett felnagyítva).
+
+Dokumentáció-frissítés minden érintett helyen: `docs/design/STYLE_GUIDE.html`
+(`.btn.primary` háttér + `min-height`/`min-width` a mirror CSS-ben is).

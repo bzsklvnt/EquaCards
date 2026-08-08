@@ -199,13 +199,17 @@
 				font-size: 1rem;
 				border-radius: 0.5rem;
 				padding: 0.6rem 1.25rem;
+				min-height: 44px;
+				min-width: 44px;
 				cursor: pointer;
 				border: 2px solid transparent;
 				text-decoration: none;
 			}
 
 			.btn.primary {
-				background: var(--violet);
+				/* Fázis J — a natúr --violet fill csak 3.5:1 kontrasztot ad
+				--marquee szöveggel; lásd src/lib/components/Button.svelte */
+				background: color-mix(in srgb, var(--violet) 80%, var(--cabinet));
 				color: var(--marquee);
 				border-color: var(--magenta);
 			}

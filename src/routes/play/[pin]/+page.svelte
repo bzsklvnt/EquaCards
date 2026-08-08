@@ -446,13 +446,27 @@
 						<p class="slider-value">{sliderValue}</p>
 					</div>
 				{:else if currentQuestion.question_type === 'ordering'}
-					<ol class="ordering">
+					<ol class="ordering" role="listbox" aria-label="Sorrendezés">
 						{#each orderedItems as item, i (item.id)}
 							<li
+								role="option"
+								aria-selected="false"
 								draggable="true"
+								tabindex="0"
+								aria-label="{item.item_text} — {i +
+									1}. / {orderedItems.length}. Nyíl fel/le a mozgatáshoz."
 								ondragstart={() => (dragIndex = i)}
 								ondragover={(e) => e.preventDefault()}
 								ondrop={() => reorder(dragIndex, i)}
+								onkeydown={(e) => {
+									if (e.key === 'ArrowUp' && i > 0) {
+										e.preventDefault();
+										reorder(i, i - 1);
+									} else if (e.key === 'ArrowDown' && i < orderedItems.length - 1) {
+										e.preventDefault();
+										reorder(i, i + 1);
+									}
+								}}
 							>
 								{item.item_text}
 							</li>
@@ -550,14 +564,19 @@
 		height: 44px;
 	}
 
+	.slider input[type='range']:focus-visible {
+		outline: 3px solid var(--cyan);
+		outline-offset: 4px;
+	}
+
 	.slider input[type='range']::-webkit-slider-thumb {
-		width: 28px;
-		height: 28px;
+		width: 44px;
+		height: 44px;
 	}
 
 	.slider input[type='range']::-moz-range-thumb {
-		width: 28px;
-		height: 28px;
+		width: 44px;
+		height: 44px;
 	}
 
 	.slider-value {
@@ -587,6 +606,11 @@
 		cursor: grab;
 	}
 
+	.ordering li:focus-visible {
+		outline: 3px solid var(--cyan);
+		outline-offset: 2px;
+	}
+
 	.joker-wrap {
 		margin-top: 0.75rem;
 	}
@@ -598,7 +622,8 @@
 	}
 
 	.joker-wrap :global(.btn:hover:not(:disabled):not(.disabled)) {
-		background: var(--danger);
+		/* Fázis J — natúr --danger fill csak 2.8:1-et adna --marquee-vel. */
+		background: color-mix(in srgb, var(--danger) 65%, var(--cabinet));
 		color: var(--marquee);
 		box-shadow: none;
 	}
