@@ -790,6 +790,44 @@ export type Database = {
 			};
 			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
 			game_status: { Args: { p_game_id: string }; Returns: string };
+			reports_avg_response_time_by_type: {
+				Args: Record<PropertyKey, never>;
+				Returns: {
+					avg_seconds: number;
+					question_type: string;
+				}[];
+			};
+			reports_content_theme_usage: {
+				Args: Record<PropertyKey, never>;
+				Returns: {
+					title: string;
+					usage_count: number;
+				}[];
+			};
+			reports_design_theme_usage: {
+				Args: Record<PropertyKey, never>;
+				Returns: {
+					title: string;
+					usage_count: number;
+				}[];
+			};
+			reports_finished_games: {
+				Args: Record<PropertyKey, never>;
+				Returns: {
+					finished_at: string;
+					id: string;
+					team_count: number;
+					title: string;
+				}[];
+			};
+			reports_game_leaderboard: {
+				Args: { p_game_id: string };
+				Returns: {
+					name: string;
+					team_id: string;
+					total_score: number;
+				}[];
+			};
 			round_leaderboard: {
 				Args: { p_limit?: number; p_round_id: string };
 				Returns: {

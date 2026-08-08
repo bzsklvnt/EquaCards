@@ -764,3 +764,54 @@ B-ben (indoklás ott, nem ismételve).
 
 Dokumentáció: új `docs/features/app-settings.md` (a jelenlegi kulcsok
 táblázatával).
+
+## 2026-08-08 — Fázis D: Viewer statisztika/riport felület
+
+A review #3 admin-hézaga: a `viewer` role (minden új regisztráció
+alapértelmezett szerepköre) létezett a sémában, de nem volt semmi, amit
+láthatott volna. Menet közben kiderült, hogy ez szó szerint igaz volt DB
+RLS-szinten is: a `viewer`-nek egyetlen SELECT policy-ja sem volt a
+`games`/`teams`/`questions`/`themes`/`design_themes`/`question_types`/
+`round_questions`/`rounds`/`answers` táblák egyikén sem.
+
+Migráció (`supabase/migrations/20260808133000_reports_rpcs.sql`): öt
+szűk, konkrét célú security-definer RPC (`reports_finished_games`,
+`reports_game_leaderboard`, `reports_design_theme_usage`,
+`reports_content_theme_usage`, `reports_avg_response_time_by_type`) —
+ugyanaz a minta, mint a `round_leaderboard`/`team_answer_result`-nál —
+ahelyett, hogy kiszélesítettük volna a nyers táblák RLS-ét `role_id=4`-re.
+
+**Élőben elkapott és javított biztonsági hiba, mielőtt bármi is
+commitolva lett volna**: az első verzió csak `revoke ... from public`-ot
+tartalmazott, `revoke ... from anon, authenticated`-et nem — élő
+teszttel (`set role anon`, `rollback`-kal lezárt tranzakcióban)
+kiderült, hogy ez **nem elég**: anon ténylegesen le tudta futtatni a
+`reports_finished_games()`-t és valós adatot kapott vissza, mert a
+függvény törzsének `current_user_role_id() not in (...)` ellenőrzése
+`NULL` `role_id`-nál (anon esetén) nem sül el (`NULL not in (...)` SQL-ben
+`NULL`, nem `true`). Ez pontosan az a minta, amit a `scoring.sql`
+(Fázis 5) már helyesen kezelt (`revoke ... from public` **és**
+`revoke ... from anon, authenticated` együtt) — csak ez a fázis nem
+követte következetesen elsőre. Javítva, élőben újra-tesztelve
+(`permission denied` lett anon-nak), és a helyes verzió került be a
+repóba (nem hagytunk "hiba, majd javító migráció" történetet, mivel
+senki más nem húzta le a hibás verziót). **Ez egy minden jövőbeli RPC-re
+érvényes módszertani tanulság**, dokumentálva `docs/architecture/DATA_MODEL.md` 4. szakaszában is.
+
+Menet közben egy tervezett hatodik RPC (`reports_avg_team_count`)
+feleslegesnek bizonyult — a `reports_finished_games()` már visszaadja a
+csapatszámot esténként (a vonaldiagramhoz is kell), az átlag ugyanebből
+kliens-oldalon triviálisan számolható — törölve, mielőtt bármi
+commitolva lett volna.
+
+UI: `/reports` (aggregált statisztikák + lezárult esték listája) és
+`/reports/[game_id]` (egy konkrét este `PodiumCard`-okkal). Chart.js
+(`chart.js`, nem wrapper-csomag) egy vékony `ReportChart.svelte`
+komponensbe csomagolva, a design-token színekkel felbontva futásidőben.
+
+Elfogadott értelmezési döntés: a terv "leggyorsabb válaszidők"
+szövegével szemben a tényleges metrika **átlagos** válaszidő
+kérdéstípusonként — egy nyers minimum kevésbé reprezentatív aggregátum
+lenne (indoklás `docs/features/reports.md`-ben).
+
+Dokumentáció: új `docs/features/reports.md`, `docs/architecture/DATA_MODEL.md` 4. szakasz "Implementáció (Fázis D)" alszakasz.

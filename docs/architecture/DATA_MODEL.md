@@ -481,6 +481,32 @@ Ez marad a legegyszerűbb: egy este = `games` sor, amihez körök tartoznak. A t
   `duration` (+ 3mp türelmi idő) már lejárt. Részletek, indoklás és élő
   SQL-szimulációval igazolt tesztesetek: `docs/features/timer.md`.
 
+### Implementáció (Fázis D, `supabase/migrations/20260808133000_reports_rpcs.sql`)
+
+- **Kiderült: a `viewer` (role_id=4) eddig egyetlen SELECT policy-val sem
+  rendelkezett** a `games`/`teams`/`questions`/`themes`/`design_themes`/
+  `question_types`/`round_questions`/`rounds`/`answers` táblák egyikén sem
+  — holott a DATA_MODEL.md 1. szakasza szerint a riportok megtekintése a
+  viewer **egyetlen** feladata. Ahelyett, hogy kiszélesítettük volna
+  ezeknek a tábláknak a nyers RLS-ét `role_id=4`-re, öt szűk, konkrét célú
+  security-definer RPC-t vezettünk be (`reports_finished_games`,
+  `reports_game_leaderboard`, `reports_design_theme_usage`,
+  `reports_content_theme_usage`, `reports_avg_response_time_by_type`) —
+  ugyanaz a minta, mint a `round_leaderboard`/`team_answer_result`-nál.
+  Részletek: `docs/features/reports.md`.
+- **Módszertani felfedezés, minden jövőbeli RPC-re érvényes:** a `revoke
+execute ... from public` **önmagában nem** veszi el az `anon`/
+  `authenticated` szerepkörök alapértelmezett EXECUTE jogát ezen a
+  projekten — élőben leellenőrizve (`set role anon`), ez nélkül anon
+  ténylegesen le tudta futtatni a `reports_finished_games()`-t és valós
+  adatot kapott vissza, annak ellenére, hogy a függvény törzse explicit
+  `current_user_role_id() not in (...)` ellenőrzést tartalmazott (ez a
+  belső ellenőrzés NULL `role_id`-nál — anon esetén, akinek nincs
+  `profiles` sora — nem sül el, mert `NULL not in (...)` SQL-ben `NULL`,
+  nem `true`). A helyes, már a `scoring.sql`-ben (Fázis 5) bevált minta:
+  `revoke ... from public` **és** `revoke ... from anon, authenticated`
+  **együtt**, mielőtt a tényleges `grant`-ot kiadnánk.
+
 ---
 
 ## 5. Real-time protokoll (Broadcast csatorna: `game:{game_id}`)
