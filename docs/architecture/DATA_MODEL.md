@@ -382,6 +382,8 @@ create table games (
   design_theme_id uuid references design_themes(id),  -- opcionális, lásd 8. szakasz (migrációs sorrend: design_themes előbb jön létre, lásd supabase_setup.sql)
   current_round_id uuid references rounds(id),
   current_question_id uuid references questions(id),
+  current_question_started_at timestamptz,     -- Fázis L, lásd docs/features/timer.md
+  current_question_duration_seconds integer,   -- Fázis L, lásd docs/features/timer.md
   host_id uuid references profiles(id),
   created_at timestamptz default now(),
   started_at timestamptz,
@@ -454,6 +456,19 @@ Ez marad a legegyszerűbb: egy este = `games` sor, amihez körök tartoznak. A t
   (`localStorage` alapján) viszont a kliens oldalon, bármilyen nem
   `'finished'` állapotra újra le tudja kérdezni az este címét — lásd
   `docs/architecture/REALTIME_PROTOCOL.md`.
+
+### Implementáció (Fázis L, `supabase/migrations/20260808130000_timer_enforcement.sql`)
+
+- **`games.current_question_started_at` / `current_question_duration_seconds`
+  új oszlopok** — a host `startTimer()`-je írja be, pontosan a
+  `timer_start` broadcast-tal egyidejűleg, ugyanazzal a
+  `server_start_time`/`duration` értékpárral.
+- **Szerver-oldali timer-kikényszerítés az `answers` INSERT RLS-en**: a
+  korábbi, csak `games.status = 'active'`-et ellenőrző `with check` ág
+  kiegészült egy `answer_within_timer()` security-definer függvénnyel,
+  ami elutasítja a beszúrást, ha a timer nem indult el, vagy a
+  `duration` (+ 3mp türelmi idő) már lejárt. Részletek, indoklás és élő
+  SQL-szimulációval igazolt tesztesetek: `docs/features/timer.md`.
 
 ---
 

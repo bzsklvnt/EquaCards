@@ -283,7 +283,9 @@ export type Database = {
 			games: {
 				Row: {
 					created_at: string | null;
+					current_question_duration_seconds: number | null;
 					current_question_id: string | null;
+					current_question_started_at: string | null;
 					current_round_id: string | null;
 					design_theme_id: string | null;
 					finished_at: string | null;
@@ -296,7 +298,9 @@ export type Database = {
 				};
 				Insert: {
 					created_at?: string | null;
+					current_question_duration_seconds?: number | null;
 					current_question_id?: string | null;
+					current_question_started_at?: string | null;
 					current_round_id?: string | null;
 					design_theme_id?: string | null;
 					finished_at?: string | null;
@@ -309,7 +313,9 @@ export type Database = {
 				};
 				Update: {
 					created_at?: string | null;
+					current_question_duration_seconds?: number | null;
 					current_question_id?: string | null;
+					current_question_started_at?: string | null;
 					current_round_id?: string | null;
 					design_theme_id?: string | null;
 					finished_at?: string | null;
@@ -757,7 +763,11 @@ export type Database = {
 				Args: { p_answer_id: string };
 				Returns: boolean;
 			};
-			current_user_role_id: { Args: never; Returns: number };
+			answer_within_timer: {
+				Args: { p_game_id: string; p_question_id: string };
+				Returns: boolean;
+			};
+			current_user_role_id: { Args: Record<PropertyKey, never>; Returns: number };
 			draw_random_questions_for_round: {
 				Args: { p_count?: number; p_round_id: string; p_theme_id: string };
 				Returns: {
@@ -774,12 +784,6 @@ export type Database = {
 					theme_id: string | null;
 					time_limit_seconds: number | null;
 				}[];
-				SetofOptions: {
-					from: '*';
-					to: 'questions';
-					isOneToOne: false;
-					isSetofReturn: true;
-				};
 			};
 			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
 			game_status: { Args: { p_game_id: string }; Returns: string };

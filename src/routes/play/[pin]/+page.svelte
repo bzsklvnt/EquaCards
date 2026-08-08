@@ -285,7 +285,14 @@
 		});
 
 		if (answerError) {
-			submitError = 'Nem sikerült elküldeni a választ, próbáld újra.';
+			// A 42501 (RLS-policy megsértése) itt szinte mindig azt jelenti,
+			// hogy az answer_within_timer() szerver-oldali ellenőrzés (Fázis L)
+			// elutasította a beszúrást — a duration (+ pár mp türelmi idő)
+			// már lejárt, mire a kérés megérkezett.
+			submitError =
+				answerError.code === '42501'
+					? 'Lejárt az idő, mielőtt a válaszod megérkezett volna.'
+					: 'Nem sikerült elküldeni a választ, próbáld újra.';
 			return;
 		}
 

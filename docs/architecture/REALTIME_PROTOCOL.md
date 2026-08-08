@@ -88,6 +88,12 @@ duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
   meg az `answer_locked` broadcastot — az csak a hoszt "zárás most" korai
   lezárására szolgál). TV — ugyanaz a helyi visszaszámlálás, nagy kijelzős
   számmal.
+- **Fázis L:** a broadcast-tal egyidejűleg a host ugyanezt a
+  `duration`/`server_start_time` párt a `games.current_question_duration_seconds`/
+  `current_question_started_at` oszlopokba is beírja — ez a kliens-oldali
+  önzárás mellett egy szerver-oldali (RLS-szintű) kikényszerítés alapja,
+  hogy egy módosított kliens ne tudjon a lejárat után válaszolni. Részletek:
+  `docs/features/timer.md`.
 
 ### `joker_activate` (Fázis 4)
 

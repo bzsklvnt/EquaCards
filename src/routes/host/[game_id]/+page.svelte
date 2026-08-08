@@ -324,13 +324,33 @@
 			.eq('id', current.question_id)
 			.single();
 
+		const duration = question?.time_limit_seconds ?? 30;
+		const serverStartTime = new Date().toISOString();
+
+		// A games sorba is beírjuk (nem csak broadcast-oljuk) a timer
+		// kezdetét/hosszát, mert az answers INSERT RLS policy-ja
+		// (answer_within_timer, Fázis L) ezt olvassa a szerver-oldali
+		// "a válasz a duration-on belül érkezett-e" ellenőrzéshez — egy
+		// kliens-oldali óra-manipuláció így nem tud extra időt "lopni".
+		const { error } = await data.supabase
+			.from('games')
+			.update({
+				current_question_started_at: serverStartTime,
+				current_question_duration_seconds: duration
+			})
+			.eq('id', game.id);
+		if (error) {
+			statusMessage = error.message;
+			return;
+		}
+
 		await channel?.send({
 			type: 'broadcast',
 			event: 'timer_start',
 			payload: {
 				question_id: current.question_id,
-				duration: question?.time_limit_seconds ?? 30,
-				server_start_time: new Date().toISOString()
+				duration,
+				server_start_time: serverStartTime
 			}
 		});
 		uiStep = 'timing';

@@ -1,0 +1,124 @@
+# Visszaszámláló timer
+
+## Cél
+
+Egyetlen `timer_start` broadcast (`server_start_time` + `duration`) indítja
+a visszaszámlálót minden felületen — nincs másodpercenkénti szerver→kliens
+broadcast, minden kliens saját maga számol lokálisan. Ez a dokumentum a
+végleges mechanizmust írja le (Fázis L), a `docs/architecture/DATA_MODEL.md` 5. szakaszának (real-time protokoll) kiegészítéseként.
+
+## 1. A visszaszámlálás mechanikája (`/host`, `/play/[pin]`, `/tv`)
+
+Mindhárom felület ugyanazt a mintát követi:
+
+```ts
+$effect(() => {
+	if (!timerInfo) return;
+	const endTime = new Date(timerInfo.server_start_time).getTime() + timerInfo.duration * 1000;
+
+	const tick = () => {
+		const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+		secondsLeft = remaining;
+		if (remaining <= 0) locked = true; // csak /play/[pin]-en
+	};
+	tick();
+	const interval = setInterval(tick, 250);
+	return () => clearInterval(interval);
+});
+```
+
+- **Egyszeri broadcast, lokális számolás**: a `timer_start` payload csak
+  egyszer érkezik (`{ question_id, duration, server_start_time }`) — nincs
+  külön "tick" esemény. Minden kliens a saját rendszeróráját méri a kapott
+  `server_start_time`-hoz képest, 250ms-onként újraszámolva a hátralévő
+  másodperceket. Ez azt jelenti, hogy a három felület szinkronban fut
+  **feltéve, hogy a kliens-eszközök rendszerórája nagyjából egyezik**
+  (ami valós telefonokon/laptopokon NTP-vel gyakorlatilag mindig igaz) —
+  nincs hálózati késleltetésből fakadó csúszás, mert nem a broadcast
+  megérkezési ideje számít, hanem a benne lévő abszolút időbélyeg.
+- **Önzáró kliens, nem csak broadcast-vezérelt**: a `/play/[pin]` csapat
+  kliense a saját `remaining <= 0` számítása alapján **saját magát**
+  zárja le (`locked = true`), nem várja meg feltétlenül a host külön
+  `answer_locked` broadcast-ját. Ez azt jelenti, hogy egy olyan kliens is
+  helyesen lezár, amelyik éppen nem figyelte a visszaszámlálót (pl.
+  háttérbe került a böngészőlap) — amint újra aktívvá válik és a
+  `tick()` lefut, azonnal negatív/nulla `remaining`-et számol.
+
+## 2. TimerRing vizuális állapotok
+
+`src/lib/components/TimerRing.svelte` — `low` állapot (`secondsLeft <= 5`)
+pulzáló `--danger`-re vált nyugodt `--cyan`-ról, pontosan a
+`docs/design/STYLE_GUIDE.html` "TimerRing" demójának `full`/`low`
+mintája szerint. (Az `inactive` variáns — szürke, forgó, számláló-szöveg
+nélküli — a Fázis I-ben épült `ReconnectOverlay`-hez, nem a normál
+visszaszámláláshoz tartozik.)
+
+## 3. Szerver-oldali timer-kikényszerítés (Fázis L, új)
+
+**A probléma:** Fázis L előtt az `answer_locked`/`locked` kizárólag
+kliens-oldali UI-állapot volt — a `answers` tábla `anon` INSERT RLS
+policy-ja csak azt ellenőrizte, hogy `games.status = 'active'`, semmi mást.
+Egy módosított kliens (vagy egy nyílt `fetch`/`curl` hívás a Supabase REST
+API-ra közvetlenül) tetszőleges időpontban beszúrhatott volna egy választ,
+függetlenül attól, hogy a timer valójában lejárt-e.
+
+**A megoldás** (`supabase/migrations/20260808130000_timer_enforcement.sql`):
+
+- A `games` tábla két új oszlopot kapott: `current_question_started_at`
+  (`timestamptz`) és `current_question_duration_seconds` (`integer`) — ezt
+  a host írja be **a `timer_start` broadcast-tal egy időben**
+  (`startTimer()`, `/host/[game_id]/+page.svelte`), ugyanazzal a
+  `server_start_time`/`duration` értékpárral, amit a broadcast is kap.
+- Új `answer_within_timer(p_game_id, p_question_id)` security-definer
+  SQL-függvény (ugyanaz a minta, mint a `game_status()`/
+  `answer_owner_game_active()`): igaz, ha a `game.current_question_id`
+  egyezik a beküldött `question_id`-vel, a timer el lett indítva, és
+  `now() <= current_question_started_at + (duration + 3mp türelmi idő)`.
+- Az `answers_insert_anon_active_game` RLS policy `with check` ága
+  kiegészítve: `game_status(game_id) = 'active' and
+answer_within_timer(game_id, question_id)`.
+- **A gyerektáblákra (`answer_choice`/`answer_choice_multi`/
+  `answer_slider`/`answer_ordering`) nem kellett külön ellenőrzés** — ezek
+  csak egy már sikeresen beszúrt `answers` sorra hivatkozva írhatók
+  (`answer_owner_game_active()`), tehát ha a szülő sor beszúrása elbukik a
+  timer-ellenőrzésen, a gyerek-insert-eknek soha nincs mire hivatkozniuk.
+- **3 másodperces türelmi idő**: szándékosan nem szigorú `<=` a pontos
+  `duration`-re — a hálózati késleltetés (kliens → Supabase) miatt egy,
+  a valós határidőn belül elindított beküldés is később érkezhet meg a
+  szerverre. Ez ugyanaz a tolerancia-sáv, amit az 5. pont ("ne legyen
+  másodperces csúszás 2-3 böngészőfül között") is elfogad.
+- **Kliens-oldali visszajelzés**: a `/play/[pin]` `submitAnswer()`-je az
+  RLS-elutasítást (`error.code === '42501'`) felismeri, és "Lejárt az idő,
+  mielőtt a válaszod megérkezett volna." üzenetet mutat az általános hiba
+  helyett.
+
+**Élőben tesztelve** (nem csak kód-átolvasással) egy tranzakcióba
+csomagolt, `rollback`-kal lezárt SQL-szimulációval a valós Supabase
+projekten (`set local role anon`, 4 eset: timer el sem indult → elutasítva;
+duration+türelmi idő lejárt → elutasítva; duration-on belül → sikeres;
+türelmi időn belül, de duration után → sikeres) — mind a négy a várt
+eredményt adta, majd a teszt-adatok `rollback`-kal eltűntek.
+
+## 4. Ismert korlát
+
+Ha egy csapat kliense a `timer_start` broadcast-ot **teljesen lemaradja**
+(pl. a kérdés megjelenése és a timer indítása közötti pillanatban esik ki
+a kapcsolata, majd csak a kérdés lezárása után csatlakozik vissza), nincs
+helyi `timerInfo`-ja, tehát a UI-ja nem mutat visszaszámlálót és nem zár
+látványosan — de a beküldés ettől függetlenül **biztonságosan elutasításra
+kerül** a szerver-oldali `answer_within_timer()` ellenőrzésen, csak az
+"idő lejárt" üzenet helyett az általános hibaüzenetet látja. Ez UX-hiányosság,
+nem biztonsági rés — javítása (pl. a `games` sor közvetlen lekérdezése
+csatlakozáskor a `current_question_started_at`/`duration` visszanyeréséhez)
+egy jövőbeli finomítás, nem MVP-blokkoló.
+
+## 5. Vizuális szinkron ellenőrzése három böngészőfülön
+
+A sandbox HTTPS-blokkolása miatt (lásd `docs/DECISIONS_LOG.md` korábbi
+fázisai) ez a session nem tud három egyidejű böngészőfület nyitni a
+`/host`/`/play`/`/tv` felületekre a valódi WebSocket Realtime kapcsolaton
+keresztül — ez továbbra is a felhasználó feladata. A mechanizmus
+tervezésileg szinkron (lásd 1. pont), és a szerver-oldali kikényszerítés
+élőben, valós DB-n igazoltan működik — de a tényleges, szemmel látható
+"nincs másodperces csúszás 2-3 fül között" ellenőrzést élő böngészőben
+kell elvégezni.

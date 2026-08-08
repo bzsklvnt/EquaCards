@@ -632,7 +632,70 @@ vizuális hatását — a `/host`/`/play`/`/tv` oldalak Supabase-függősége
 miatt — a felhasználónak kell ellenőriznie éles böngészőben.
 
 Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` "Arcade panel" szakasz
-átírva + `ArcadePanel.svelte` felvéve a komponens-könyvtár táblázatba,
+átírva, `ArcadePanel.svelte` felvéve a komponens-könyvtár táblázatba,
 `--magenta` szerep-leírás javítva; `docs/design/STYLE_GUIDE.html` PinDisplay
+és joker-gomb demóval, valamint a javított szövegekkel/CSS-sel kiegészítve.
 
-- joker-gomb demóval és a javított szövegekkel/CSS-sel kiegészítve.
+## 2026-08-08 — Fázis L: Visszaszámláló timer véglegesítése
+
+**Módszertani előrelépés:** a Fázis J-ben felfedezett Supabase MCP-hozzáférést
+itt a legkomolyabban használtuk ki eddig — nemcsak séma-lekérdezésre és
+migráció-alkalmazásra, hanem egy tényleges, `rollback`-kal lezárt
+tranzakcióba csomagolt, `set local role anon`-nal szimulált RLS-tesztre a
+valós Supabase projekten (4 eset, mind a várt eredményt adta — lásd lent).
+Ez az első fázis ebben a sessionben, ahol egy biztonsági/logikai
+DB-viselkedést nem csak kód-átolvasással, hanem éles adatbázison,
+tényleges beszúrási kísérletekkel igazoltunk.
+
+Ellenőrzött/lezárt pontok a terv szerint:
+
+1. **Egyszeri `timer_start` broadcast, lokális számolás** — megerősítve
+   kód-átolvasással mindhárom felületen (`/host`, `/play/[pin]`, `/tv`):
+   nincs másodpercenkénti szerver→kliens broadcast, minden kliens a saját
+   `setInterval`-jában, a kapott `server_start_time`/`duration` alapján
+   számol. Nem kellett módosítani.
+2. **TimerRing szín-átmenet** — `low` állapot (≤5 mp) pulzáló `--danger`,
+   egyébként nyugodt `--cyan`, pontosan a STYLE_GUIDE.html mintája
+   szerint — már a Fázis F0/J-ben helyesen megépült, nem kellett
+   módosítani.
+3. **Szerver-oldali timer-kikényszerítés (ÚJ, ez volt a valódi hiányzó
+   rész)** — a review explicit kockázata ("kliens-oldali óra manipulációja
+   ne tudjon extra időt lopni") eddig ténylegesen fennállt: az `answers`
+   INSERT RLS-je csak `games.status = 'active'`-et nézte, a
+   `timer_start`/`answer_locked` kizárólag kliens-oldali UI-állapot volt.
+   Migráció (`supabase/migrations/20260808130000_timer_enforcement.sql`):
+   `games.current_question_started_at`/`current_question_duration_seconds`
+   új oszlopok (a host `startTimer()`-je tölti ki, a broadcast-tal
+   egyidejűleg), új `answer_within_timer()` security-definer függvény
+   (3 mp türelmi idővel a hálózati késleltetés miatt), bekötve az
+   `answers_insert_anon_active_game` policy `with check` ágába. Élőben,
+   valós DB-n, `rollback`-kal lezárt tranzakcióban tesztelve 4 eset: timer
+   el sem indult → elutasítva; duration+türelmi idő lejárt → elutasítva;
+   duration-on belül → sikeres; türelmi időn belül → sikeres — mind a
+   várt eredményt adta. `/play/[pin]` `submitAnswer()` felismeri a
+   `42501` (RLS-elutasítás) hibakódot, és pontosabb "Lejárt az idő..."
+   üzenetet mutat.
+4. **`answer_locked` pontos, néző-független lezárás** — már megvolt: a
+   csapat kliense a saját helyi visszaszámlálása alapján **saját magát**
+   zárja le (`locked = true`, amint `remaining <= 0`), nem várja meg a
+   host `answer_locked` broadcast-ját — ez azt is jelenti, hogy egy olyan
+   kliens is helyesen lezár, amelyik éppen nem nézte a képernyőt. A Fázis
+   L-es szerver-oldali kikényszerítés ezt egy biztonsági hátvéddel
+   egészíti ki, arra az esetre, ha egy módosított kliens megkerülné a
+   helyi állapotot.
+5. **Vizuális szinkron három böngészőfülön** — nem tesztelhető élőben
+   ebben a sandboxban (a `/host`/`/play`/`/tv` valódi Supabase Realtime
+   WebSocket-kapcsolatot igényel, ami a blokkolt HTTPS-proxy mögött van);
+   a mechanizmus tervezésileg szinkron (abszolút időbélyeg-alapú, nem
+   broadcast-megérkezéshez kötött számolás), ezt a felhasználónak kell
+   élő böngészőben megerősítenie.
+
+DB-séma frissítve `docs/architecture/DATA_MODEL.md` 4. szakaszában (a
+`games` CREATE TABLE + egy új "Implementáció (Fázis L)" alszakasz) és
+`docs/architecture/REALTIME_PROTOCOL.md` `timer_start` leírásában.
+TypeScript típusok újragenerálva (`src/lib/types/database.types.ts`).
+
+Dokumentáció: új `docs/features/timer.md` a végleges timer-mechanizmusról
+(beleértve az ismert korlátot: egy, a `timer_start`-ot teljesen lemaradó,
+majd csak lezárás után visszacsatlakozó kliens nem lát vizuális
+visszaszámlálót, de a beküldése akkor is biztonságosan elutasításra kerül).
