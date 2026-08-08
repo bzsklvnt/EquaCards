@@ -2,9 +2,12 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
+	import { withToast } from '$lib/toast-enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	let deletingId = $state<string | null>(null);
 </script>
 
 <svelte:head>
@@ -37,9 +40,16 @@
 						: ''}</span
 				>
 			{:else}
-				<form method="POST" action="?/delete" use:enhance>
+				<form
+					method="POST"
+					action="?/delete"
+					use:enhance={withToast({
+						successMessage: 'Design téma törölve.',
+						setSubmitting: (v) => (deletingId = v ? theme.id : null)
+					})}
+				>
 					<input type="hidden" name="id" value={theme.id} />
-					<Button type="submit" variant="danger">Törlés</Button>
+					<Button type="submit" variant="danger" loading={deletingId === theme.id}>Törlés</Button>
 				</form>
 			{/if}
 		</li>

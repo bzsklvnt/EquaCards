@@ -4,11 +4,13 @@
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
+	import { withToast } from '$lib/toast-enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let newTitle = $state('');
+	let creating = $state(false);
 
 	const STATUS_LABELS: Record<string, string> = {
 		lobby: 'Váró',
@@ -32,9 +34,13 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<form method="POST" action="?/create" use:enhance>
+<form
+	method="POST"
+	action="?/create"
+	use:enhance={withToast({ setSubmitting: (v) => (creating = v) })}
+>
 	<Input name="title" placeholder="Új kvízeste neve" bind:value={newTitle} required />
-	<Button type="submit">Létrehozás</Button>
+	<Button type="submit" loading={creating}>Létrehozás</Button>
 </form>
 
 <ul class="games-grid">

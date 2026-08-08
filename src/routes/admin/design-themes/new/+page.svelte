@@ -5,12 +5,14 @@
 	import Checkbox from '$lib/components/Checkbox.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { withToast } from '$lib/toast-enhance';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
 
 	let title = $state('');
 	let isDefault = $state(false);
+	let creating = $state(false);
 	let tokensText = $state(JSON.stringify(defaultTokens, null, 2));
 	let parseError = $derived.by(() => {
 		try {
@@ -32,7 +34,11 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<form method="POST" action="?/create" use:enhance>
+<form
+	method="POST"
+	action="?/create"
+	use:enhance={withToast({ setSubmitting: (v) => (creating = v) })}
+>
 	<Input
 		label="Név"
 		name="title"
@@ -61,7 +67,7 @@
 		<p class="error">{parseError}</p>
 	{/if}
 
-	<Button type="submit" disabled={!!parseError}>Létrehozás</Button>
+	<Button type="submit" disabled={!!parseError} loading={creating}>Létrehozás</Button>
 </form>
 
 <style>

@@ -4,6 +4,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { withToast } from '$lib/toast-enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -11,6 +12,11 @@
 	let newRoundTitle = $state('');
 	let drawThemeId = $state('');
 	let drawCount = $state('8');
+
+	let addingRound = $state(false);
+	let deletingRoundId = $state<string | null>(null);
+	let drawingRoundId = $state<string | null>(null);
+	let removingKey = $state<string | null>(null);
 </script>
 
 <svelte:head>
@@ -25,22 +31,44 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<form method="POST" action="?/addRound" use:enhance class="add-round">
+<form
+	method="POST"
+	action="?/addRound"
+	use:enhance={withToast({ setSubmitting: (v) => (addingRound = v) })}
+	class="add-round"
+>
 	<Input name="title" placeholder="Új kör neve" bind:value={newRoundTitle} required />
-	<Button type="submit">+ Kör hozzáadása</Button>
+	<Button type="submit" loading={addingRound}>+ Kör hozzáadása</Button>
 </form>
 
 {#each data.rounds as round (round.id)}
 	<section class="round">
 		<div class="round-header">
 			<h2>{round.order_index}. {round.title}</h2>
-			<form method="POST" action="?/deleteRound" use:enhance>
+			<form
+				method="POST"
+				action="?/deleteRound"
+				use:enhance={withToast({
+					successMessage: 'Kör törölve.',
+					setSubmitting: (v) => (deletingRoundId = v ? round.id : null)
+				})}
+			>
 				<input type="hidden" name="round_id" value={round.id} />
-				<Button type="submit" variant="danger">Kör törlése</Button>
+				<Button type="submit" variant="danger" loading={deletingRoundId === round.id}
+					>Kör törlése</Button
+				>
 			</form>
 		</div>
 
-		<form method="POST" action="?/draw" use:enhance class="draw-form">
+		<form
+			method="POST"
+			action="?/draw"
+			use:enhance={withToast({
+				successMessage: 'Kérdések kihúzva.',
+				setSubmitting: (v) => (drawingRoundId = v ? round.id : null)
+			})}
+			class="draw-form"
+		>
 			<input type="hidden" name="round_id" value={round.id} />
 			<Select label="Téma" name="theme_id" bind:value={drawThemeId} required>
 				<option value="">— válassz témát —</option>
@@ -49,17 +77,27 @@
 				{/each}
 			</Select>
 			<Input label="Darabszám" type="number" name="count" bind:value={drawCount} min="1" max="20" />
-			<Button type="submit">Random húzás</Button>
+			<Button type="submit" loading={drawingRoundId === round.id}>Random húzás</Button>
 		</form>
 
 		<ol>
 			{#each data.roundQuestions[round.id] ?? [] as rq (rq.question_id)}
 				<li>
 					{rq.prompt}
-					<form method="POST" action="?/removeQuestion" use:enhance>
+					<form
+						method="POST"
+						action="?/removeQuestion"
+						use:enhance={withToast({
+							setSubmitting: (v) => (removingKey = v ? `${round.id}:${rq.question_id}` : null)
+						})}
+					>
 						<input type="hidden" name="round_id" value={round.id} />
 						<input type="hidden" name="question_id" value={rq.question_id} />
-						<Button type="submit" variant="ghost">Eltávolítás</Button>
+						<Button
+							type="submit"
+							variant="ghost"
+							loading={removingKey === `${round.id}:${rq.question_id}`}>Eltávolítás</Button
+						>
 					</form>
 				</li>
 			{:else}

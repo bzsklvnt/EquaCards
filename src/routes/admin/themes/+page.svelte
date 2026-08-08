@@ -2,11 +2,14 @@
 	import { enhance } from '$app/forms';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { withToast } from '$lib/toast-enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let newTitle = $state('');
+	let creating = $state(false);
+	let deletingId = $state<string | null>(null);
 </script>
 
 <svelte:head>
@@ -19,18 +22,32 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<form method="POST" action="?/create" use:enhance>
+<form
+	method="POST"
+	action="?/create"
+	use:enhance={withToast({
+		successMessage: 'Téma létrehozva.',
+		setSubmitting: (v) => (creating = v)
+	})}
+>
 	<Input name="title" placeholder="Új téma neve" bind:value={newTitle} required />
-	<Button type="submit">Hozzáadás</Button>
+	<Button type="submit" loading={creating}>Hozzáadás</Button>
 </form>
 
 <ul>
 	{#each data.themes as theme (theme.id)}
 		<li>
 			{theme.title}
-			<form method="POST" action="?/delete" use:enhance>
+			<form
+				method="POST"
+				action="?/delete"
+				use:enhance={withToast({
+					successMessage: 'Téma törölve.',
+					setSubmitting: (v) => (deletingId = v ? theme.id : null)
+				})}
+			>
 				<input type="hidden" name="id" value={theme.id} />
-				<Button type="submit" variant="danger">Törlés</Button>
+				<Button type="submit" variant="danger" loading={deletingId === theme.id}>Törlés</Button>
 			</form>
 		</li>
 	{:else}

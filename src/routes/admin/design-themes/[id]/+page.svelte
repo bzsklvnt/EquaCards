@@ -5,12 +5,15 @@
 	import Checkbox from '$lib/components/Checkbox.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { withToast } from '$lib/toast-enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let title = $state(untrack(() => data.designTheme.title));
 	let isDefault = $state(untrack(() => data.designTheme.is_default));
+	let saving = $state(false);
+	let deleting = $state(false);
 	let tokensText = $state(untrack(() => JSON.stringify(data.designTheme.design_tokens, null, 2)));
 	let parseError = $derived.by(() => {
 		try {
@@ -32,7 +35,11 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<form method="POST" action="?/update" use:enhance>
+<form
+	method="POST"
+	action="?/update"
+	use:enhance={withToast({ setSubmitting: (v) => (saving = v) })}
+>
 	<Input label="Név" name="title" bind:value={title} required maxlength={60} />
 
 	<Checkbox
@@ -54,11 +61,16 @@
 		<p class="error">{parseError}</p>
 	{/if}
 
-	<Button type="submit" disabled={!!parseError}>Mentés</Button>
+	<Button type="submit" disabled={!!parseError} loading={saving}>Mentés</Button>
 </form>
 
-<form method="POST" action="?/delete" use:enhance class="delete-form">
-	<Button type="submit" variant="danger">Téma törlése</Button>
+<form
+	method="POST"
+	action="?/delete"
+	use:enhance={withToast({ setSubmitting: (v) => (deleting = v) })}
+	class="delete-form"
+>
+	<Button type="submit" variant="danger" loading={deleting}>Téma törlése</Button>
 </form>
 
 <style>

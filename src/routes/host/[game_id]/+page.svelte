@@ -545,7 +545,11 @@
 			{#each teams as team (team.team_id)}
 				<TeamChip name={team.name} />
 			{:else}
-				<p class="empty">Még senki sem csatlakozott.</p>
+				{#if connectionStatus.status !== 'connected'}
+					<p class="loading">Csapatok betöltése…</p>
+				{:else}
+					<p class="empty">Még senki sem csatlakozott.</p>
+				{/if}
 			{/each}
 		</div>
 	{:else if game.status === 'active' && roundQuestions.length === 0}
@@ -617,7 +621,11 @@
 			{#each teams as team (team.team_id)}
 				<TeamChip name={team.name} />
 			{:else}
-				<p class="empty">Még senki sem csatlakozott.</p>
+				{#if connectionStatus.status !== 'connected'}
+					<p class="loading">Csapatok betöltése…</p>
+				{:else}
+					<p class="empty">Még senki sem csatlakozott.</p>
+				{/if}
 			{/each}
 		</div>
 	{:else if game.status === 'finished'}

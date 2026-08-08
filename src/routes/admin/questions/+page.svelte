@@ -4,9 +4,12 @@
 	import { untrack } from 'svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { withToast } from '$lib/toast-enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	let deletingId = $state<string | null>(null);
 
 	let themeFilter = $state(untrack(() => data.themeFilter ?? ''));
 </script>
@@ -61,9 +64,16 @@
 				>
 				<td data-label="Műveletek">
 					<a href={resolve(`/admin/questions/[id]`, { id: q.id })}>Szerkesztés</a>
-					<form method="POST" action="?/delete" use:enhance>
+					<form
+						method="POST"
+						action="?/delete"
+						use:enhance={withToast({
+							successMessage: 'Kérdés törölve.',
+							setSubmitting: (v) => (deletingId = v ? q.id : null)
+						})}
+					>
 						<input type="hidden" name="id" value={q.id} />
-						<Button type="submit" variant="danger">Törlés</Button>
+						<Button type="submit" variant="danger" loading={deletingId === q.id}>Törlés</Button>
 					</form>
 				</td>
 			</tr>

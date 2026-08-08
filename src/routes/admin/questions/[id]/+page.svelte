@@ -2,9 +2,12 @@
 	import { enhance } from '$app/forms';
 	import QuestionForm from '$lib/components/QuestionForm.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { withToast } from '$lib/toast-enhance';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	let deleting = $state(false);
 </script>
 
 <svelte:head>
@@ -32,8 +35,13 @@
 	}}
 />
 
-<form method="POST" action="?/delete" use:enhance class="delete-form">
-	<Button type="submit" variant="danger">Kérdés törlése</Button>
+<form
+	method="POST"
+	action="?/delete"
+	use:enhance={withToast({ setSubmitting: (v) => (deleting = v) })}
+	class="delete-form"
+>
+	<Button type="submit" variant="danger" loading={deleting}>Kérdés törlése</Button>
 </form>
 
 <style>

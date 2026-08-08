@@ -6,6 +6,7 @@
 	import Select from './Select.svelte';
 	import Checkbox from './Checkbox.svelte';
 	import Button from './Button.svelte';
+	import { withToast } from '$lib/toast-enhance';
 
 	type Theme = { id: string; title: string };
 	type QuestionType = {
@@ -50,6 +51,7 @@
 		error?: string;
 	} = $props();
 
+	let saving = $state(false);
 	let themeId = $state(untrack(() => initial?.theme_id ?? ''));
 	let questionTypeId = $state(untrack(() => initial?.question_type_id ?? questionTypes[0]?.id));
 	let selectedType = $derived(questionTypes.find((t) => t.id === questionTypeId));
@@ -102,7 +104,7 @@
 	}
 </script>
 
-<form method="POST" {action} use:enhance>
+<form method="POST" {action} use:enhance={withToast({ setSubmitting: (v) => (saving = v) })}>
 	{#if error}
 		<p class="error">{error}</p>
 	{/if}
@@ -291,7 +293,7 @@
 		</fieldset>
 	{/if}
 
-	<Button type="submit">Mentés</Button>
+	<Button type="submit" loading={saving}>Mentés</Button>
 </form>
 
 <style>

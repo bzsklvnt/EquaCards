@@ -60,6 +60,7 @@
 	let orderedItems = $state<{ id: string; item_text: string }[]>([]);
 	let dragIndex = $state<number | null>(null);
 	let joinName = $state('');
+	let joining = $state(false);
 	let connectionStatus = $state<'connected' | 'reconnecting' | 'disconnected'>('connected');
 
 	let channel: ReturnType<typeof data.supabase.channel> | undefined;
@@ -502,13 +503,23 @@
 		{/if}
 	{:else if data.game}
 		<h1>{data.game.title}</h1>
-		<form method="POST" action="?/join" use:enhance>
+		<form
+			method="POST"
+			action="?/join"
+			use:enhance={() => {
+				joining = true;
+				return async ({ update }) => {
+					joining = false;
+					await update();
+				};
+			}}
+		>
 			<input type="hidden" name="device_token" value={deviceToken} />
 			<Input label="Csapatnév" name="name" bind:value={joinName} required maxlength={40} />
 			{#if form?.error}
 				<p class="error">{form.error}</p>
 			{/if}
-			<Button type="submit">Csatlakozás</Button>
+			<Button type="submit" loading={joining}>Csatlakozás</Button>
 		</form>
 	{:else}
 		<h1>Nem található</h1>

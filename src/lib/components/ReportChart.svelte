@@ -49,6 +49,7 @@
 
 	let canvas: HTMLCanvasElement;
 	let chart: Chart | undefined;
+	let ready = $state(false);
 
 	onMount(() => {
 		chart = new Chart(canvas, {
@@ -90,6 +91,7 @@
 				}
 			}
 		});
+		ready = true;
 	});
 
 	onDestroy(() => {
@@ -98,7 +100,10 @@
 </script>
 
 <div class="chart-wrap">
-	<canvas bind:this={canvas}></canvas>
+	{#if !ready}
+		<p class="loading">Diagram betöltése…</p>
+	{/if}
+	<canvas bind:this={canvas} class:hidden={!ready}></canvas>
 </div>
 
 <style>
@@ -107,5 +112,20 @@
 		width: 100%;
 		min-width: 0;
 		height: 18rem;
+	}
+
+	.loading {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--marquee-dim);
+		font-size: 0.85rem;
+		margin: 0;
+	}
+
+	.hidden {
+		visibility: hidden;
 	}
 </style>

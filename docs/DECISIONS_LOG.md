@@ -1113,3 +1113,70 @@ tartalmi téma-használat) egyaránt profitál belőle.
 
 Dokumentáció: `docs/features/reports.md` új "Diagram-konfiguráció
 javítások (Fázis N4)" alszakasz.
+
+---
+
+## 2026-08-08 — Fázis N5: Loading state-ek + egységes hibajelzés
+
+**Csomag-döntés eltérés a tervtől:** a feladat szövege `svelte-french-toast`-ot
+javasolt (a NEXT_STEPS.md eredeti Fázis B ajánlása) — ez **nem** került be,
+mert még mindig csak Svelte 3/4 peer dependency-t enged (ugyanaz az ok,
+ami miatt Fázis B-ben eredetileg `svelte-sonner`-re váltottunk, lásd az
+akkori bejegyzést). A már meglévő `svelte-sonner` + admin layout-ban
+mounted `<Toaster>` infrastruktúrát bővítettük tovább, nem vezettünk be
+egy második, párhuzamos toast-csomagot.
+
+1. **Egységes admin form-visszajelzés.** Új megosztott
+   `src/lib/toast-enhance.ts` `withToast()` helper (a korábban
+   admin/users-ben és admin/settings-ben egyedileg megírt minta
+   kivonata) — hiba esetén toast, sikeres és **nem redirectelő** action
+   esetén opcionális sikerüzenet is. Bekötve minden korábban lefedetlen
+   admin CRUD form-ba: `admin/themes` (létrehozás/törlés),
+   `admin/design-themes` (lista törlés, új létrehozás, szerkesztés
+   mentés/törlés), `admin/questions` (lista törlés, `QuestionForm.svelte`
+   megosztott mentés — ez automatikusan lefedi az `admin/questions/new`-t
+   és az `admin/questions/[id]`-t is), `admin/games` (létrehozás,
+   kör hozzáadása/törlése, random húzás, kérdés eltávolítása).
+   Redirectelő action-öknél (pl. létrehozás → szerkesztő oldalra ugrás)
+   szándékosan nincs `successMessage`, mert a toast sosem futna le a
+   navigáció előtt — ott csak a `loading` állapotot kötöttük be.
+2. **`Button.svelte` új `loading` prop.** Spinner + implicit `disabled`,
+   hogy submit közben ne lehessen véletlenül duplán elküldeni egy
+   form-ot. Minden fenti admin form submit gombja ezt használja, egy
+   helyi `$state`-tel (vagy lista-elemeknél kulcsolt `$state`-tel, pl.
+   `deletingId`/`removingKey`) vezérelve a `withToast()` `setSubmitting`
+   callback-jén keresztül.
+3. **Host lobby csapatlista — "töltés" vs. "valóban üres" megkülönböztetve.**
+   A `teams` lista realtime presence sync-ből töltődik, `[]`-ként indul —
+   korábban ez megkülönböztethetetlen volt a "senki sem csatlakozott"
+   állapottól. A már meglévő `connectionStatus` context-et (Fázis F/I)
+   felhasználva: amíg a csatorna nincs `'connected'` állapotban, "Csapatok
+   betöltése…" jelenik meg az üres-lista szöveg helyett.
+4. **`ReportChart.svelte` — a Chart.js canvas-mount rése.** A diagram
+   `onMount`-ban épül fel (elkerülhetetlenül kliens-oldali) — egy rövid
+   "Diagram betöltése…" placeholder fedi le ezt az ablakot, amíg a
+   `Chart` példány létre nem jön.
+5. **`/play/[pin]` csatlakozási form — loading, de szándékosan toast nélkül.**
+   A join gomb `loading` állapotot kapott, de **nem** kötöttünk be
+   `withToast()`-ot/`Toaster`-t erre a felületre: a `/play` a Fázis F
+   dokumentált, tudatos "nincs header/chrome, minden pixel a kérdésé"
+   döntése alá esik, és a hibaüzenet már eddig is jól látható, tartósan
+   olvasható inline banner-ként jelenik meg (`{#if form?.error}`) — egy
+   pár másodperc után eltűnő toast rosszabb UX lenne egy telefonon,
+   zajos kocsmai környezetben olvasó csapatnak, mint egy state-ig
+   megmaradó inline üzenet.
+6. **`/host` élő vezérlés — szándékosan kimaradt.** A host oldal
+   interakciói (kérdés indítása, timer, reveal stb.) nem SvelteKit form
+   action-ök, hanem közvetlen `onclick` függvényhívások, saját
+   `statusMessage`-alapú visszajelzési mintával (pl. "Joker aktiválva
+   egy csapat által.") — ez már egy létező, konzisztens egységes
+   visszajelzési csatorna, a `withToast()`/`use:enhance` minta ide nem
+   illeszkedne rá természetesen. Nem vezettünk be egy második,
+   párhuzamos visszajelzési rendszert emiatt.
+
+Dokumentáció: `docs/DOCUMENTATION_POLICY.md` új "UI konvenció: loading +
+hiba state minden aszinkron művelethez" szakasz — mostantól minden új
+aszinkron műveletre kötelező elvárás, a fenti minták szerint.
+
+**Ezzel a `PROJECT_REVIEW.md` élő teszteléséből eredő mind az öt N-fázis
+(N1–N5) lezárva.**

@@ -5,6 +5,7 @@
 		variant = 'primary',
 		type = 'button',
 		disabled = false,
+		loading = false,
 		href,
 		target,
 		rel,
@@ -14,21 +15,37 @@
 		variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
 		type?: 'button' | 'submit' | 'reset';
 		disabled?: boolean;
+		/** Fázis N5 — submit közbeni vizuális jelzés; a gomb ilyenkor is
+		 * disabled-ként viselkedik, hogy ne lehessen kétszer elküldeni. */
+		loading?: boolean;
 		href?: string;
 		target?: string;
 		rel?: string;
 		onclick?: (event: MouseEvent) => void;
 		children: Snippet;
 	} = $props();
+
+	const isDisabled = $derived(disabled || loading);
 </script>
 
 {#if href}
-	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is caller-supplied; callers must pass an already-resolve()d path for internal routes. -->
-	<a {href} {target} {rel} class="btn {variant}" class:disabled aria-disabled={disabled} {onclick}>
+	<!-- eslint-disable svelte/no-navigation-without-resolve -- href is caller-supplied; callers must pass an already-resolve()d path for internal routes. -->
+	<a
+		{href}
+		{target}
+		{rel}
+		class="btn {variant}"
+		class:disabled={isDisabled}
+		aria-disabled={isDisabled}
+		{onclick}
+	>
+		{#if loading}<span class="spinner" aria-hidden="true"></span>{/if}
 		{@render children()}
 	</a>
+	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 {:else}
-	<button {type} {disabled} class="btn {variant}" {onclick}>
+	<button {type} disabled={isDisabled} class="btn {variant}" {onclick}>
+		{#if loading}<span class="spinner" aria-hidden="true"></span>{/if}
 		{@render children()}
 	</button>
 {/if}
@@ -122,5 +139,27 @@
 
 	.ghost:hover:not(:disabled):not(.disabled) {
 		color: var(--cyan);
+	}
+
+	.spinner {
+		width: 1em;
+		height: 1em;
+		border: 2px solid currentColor;
+		border-top-color: transparent;
+		border-radius: 50%;
+		opacity: 0.8;
+		animation: spin 0.6s linear infinite;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.spinner {
+			animation-duration: 1.6s;
+		}
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>
