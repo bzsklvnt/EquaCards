@@ -353,6 +353,16 @@ Ez marad a legegyszerűbb: egy este = `games` sor, amihez körök tartoznak. A t
 
 **Hogyan működik a csapat-joker:** amíg egy kérdés aktív (a `timer_start` és `answer_locked` között), a csapat a saját felületén megnyomhat egy "Duplázás" gombot — ez egy `broadcast` eseményt küld (`joker_activate`), amit a host/backend `team_joker_uses`-be ír a `question_id`-vel. Az `unique (team_id, joker_type)` constraint miatt ez csak egyszer sikerülhet egy csapatnak egy estén — ha már felhasználta, a gomb a kliens oldalon eltűnik/inaktívvá válik (ezt a `team_joker_uses` lekérdezéséből lehet eldönteni betöltéskor).
 
+### Implementáció (Fázis 3, `supabase/migrations/20260808105851_teams_join_flow.sql`)
+
+- **`teams`** létrejött a fenti terv szerint (`team_joker_uses` még nem — az Fázis 4 scope-ja, a joker gombbal együtt).
+- **`games.pin` részleges unique indexe:** a Fázis 2-ben létrehozott sima `unique` constraint (`games_pin_key`) helyett `games_pin_active_key` — csak `status <> 'finished'` sorokra kényszeríti ki az egyediséget, így egy lezárt kvízeste PIN-je később újra kiosztható. Ellenőrizve: két egyszerre aktív este nem kaphat azonos PIN-t, de egy `finished` este PIN-je szabadon újrafelhasználható.
+- **RLS anonim (nem authentikált) csapat-klienseknek** — a csapatok `device_token`-nel (nem Supabase auth session-nel) azonosítják magukat, lásd `docs/architecture/REALTIME_PROTOCOL.md`:
+  - `games`: `anon` csak `status = 'lobby'` sorokat láthat (PIN feloldáshoz a `/play/[pin]` csatlakozáskor).
+  - `teams`: `anon` beszúrhat, ha a cél `games.status = 'lobby'`; olvashat minden nem `'finished'` játékhoz tartozó csapatot.
+  - `teams_staff_all`: `role_id in (1,2,3)` (super_admin/admin/host) mindent lát/kezel — ugyanaz a kör, mint a `games`/`rounds` RLS-nél.
+- **Ismert korlátozás:** mivel az anon `games` SELECT csak `status = 'lobby'`-ra enged, egy csapat nem tud a PIN-en keresztül újracsatlakozni, ha a host már elindította az estét. A `localStorage`-ban tárolt `team_id`/`game_id` alapú újracsatlakozás Fázis 4-ben épül meg, a tényleges játékmenet UI-jával együtt.
+
 ---
 
 ## 5. Real-time protokoll (Broadcast csatorna: `game:{game_id}`)

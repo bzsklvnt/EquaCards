@@ -451,6 +451,44 @@ export type Database = {
 					}
 				];
 			};
+			teams: {
+				Row: {
+					color: string | null;
+					device_token: string;
+					game_id: string | null;
+					id: string;
+					joined_at: string | null;
+					name: string;
+					total_score: number | null;
+				};
+				Insert: {
+					color?: string | null;
+					device_token: string;
+					game_id?: string | null;
+					id?: string;
+					joined_at?: string | null;
+					name: string;
+					total_score?: number | null;
+				};
+				Update: {
+					color?: string | null;
+					device_token?: string;
+					game_id?: string | null;
+					id?: string;
+					joined_at?: string | null;
+					name?: string;
+					total_score?: number | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'teams_game_id_fkey';
+						columns: ['game_id'];
+						isOneToOne: false;
+						referencedRelation: 'games';
+						referencedColumns: ['id'];
+					}
+				];
+			};
 			themes: {
 				Row: {
 					id: string;

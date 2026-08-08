@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -8,6 +9,7 @@
 <main>
 	<h1>{data.game.title}</h1>
 	<p class="status">Állapot: {data.game.status}</p>
+	<a href={resolve('/host/[game_id]', { game_id: data.game.id })}>Élő lebonyolítás megnyitása →</a>
 
 	{#if form?.error}
 		<p class="error">{form.error}</p>

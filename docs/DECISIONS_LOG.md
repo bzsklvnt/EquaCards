@@ -92,3 +92,41 @@ korlátba ütközött, ezért a `draw_random_questions_for_round` RPC-t,
 a cooldown-szűrést, a duplikátum-kizárást és a `last_used_at` triggert
 közvetlenül SQL-lel, valós teszt-adatokkal futtatva igazoltam vissza (majd
 a teszt-adatokat és a hozzájuk tartozó audit_logs bejegyzéseket töröltem).
+
+## 2026-08-08 — Terv frissítve: vizuális design téma rendszer
+
+A felhasználó elküldte a terv frissített (v2) változatát egy önálló,
+tartalmi témáktól (`themes`) független `design_themes` rendszerrel
+(szín/font token-készlet, egyetlen alapértelmezett téma DB-szinten
+kikényszerítve). Csak a diff került be a `docs/architecture/DATA_MODEL.md`-be
+(új 8. szakasz, a régi "MVP fázisok" 9-re tolva, kisebb kiegészítések a
+2/4/7. szakaszban) — implementáció még nem történt, ez egyelőre tisztán
+tervezési frissítés.
+
+## 2026-08-08 — Fázis 3: Csatlakozási flow (PIN/QR, lobby)
+
+Migráció (`supabase/migrations/20260808105851_teams_join_flow.sql`): `teams`
+tábla a DATA_MODEL.md 4. szakasza szerint; a Fázis 2-ben létrehozott sima
+`unique` a `games.pin`-en lecserélve egy részleges unique indexre
+(`games_pin_active_key`, csak `status <> 'finished'`-re), hogy egy lezárt
+este PIN-je újra kiosztható legyen. RLS: `anon` (nem authentikált csapat-
+kliensek) csak `status = 'lobby'` `games` sorokat láthatnak és csak azokhoz
+csatlakozhatnak (`teams` insert); `teams_staff_all` a szokásos `role_id in
+(1,2,3)` kör. Mindhárom szabályt (lobby-only látás, lobby-only join,
+PIN-újrafelhasználás lezárt estén) közvetlenül SQL-lel, `set role anon`-nal
+szimulálva igazoltam vissza, majd töröltem a teszt-adatokat.
+
+`/play` (kézi PIN beírás) + `/play/[pin]` (csapatnév űrlap → `teams` insert,
+`device_token` `localStorage`-ban, újratöltésnél a mentett adatból automatikus
+"várakozás" képernyő). `/host/+layout.server.ts` új, önálló route guard
+(`role_id in (1,2,3)`, tágabb, mint az `/admin` guard-ja) + `/host/[game_id]`
+élő lobby: QR kód (kliens oldali `qrcode` csomaggal) + PIN, élő csapatlista
+Supabase Presence-szel (`game:{game_id}` csatorna). A csapat csatlakozáskor
+egy `team_joined` broadcast eseményt is küld — dokumentálva a
+`docs/architecture/REALTIME_PROTOCOL.md`-ben a Presence-mintával együtt.
+
+Ismert korlát Fázis 4-re halasztva: mivel a PIN-alapú `games` lekérdezés csak
+`status = 'lobby'`-ra enged anon olvasást, egy csapat nem tud PIN-en keresztül
+újracsatlakozni, ha a host már elindította az estét — a `localStorage`-ban
+tárolt `team_id`/`game_id` alapú újracsatlakozás a tényleges játékmenet
+UI-jával együtt épül meg.
