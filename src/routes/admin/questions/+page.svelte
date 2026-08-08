@@ -52,12 +52,14 @@
 	<tbody>
 		{#each data.questions as q (q.id)}
 			<tr>
-				<td>{q.prompt}</td>
-				<td>{q.themes?.title ?? '—'}</td>
-				<td>{q.question_types?.label ?? '—'}</td>
-				<td>{q.points}</td>
-				<td>{q.last_used_at ? new Date(q.last_used_at).toLocaleDateString('hu-HU') : '—'}</td>
-				<td>
+				<td data-label="Kérdés">{q.prompt}</td>
+				<td data-label="Téma">{q.themes?.title ?? '—'}</td>
+				<td data-label="Típus">{q.question_types?.label ?? '—'}</td>
+				<td data-label="Pont">{q.points}</td>
+				<td data-label="Utoljára játszva"
+					>{q.last_used_at ? new Date(q.last_used_at).toLocaleDateString('hu-HU') : '—'}</td
+				>
+				<td data-label="Műveletek">
 					<a href={resolve(`/admin/questions/[id]`, { id: q.id })}>Szerkesztés</a>
 					<form method="POST" action="?/delete" use:enhance>
 						<input type="hidden" name="id" value={q.id} />
@@ -132,5 +134,58 @@
 	.empty-row a {
 		color: var(--cyan);
 		margin-left: 0.5rem;
+	}
+
+	/* Fázis N3 — a táblázat 640px alatt kártyás nézetté alakul, mert
+	oszloponként vízszintesen csúnyán törne/scrollózna mobilon. */
+	@media (max-width: 640px) {
+		thead {
+			display: none;
+		}
+
+		table,
+		tbody,
+		tr,
+		td {
+			display: block;
+			width: 100%;
+		}
+
+		tr {
+			background: var(--cabinet-2);
+			border: 2px solid var(--cabinet-3);
+			border-radius: 0.75rem;
+			padding: 0.75rem;
+			margin-bottom: 0.75rem;
+		}
+
+		td {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 1rem;
+			border-bottom: 1px solid var(--cabinet-3);
+			text-align: right;
+		}
+
+		td:last-child {
+			border-bottom: none;
+		}
+
+		td::before {
+			content: attr(data-label);
+			color: var(--marquee-dim);
+			font-size: 0.8rem;
+			text-align: left;
+		}
+
+		.empty-row {
+			display: block;
+			text-align: left;
+		}
+
+		.empty-row::before {
+			content: none;
+		}
 	}
 </style>

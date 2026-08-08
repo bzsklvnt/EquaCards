@@ -41,9 +41,9 @@
 	<tbody>
 		{#each data.users as u (u.id)}
 			<tr>
-				<td>{u.display_name}</td>
-				<td>{u.email ?? '—'}</td>
-				<td>
+				<td data-label="Név">{u.display_name}</td>
+				<td data-label="Email">{u.email ?? '—'}</td>
+				<td data-label="Jogosultság">
 					<form method="POST" action="?/updateRole" use:enhance={handleRoleUpdate}>
 						<input type="hidden" name="user_id" value={u.id} />
 						<Select
@@ -58,7 +58,9 @@
 						</Select>
 					</form>
 				</td>
-				<td>{u.created_at ? new Date(u.created_at).toLocaleDateString('hu-HU') : '—'}</td>
+				<td data-label="Regisztrált"
+					>{u.created_at ? new Date(u.created_at).toLocaleDateString('hu-HU') : '—'}</td
+				>
 			</tr>
 		{:else}
 			<tr>
@@ -116,5 +118,58 @@
 
 	.empty-row {
 		color: var(--marquee-dim);
+	}
+
+	/* Fázis N3 — a táblázat 640px alatt kártyás nézetté alakul, mert
+	oszloponként vízszintesen csúnyán törne/scrollózna mobilon. */
+	@media (max-width: 640px) {
+		thead {
+			display: none;
+		}
+
+		table,
+		tbody,
+		tr,
+		td {
+			display: block;
+			width: 100%;
+		}
+
+		tr {
+			background: var(--cabinet-2);
+			border: 2px solid var(--cabinet-3);
+			border-radius: 0.75rem;
+			padding: 0.75rem;
+			margin-bottom: 0.75rem;
+		}
+
+		td {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 1rem;
+			border-bottom: 1px solid var(--cabinet-3);
+			text-align: right;
+		}
+
+		td:last-child {
+			border-bottom: none;
+		}
+
+		td::before {
+			content: attr(data-label);
+			color: var(--marquee-dim);
+			font-size: 0.8rem;
+			text-align: left;
+		}
+
+		.empty-row {
+			display: block;
+			text-align: left;
+		}
+
+		.empty-row::before {
+			content: none;
+		}
 	}
 </style>

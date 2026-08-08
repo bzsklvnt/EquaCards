@@ -3,11 +3,23 @@
 	import { resolve } from '$app/paths';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let newTitle = $state('');
+
+	const STATUS_LABELS: Record<string, string> = {
+		lobby: 'Váró',
+		active: 'Aktív',
+		paused: 'Szüneteltetve',
+		finished: 'Lezárva'
+	};
+
+	function teamCount(game: (typeof data.games)[number]): number {
+		return game.teams?.[0]?.count ?? 0;
+	}
 </script>
 
 <svelte:head>
@@ -25,11 +37,28 @@
 	<Button type="submit">Létrehozás</Button>
 </form>
 
-<ul>
+<ul class="games-grid">
 	{#each data.games as game (game.id)}
 		<li>
-			<a href={resolve('/admin/games/[id]', { id: game.id })}>{game.title}</a>
-			<span class="status">{game.status}</span>
+			<ArcadePanel>
+				<div class="game-card">
+					<div class="game-card-header">
+						<a href={resolve('/admin/games/[id]', { id: game.id })} class="game-title"
+							>{game.title}</a
+						>
+						<span class="badge status-{game.status}"
+							>{STATUS_LABELS[game.status] ?? game.status}</span
+						>
+					</div>
+					<div class="game-card-meta">
+						<span class="pin">PIN: {game.pin}</span>
+						<span>{teamCount(game)} csapat</span>
+						{#if game.status === 'finished' && game.finished_at}
+							<span>{new Date(game.finished_at).toLocaleDateString('hu-HU')}</span>
+						{/if}
+					</div>
+				</div>
+			</ArcadePanel>
 		</li>
 	{:else}
 		<li class="empty">Még nincs kvízeste.</li>
@@ -49,29 +78,71 @@
 		gap: 0.5rem;
 	}
 
-	ul {
+	.games-grid {
 		list-style: none;
 		padding: 0;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+		gap: 1rem;
+		margin-top: 1.5rem;
+	}
+
+	.game-card {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		margin-top: 1rem;
 	}
 
-	li {
+	.game-card-header {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
-		color: var(--marquee);
+		justify-content: space-between;
+		gap: 0.75rem;
 	}
 
-	li a {
+	.game-title {
 		color: var(--cyan);
+		font-weight: 600;
 	}
 
-	.status {
+	.game-card-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
 		color: var(--marquee-dim);
-		font-size: 0.875rem;
+		font-size: 0.85rem;
+	}
+
+	.pin {
+		font-family: var(--font-led);
+		color: var(--coin);
+	}
+
+	.badge {
+		font-size: 0.75rem;
+		padding: 0.125rem 0.5rem;
+		border-radius: 999px;
+		white-space: nowrap;
+	}
+
+	.status-lobby {
+		background: var(--cyan);
+		color: var(--cabinet);
+	}
+
+	.status-active {
+		background: var(--power);
+		color: var(--cabinet);
+	}
+
+	.status-paused {
+		background: var(--coin);
+		color: var(--cabinet);
+	}
+
+	.status-finished {
+		background: var(--cabinet-3);
+		color: var(--marquee-dim);
 	}
 
 	.empty {

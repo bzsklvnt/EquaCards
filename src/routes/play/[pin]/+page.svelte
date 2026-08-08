@@ -626,16 +626,22 @@
 	}
 
 	.joker-wrap :global(.btn) {
-		background: var(--coin);
-		color: var(--cabinet);
-		border-color: var(--danger);
+		/* Fázis N3 — a magenta a design rendszerben kizárólag a jokernél
+		jelenik meg (STYLE_GUIDE.html eredeti szándéka); a --magenta/
+		--violet gradiens mindkét vége --cabinet felé sötétítve a
+		korábban már bevált arányokkal (Button.svelte .primary, Fázis J)
+		a WCAG AA kontraszthoz --marquee szöveggel. */
+		background: linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--magenta) 70%, var(--cabinet)),
+			color-mix(in srgb, var(--violet) 80%, var(--cabinet))
+		);
+		color: var(--marquee);
+		border-color: var(--magenta);
 	}
 
 	.joker-wrap :global(.btn:hover:not(:disabled):not(.disabled)) {
-		/* Fázis J — natúr --danger fill csak 2.8:1-et adna --marquee-vel. */
-		background: color-mix(in srgb, var(--danger) 65%, var(--cabinet));
-		color: var(--marquee);
-		box-shadow: none;
+		box-shadow: 0 0 16px color-mix(in srgb, var(--magenta) 55%, transparent);
 	}
 
 	.leaderboard h2 {

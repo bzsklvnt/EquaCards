@@ -1048,3 +1048,39 @@ szó nélkül szerepeltek: "Vezérlőpult", "Kérdésbank" stb.) — ez mind
 vonatkozott, az útvonalak átnevezése minden linket/redirectet/RLS-t
 érintő, indokolatlanul nagy, kockázatos változtatás lett volna egy
 tisztán kozmetikai kérésre.
+
+---
+
+## 2026-08-08 — Fázis N3: vizuális konzisztencia + reszponzivitás finomítás
+
+1. **Gombszín-konvenció véglegesítve.** A `Button.svelte` `.primary`
+   variánsa eddig lila kitöltéssel indult, de magenta kerettel és
+   magenta hover-állapottal — emiatt minden elsődleges akció-gomb
+   (Kijelentkezés, + Új kérdés, Kvíz indítása) részben magenta színt is
+   kapott, elmosva a joker gomb megkülönböztető szerepét. Döntés (a
+   feladat kifejezett iránymutatása szerint): a lila marad az elsődleges
+   gomb színe alap ÉS hover állapotban is (a hover csak sötétebb lila
+   árnyalat), a magenta pedig kizárólag a joker gombnál (`Duplázás`)
+   jelenik meg egy `--magenta`→`--violet` gradiensben — ami korábban
+   valójában `--coin`/`--danger` színpárt használt, tehát a joker eddig
+   **nem is volt magenta**. Mindkét helyen a Fázis J-ben már bevált
+   `color-mix(... , var(--cabinet))` mintával, hogy a WCAG AA kontraszt
+   ne romoljon. Egyetlen helyen (`Button.svelte`) van a `.primary`
+   variáns definiálva, minden felület onnan örökli — nem volt szükség
+   admin/host/play/tv egyedi felülvizsgálatára, csak erre az egy
+   komponensre. Dokumentálva: `docs/architecture/DESIGN_SYSTEM.md`
+   szín-szerep táblázat + új "Fázis N3" alszakasz.
+2. **Kvízesték lista kártyás nézetté alakítva.** A korábbi stílus
+   nélküli, aláhúzott linkes lista helyett `ArcadePanel`-kártyák CSS
+   grid-je (`repeat(auto-fill, minmax(18rem, 1fr))`), soronként PIN,
+   csapatszám (`teams(count)` embedded lekérdezés) és — lezárt estéknél —
+   dátum, plusz szín-kódolt státusz badge (`lobby`=cián, `active`=power,
+   `paused`=coin, `finished`=semleges szürke).
+3. **Admin táblázatok mobil-reszponzivitása.** A Kérdésbank és a
+   Felhasználók táblázat 640px alatt korábban vízszintesen töredezett
+   volna (a korábbi Fázis G audit csak a 768px-es sidebar-töréspontot
+   dokumentálta, ez a hiányosság kimaradt). Új minta: `640px`-nél
+   `thead` elrejtve, `<tr>` kártyává, `<td>` `data-label`-ből generált
+   `::before` címkés flex-sorrá alakul. Dokumentálva:
+   `docs/architecture/DESIGN_SYSTEM.md` "Töréspontok" szakasz új
+   "Admin táblázatok mobilon" alszakasza.

@@ -74,16 +74,22 @@
 		--marquee szöveggel (WCAG AA normál szöveg küszöb: 4.5:1); a
 		--cabinet felé sötétített változat ~4.8:1-re javítja, a token
 		magát változatlanul hagyva (a keret/glow más felhasználásoknál
-		maradhat a fényes --violet). */
+		maradhat a fényes --violet). Fázis N3 — a --magenta a Button
+		primary variánsából eltávolítva: az elsődleges gomb mindig tiszta
+		lila, a magenta kizárólag a joker gombnál jelenik meg
+		(src/routes/play/[pin]/+page.svelte .joker-wrap), hogy a szín
+		vizuálisan egyértelműen a jokert jelezze mindenhol. */
 		background: color-mix(in srgb, var(--violet) 80%, var(--cabinet));
 		color: var(--marquee);
-		border-color: var(--magenta);
+		border-color: var(--violet);
 	}
 
 	.primary:hover:not(:disabled):not(.disabled) {
-		/* Ugyanez a hover-állapotra: a natúr --magenta csak 2.9:1-et ad. */
-		background: color-mix(in srgb, var(--magenta) 70%, var(--cabinet));
-		box-shadow: 0 0 12px color-mix(in srgb, var(--magenta) 60%, transparent);
+		/* Sötétebb lila hover — ugyanaz a kontraszt-logika, csak
+		erősebb --cabinet aránnyal, hogy a hover állapot vizuálisan
+		elüljön az alapállapottól magenta bevonása nélkül. */
+		background: color-mix(in srgb, var(--violet) 65%, var(--cabinet));
+		box-shadow: 0 0 12px color-mix(in srgb, var(--violet) 50%, transparent);
 	}
 
 	.secondary {

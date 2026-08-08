@@ -16,22 +16,37 @@ független, kőbe vésett paletta. Ha a seed változik, ezeket is frissíteni ke
 
 ## Szín-szerepek
 
-| Token                                       | Szerep                                                                    |
-| ------------------------------------------- | ------------------------------------------------------------------------- |
-| `--cyan`                                    | Elsődleges interaktív elem (kiválasztott állapot, fókusz-gyűrű, linkek)   |
-| `--power`                                   | Helyes válasz, pozitív visszajelzés, pontszám kiemelés                    |
-| `--danger`                                  | Helytelen válasz, sürgető timer (utolsó 5 másodperc)                      |
-| `--coin`                                    | PIN, rangsor-helyezés, kiemelt szám, joker akcent (`--danger`-rel párban) |
-| `--magenta`                                 | Elsődleges gomb hover-állapota                                            |
-| `--violet`                                  | Gomb-kitöltés (elsődleges gomb alapállapota)                              |
-| `--cabinet` / `--cabinet-2` / `--cabinet-3` | Háttér-gradiens (sötéttől világosabb felé)                                |
-| `--marquee`                                 | Elsődleges szöveg                                                         |
-| `--marquee-dim`                             | Másodlagos szöveg, placeholder, inaktív elem                              |
+| Token                                       | Szerep                                                                  |
+| ------------------------------------------- | ----------------------------------------------------------------------- |
+| `--cyan`                                    | Elsődleges interaktív elem (kiválasztott állapot, fókusz-gyűrű, linkek) |
+| `--power`                                   | Helyes válasz, pozitív visszajelzés, pontszám kiemelés                  |
+| `--danger`                                  | Helytelen válasz, sürgető timer (utolsó 5 másodperc)                    |
+| `--coin`                                    | PIN, rangsor-helyezés, kiemelt szám                                     |
+| `--magenta`                                 | **Kizárólag** a joker gomb (`Duplázás`) — sehol máshol, lásd Fázis N3   |
+| `--violet`                                  | Elsődleges gomb (`Button.svelte` `.primary`) — alap ÉS hover állapot is |
+| `--cabinet` / `--cabinet-2` / `--cabinet-3` | Háttér-gradiens (sötéttől világosabb felé)                              |
+| `--marquee`                                 | Elsődleges szöveg                                                       |
+| `--marquee-dim`                             | Másodlagos szöveg, placeholder, inaktív elem                            |
 
 **Szabály:** ne keveredjenek a szerepek — pl. `--danger` sose dekoratív
 elem, csak hiba/sürgetés jelzésére. Ha egy komponensnek új szín-szerep
 kellene, bővítsd ezt a táblázatot és a `design_themes` seedet együtt, ne
 vezess be ad-hoc hex-kódot.
+
+**Fázis N3 — véglegesített gomb-szín döntés:** élő böngészős teszt
+jelezte, hogy az elsődleges akció-gombok (Kijelentkezés, + Új kérdés,
+Kvíz indítása stb.) a `Button.svelte` `.primary` variánsán keresztül
+lila kitöltést kaptak, miközben a hover-állapot és a keret magenta volt
+— ez elmosta a határt a "sima elsődleges gomb" és a "joker, mint speciális
+akció" között. Döntés: a lila (`--violet`) marad az elsődleges gomb
+színe **alap ÉS hover állapotban is** (a hover csak sötétebb lila
+árnyalat, nincs színváltás), a magenta (`--magenta`) pedig kizárólag a
+joker gombnál jelenik meg, egy `--magenta`→`--violet` gradiensben
+(`src/routes/play/[pin]/+page.svelte` `.joker-wrap`), hogy vizuálisan
+azonnal megkülönböztethető legyen minden más elsődleges gombtól. A
+joker korábban `--coin`/`--danger` színpárt használt — ez a pár mostantól
+kizárólag a `--coin` "kiemelt szám" szerepére korlátozódik, a `--danger`
+pedig a hiba/sürgetés szerepére.
 
 ## Tipográfia
 
@@ -190,6 +205,20 @@ töréspontokkal, hanem folyékony (fluid) technikákkal reszponzív:
 típusellenőrzéssel és a CSS szabályok kézi átolvasásával történt, nem élő
 böngészős méréssel különböző képernyőméreteken. A tényleges vizuális
 eredményt a felhasználónak kell ellenőriznie éles böngészőben.
+
+### Admin táblázatok mobilon (Fázis N3 kiegészítés)
+
+Az élő teszt megerősítette a fenti módszertani megjegyzés kockázatát: a
+`768px`-es sidebar-töréspont **nem volt elég** — az admin `<table>`-ök
+(Kérdésbank, Felhasználók) 640px alatt vízszintesen töredeztek. Új,
+második töréspont: `640px`-nél a `thead` eltűnik, a `<tr>` kártyává
+alakul (`.arcade-panel`-hez hasonló, de egyszerűbb border/padding), a
+`<td>`-k pedig `data-label` attribútumból generált `::before` címkével
+flex-sorokká válnak. A Kvízesték lista ennél is egyszerűbben oldja meg
+ugyanezt: eleve sosem volt `<table>`, hanem `ArcadePanel`-kártyák CSS
+grid-je (`repeat(auto-fill, minmax(18rem, 1fr))`), ami natívan egyetlen
+oszlopra esik keskeny nézetben — nem igényelt külön mobil-specifikus
+szabályt.
 
 ## Komponens-konzisztencia audit (Fázis H)
 

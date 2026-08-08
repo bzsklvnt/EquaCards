@@ -8,7 +8,7 @@ function generatePin(): string {
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	const { data: games } = await supabase
 		.from('games')
-		.select('id, title, status, created_at')
+		.select('id, title, status, pin, created_at, finished_at, teams(count)')
 		.order('created_at', { ascending: false });
 
 	return { games: games ?? [] };
