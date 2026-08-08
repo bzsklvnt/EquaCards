@@ -301,6 +301,47 @@ points_awarded = alap_pont * kérdés_szorzó * joker_szorzó
 
 Vagyis ha egy admin által dupla pontosra állított kérdésen a csapat még a jokerét is bedobja, a végén 4x pontot kap — ezt az `evaluate_answer` egyetlen join-nal el tudja dönteni: `left join team_joker_uses on team_id = answers.team_id and question_id = answers.question_id`.
 
+### Implementáció (Fázis 4, `supabase/migrations/20260808111917_answers_joker.sql`)
+
+- Az `answers`/`answer_choice`/`answer_choice_multi`/`answer_slider`/
+  `answer_ordering` táblák a fenti terv szerint jöttek létre.
+  `is_correct`/`points_awarded` egyelőre kitöltetlen marad (`null`/`0`) —
+  ezeket az `evaluate_answer` Edge Function tölti majd ki Fázis 5-ben, a
+  fenti képlet szerint.
+- **RLS: `anon` csak beszúrhat, nem olvashat.** Ez szándékos, és
+  szigorúbb, mint amit egy egyszerű "csak a sajátomat lássam" szabály
+  adna — mivel a csapatoknak nincs Supabase auth session-jük (csak
+  `device_token`), RLS-szinten nem lehetne "csak a saját válaszod"
+  szabályt kikényszeríteni; a "senki se olvashatja" az egyetlen módja
+  annak, hogy a section 5 tervezési elve (kérdésenként senki sem lát
+  folyamatos rangsort) ne bukjon meg azon, hogy bármelyik csapat
+  lekérdezhetné a többiek `answers` sorait. A kliens ezért `.insert()`
+  hívást használ `.select()` nélkül (a sikeres beszúrás hiánytalan
+  hibaválasza az "elküldve" visszajelzés), és saját maga generálja az
+  `answers.id`-t (`crypto.randomUUID()`), hogy a típusonkénti
+  gyerektáblákba is tudjon írni a szülő sor visszaolvasása nélkül.
+- **Cross-table RLS csapda:** az `answer_choice`/stb. insert policy-k
+  eredetileg `exists (select 1 from answers a where ...)` alakú
+  ellenőrzést használtak — ez viszont maga is az `answers` tábla RLS-e
+  alá esett volna anon szerepkörben, ahol nincs SELECT policy, tehát az
+  `exists` mindig hamisat adott volna. Megoldás: `answer_owner_game_active()`
+  security definer segédfüggvény, ami megkerüli az RLS-t a belső
+  lekérdezésnél (ugyanaz a minta, mint a `game_status()`/
+  `current_user_role_id()` korábbi fázisokban). Ugyanez a hiba két helyen
+  a Fázis 3 `teams` RLS-ben is előfordult, csak ott Fázis 4-ig
+  észrevétlen maradt — javítva:
+  `supabase/migrations/20260808113233_fix_anon_rls_gaps.sql`.
+- **`team_joker_uses`:** `anon` csak olvashat (hogy a saját kliense el
+  tudja dönteni, elhasználta-e már a jokerét), a beszúrást a host végzi a
+  `joker_activate` broadcast fogadásakor — részletek:
+  `docs/features/jokers.md`.
+- **Fázis 2 hiba javítva:** a host (`role_id = 3`) eddig egyáltalán nem
+  fért hozzá a kérdésbankhoz (`questions`/opció-táblák/`round_questions`/
+  `themes`/`question_types`), pedig a DATA_MODEL.md 1. szakasza szerint
+  futtathat estét meglévő kérdésbankból — ehhez olvasnia kell tudnia a
+  kérdéseket. Kiegészítő select-only RLS policy-k kerültek `role_id in
+(1,2,3)`-ra a meglévő admin `for all` (1,2) policy-k mellé.
+
 ---
 
 ## 4. `games` / `teams` / `rounds` (visszaállítva az eredeti, egyszerű felépítésre)
@@ -361,7 +402,31 @@ Ez marad a legegyszerűbb: egy este = `games` sor, amihez körök tartoznak. A t
   - `games`: `anon` csak `status = 'lobby'` sorokat láthat (PIN feloldáshoz a `/play/[pin]` csatlakozáskor).
   - `teams`: `anon` beszúrhat, ha a cél `games.status = 'lobby'`; olvashat minden nem `'finished'` játékhoz tartozó csapatot.
   - `teams_staff_all`: `role_id in (1,2,3)` (super_admin/admin/host) mindent lát/kezel — ugyanaz a kör, mint a `games`/`rounds` RLS-nél.
-- **Ismert korlátozás:** mivel az anon `games` SELECT csak `status = 'lobby'`-ra enged, egy csapat nem tud a PIN-en keresztül újracsatlakozni, ha a host már elindította az estét. A `localStorage`-ban tárolt `team_id`/`game_id` alapú újracsatlakozás Fázis 4-ben épül meg, a tényleges játékmenet UI-jával együtt.
+- **Ismert korlátozás (Fázis 4-ben javítva):** mivel az anon `games` SELECT
+  csak `status = 'lobby'`-ra engedett, egy csapat nem tudott a PIN-en
+  keresztül újracsatlakozni, ha a host már elindította az estét.
+
+### Implementáció (Fázis 4, `supabase/migrations/20260808111917_answers_joker.sql` + `20260808113233_fix_anon_rls_gaps.sql`)
+
+- **`team_joker_uses`** létrejött (lásd 3. szakasz implementációs
+  jegyzete + `docs/features/jokers.md`).
+- **Két RLS-hiba javítva a Fázis 3 `teams` policy-kban:**
+  `teams_select_anon_active_game` és `teams_insert_anon_lobby` egy
+  `exists (select 1 from games g where ...)` alakú ellenőrzést
+  használtak, ami maga is a `games` tábla (akkori, `status = 'lobby'`-ra
+  szűkített) RLS-e alá esett anon szerepkörben — emiatt a csapat-olvasás
+  bármilyen nem-lobby (`active`/`paused`) estén hamisan mindig
+  elutasított volt (a beszúrás policy-ja véletlenül helyesen működött,
+  mert a kikényszerített állapot maga is `'lobby'` volt). Javítva a
+  `game_status()` security definer segédfüggvénnyel.
+- **Mid-game újracsatlakozás megoldva:** a `games` anon SELECT policy
+  (`games_select_anon_lobby` → átnevezve `games_select_anon`)
+  kiszélesítve `status <> 'finished'`-re. A `/play/[pin]` szerver-oldali
+  PIN-feloldás (ami eldönti, felajánlható-e egy ÚJ csatlakozás) továbbra
+  is csak `'lobby'`-ban ad vissza sort; egy már csatlakozott csapat
+  (`localStorage` alapján) viszont a kliens oldalon, bármilyen nem
+  `'finished'` állapotra újra le tudja kérdezni az este címét — lásd
+  `docs/architecture/REALTIME_PROTOCOL.md`.
 
 ---
 

@@ -9,25 +9,127 @@
   kvízeste minden résztvevője (csapatok, host) között. A csapat/host kliens a
   játszott/vezetett game_id-jával csatlakozik hozzá.
 
+## Payload típusok
+
+A broadcast payloadok TypeScript típusai egy helyen élnek:
+`src/lib/realtime/protocol.ts` — host és csapat oldal egyaránt onnan
+importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
+
 ## Events
+
+| Esemény                    | Küldő       | Payload                                      | Fázis |
+| -------------------------- | ----------- | -------------------------------------------- | ----- |
+| `team_joined`              | csapat      | `{team_id, name}`                            | 3     |
+| `game_started`             | host        | `{}`                                         | 4     |
+| `question_show`            | host        | `QuestionShowPayload` (lásd lent)            | 4     |
+| `timer_start`              | host        | `{question_id, duration, server_start_time}` | 4     |
+| `joker_activate`           | csapat      | `{team_id, question_id, joker_type}`         | 4     |
+| `answer_locked`            | host / auto | `{question_id}`                              | 4     |
+| `question_reveal`          | host        | `QuestionRevealPayload` (lásd lent)          | 4     |
+| `game_finished`            | host        | `{}`                                         | 4     |
+| `round_leaderboard_reveal` | host        | _tervezett, Fázis 5_                         | 5     |
+| `final_leaderboard_reveal` | host        | _tervezett, Fázis 5_                         | 5     |
 
 ### `team_joined` (Fázis 3)
 
 - **Küldő:** csapat kliens (`/play/[pin]`), sikeres csatlakozás (a `teams`
   sor beszúrása) után.
-- **Payload:** `{team_id, name}`
-- **Kliens teendő:** host (`/host/[game_id]`) — a Presence-szel már úgyis
-  élőben szinkronban lévő listát nem ez frissíti (arra a Presence `sync`
-  eseménye szolgál), ez egy kiegészítő, egyszeri "csatlakozott" jelzés
-  (pl. jövőbeli fázisban toast/hangeffekt).
+- **Kliens teendő:** a Presence-szel már úgyis élőben szinkronban lévő
+  listát nem ez frissíti (arra a Presence `sync` eseménye szolgál), ez egy
+  kiegészítő, egyszeri "csatlakozott" jelzés (pl. jövőbeli fázisban
+  toast/hangeffekt).
 
-Bekötve: `src/routes/play/[pin]/+page.svelte` küldi `channel.send({ type:
-'broadcast', event: 'team_joined', payload: {...} })` formában, közvetlenül a
-sikeres `track()` (lásd Presence lent) után.
+### `game_started` (Fázis 4)
 
-_Következő fázisokban bővül:_ `question_show`, `timer_start`,
-`joker_activate`, `answer_locked`, `question_reveal` — Fázis 4;
-`round_leaderboard_reveal`, `final_leaderboard_reveal` — Fázis 5.
+- **Küldő:** host (`/host/[game_id]`), a "Kvíz indítása" gombra kattintva,
+  miután a `games.status`-t `'active'`-re és a `current_round_id`-t az
+  első körre állította.
+- **Payload:** `{}`
+- **Kliens teendő:** csapat oldal — jelenleg nincs külön kezelve (a
+  csapat felület a `question_show` eseményre vált be az első kérdésnél,
+  addig a "várj, amíg a kvízmester elindítja" szöveg látszik).
+
+### `question_show` (Fázis 4)
+
+- **Küldő:** host, "Következő kérdés" gomb.
+- **Payload** (`QuestionShowPayload`):
+  ```ts
+  {
+    question_id: string;
+    question_type: string; // question_types.code
+    round_title: string;
+    prompt: string;
+    image_url: string | null;
+    time_limit_seconds: number;
+    order_index: number;
+    total_questions: number;
+    options?: { id: string; option_text: string }[]; // single_choice | multi_choice | true_false
+    slider?: { min_value: number; max_value: number; step: number };
+    ordering_items?: { id: string; item_text: string }[]; // véletlenszerűen összekevert sorrendben
+  }
+  ```
+  **FONTOS:** szándékosan nincs benne `is_correct` / `correct_value` /
+  `correct_position` — ezek csak a `question_reveal`-ben jelennek meg. Az
+  `ordering_items` sorrendjét a host kliense Fisher-Yates-sel megkeveri,
+  mielőtt broadcastolja, hogy a `question_ordering_items` beszúrási sorrendje
+  (ami történetesen egybeeshetne a helyes sorrenddel) sose szivárogjon ki.
+- **Kliens teendő:** csapat — típusonkénti válasz-UI renderelése
+  (`src/routes/play/[pin]/+page.svelte`): gombrács (`single_choice` /
+  `multi_choice` / `true_false`), csúszka (`slider`), drag-and-drop lista
+  (`ordering`).
+
+### `timer_start` (Fázis 4)
+
+- **Küldő:** host, "Timer indítása" gomb.
+- **Payload:** `{question_id, duration, server_start_time}`
+- **Kliens teendő:** csapat — helyi visszaszámlálás a `server_start_time +
+duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
+  meg az `answer_locked` broadcastot — az csak a hoszt "zárás most" korai
+  lezárására szolgál).
+
+### `joker_activate` (Fázis 4)
+
+- **Küldő:** csapat kliens, "Duplázás" gomb.
+- **Payload:** `{team_id, question_id, joker_type}`
+- **Kliens teendő:** host — beírja a `team_joker_uses`-be. Részletek:
+  `docs/features/jokers.md`.
+
+### `answer_locked` (Fázis 4)
+
+- **Küldő:** host, "Zárás most" gomb (korai, a timer lejárta előtti zárás).
+- **Payload:** `{question_id}`
+- **Kliens teendő:** csapat — input letiltása (ha még nem tiltotta le a
+  saját helyi visszaszámlálása).
+
+### `question_reveal` (Fázis 4)
+
+- **Küldő:** host, "Megoldás feltárása" gomb.
+- **Payload** (`QuestionRevealPayload`):
+  ```ts
+  {
+  	question_id: string;
+  	correct_answer: string;
+  }
+  ```
+  Egyetlen, előre formázott, emberi olvasásra kész string (pl.
+  `"A, C"`, `"42"`, `"Elem1 → Elem2 → Elem3"`). **Fázis 4-ben ez NEM
+  tartalmazza a csapatok pontszámát** — az `evaluate_answer` Edge Function
+  (Fázis 5) még nem létezik, tehát nincs valós `points_awarded` érték,
+  amit szét lehetne osztani. A DATA_MODEL.md 5. szakaszának eredeti
+  `{question_id, correct_answer, points_awarded}` payload-ját ezért egy
+  lépésben, Fázis 5-ben egészítjük ki — utána is csak a saját csapat
+  pontja kerül a payloadba/egy külön, csapatonkénti lekérdezésbe, sosem a
+  többieké (lásd a section 5 tervezési elvét: kérdésenként senki sem lát
+  folyamatos rangsort).
+- **Kliens teendő:** csapat — helyes válasz megjelenítése.
+
+### `game_finished` (Fázis 4)
+
+- **Küldő:** host, "Játék befejezése" gomb (az utolsó kör utolsó kérdése
+  után).
+- **Payload:** `{}`
+- **Kliens teendő:** _tervezett, Fázis 5/6_ — jelenleg nincs külön kliens
+  oldali kezelése.
 
 ## Presence (Fázis 3)
 
@@ -70,13 +172,29 @@ az utolsó `track()` felülírja az előzőt ugyanazon a kulcson), host oldalon 
 véletlen, csak a saját kapcsolatot azonosító kulcs (a host nem jelenik meg
 csapatként a listában).
 
-**Ismert korlátozás (Fázis 4-re halasztva):** a csapat oldali PIN-alapú
-`games` lekérdezés csak `status = 'lobby'`-ra enged anon SELECT-et (lásd
-`docs/architecture/DATA_MODEL.md` Fázis 3 implementációs jegyzete) — ha egy
-csapat újratölti az oldalt azután, hogy a host elindította a játékot
-(`status` már nem `'lobby'`), a jelenlegi PIN-alapú újracsatlakozás nem
-működik. A `localStorage`-ban tárolt `team_id`/`game_id` alapján történő
-újracsatlakozás a tényleges játékmenet UI-jával együtt, Fázis 4-ben épül meg.
+## Postgres Changes (Fázis 4)
+
+A host felület élő beküldési számlálója (`/host/[game_id]`) egy
+`postgres_changes` feliratkozással figyeli az `answers` tábla INSERT
+eseményeit, az aktuális `question_id`-ra szűrve:
+
+```ts
+supabase
+	.channel(`answers:${questionId}`)
+	.on(
+		'postgres_changes',
+		{ event: 'INSERT', schema: 'public', table: 'answers', filter: `question_id=eq.${questionId}` },
+		() => {
+			submissionCount++;
+		}
+	)
+	.subscribe();
+```
+
+Ez a `answers_staff_all` RLS policy alapján működik (a host `authenticated`,
+`role_id in (1,2,3)`) — a csapatoknak (`anon`) nincs SELECT joguk az
+`answers`-en, tehát ők nem tudnának hasonló feliratkozást használni (ez
+szándékos, lásd lent).
 
 ## RLS-szint hozzáférés anonim (nem authentikált) klienseknek
 
@@ -84,9 +202,43 @@ A csapatok nem Supabase Auth session-nel csatlakoznak — a `device_token`
 (kliens oldalon generált, `localStorage`-ban tárolt) adja az "azonosítást",
 nem RLS-alapú sor-tulajdonlás. Ennek megfelelően:
 
-- `games`: `anon` csak `status = 'lobby'` sorokat láthat (PIN feloldáshoz).
+- `games`: `anon` bármilyen nem `'finished'` sort láthat (PIN feloldáshoz
+  és az újracsatlakozáshoz egyaránt — lásd lent).
 - `teams`: `anon` beszúrhat, ha a cél `games` sor `status = 'lobby'`; olvashat
   minden nem `'finished'` játékhoz tartozó csapatot.
+- `answers` / `answer_choice` / `answer_choice_multi` / `answer_slider` /
+  `answer_ordering`: `anon` csak **beszúrhat** (ha a játék `'active'`),
+  **nem olvashat** — szándékosan, hogy kérdésenként senki se lássa a
+  többiek válaszát/pontját a feltárás előtt. A kliens az insert
+  sikerességét használja "elküldve" visszajelzésnek, saját maga generált
+  `id`-val az `answers` sorhoz (`crypto.randomUUID()`), hogy a
+  típusonkénti gyerektáblákba is tudjon írni anélkül, hogy vissza kellene
+  olvasnia a szülő sort.
+- `team_joker_uses`: `anon` csak **olvashat** (hogy a saját kliense el
+  tudja dönteni, elhasználta-e már a jokerét); a beszúrást a host végzi.
+
+**Ismert, technikai csapda cross-table RLS policy-knál:** egy policy
+`exists (select 1 from más_tábla ...)` alakú feltétele MAGA IS a
+hivatkozott tábla RLS-e alá esik az adott szerepkörben — ha azon a
+táblán nincs (vagy szűkebb) SELECT policy az adott szerepkörnek, az
+`exists` mindig hamisat ad, még helyes adatokra is. Emiatt minden
+cross-table anon ellenőrzés egy `security definer` segédfüggvényen
+keresztül fut (`game_status()`, `answer_owner_game_active()`,
+`team_owner_game_status()` — mind Fázis 4), amely megkerüli az RLS-t a
+belső lekérdezésnél. Ez a hiba Fázis 3-ban két helyen (`teams` insert/
+select policy) csendben, észrevétlenül hibásan viselkedett — Fázis 4
+javította (`supabase/migrations/20260808113233_fix_anon_rls_gaps.sql`).
+
+**Mid-game újracsatlakozás:** a `games` anon SELECT policy Fázis 3-ban
+csak `status = 'lobby'`-ra engedett olvasást — ez azt jelentette, hogy egy
+már csatlakozott csapat egy oldal-újratöltés (pl. háttérbe került mobil
+böngészőlap) után "nem található" hibát kapott, ha a host időközben
+elindította a játékot. Fázis 4 kiszélesítette `'finished'`-en kívül
+mindenre; a `/play/[pin]` szerver-oldali PIN-feloldás (ami eldönti,
+felajánlható-e egy ÚJ csatlakozás) továbbra is csak `'lobby'`-t enged, a
+kliens oldal viszont — ha `localStorage`-ban van mentett csatlakozás —
+ettől függetlenül le tudja kérdezni az este címét bármilyen nem
+`'finished'` állapotban.
 
 Részletek: `docs/architecture/DATA_MODEL.md` 4. szakasz, "Implementáció
-(Fázis 3)".
+(Fázis 3, Fázis 4)".

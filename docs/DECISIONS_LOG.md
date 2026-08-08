@@ -130,3 +130,62 @@ Ismert korlát Fázis 4-re halasztva: mivel a PIN-alapú `games` lekérdezés cs
 újracsatlakozni, ha a host már elindította az estét — a `localStorage`-ban
 tárolt `team_id`/`game_id` alapú újracsatlakozás a tényleges játékmenet
 UI-jával együtt épül meg.
+
+## 2026-08-08 — Fázis 4: Kérdés lebonyolítás (broadcast, timer, válasz-UI, joker)
+
+Migráció (`supabase/migrations/20260808111917_answers_joker.sql`): `answers`
+
+- `answer_choice`/`answer_choice_multi`/`answer_slider`/`answer_ordering`
+  (DATA_MODEL.md 3. szakasz), `team_joker_uses` (4. szakasz). `is_correct`/
+  `points_awarded` egyelőre kitöltetlen — az `evaluate_answer` Edge Function
+  Fázis 5-ös feladata.
+
+Két valós hibát találtam és javítottam tesztelés közben, mindkettő ugyanaz a
+hibaosztály: egy RLS policy `exists (select 1 from más_tábla ...)` alakú
+ellenőrzése maga is a hivatkozott tábla RLS-e alá esik az adott
+szerepkörben — ha ott nincs (vagy szűkebb) SELECT policy, az `exists` mindig
+hamisat ad. (1) Az új `answer_choice`/stb. insert policy-k az `answers`
+ellen próbáltak `exists`-elni, pedig az `answers`-en szándékosan nincs anon
+select (mid-question privacy); (2) a Fázis 3 `teams_select_anon_active_game`/
+`teams_insert_anon_lobby` a `games` ellen `exists`-elt, ami akkor még csak
+`status = 'lobby'`-ra engedett olvasást — ez Fázis 3-ban észrevétlen maradt,
+mert az akkori tesztek csak lobby-állapotú eseteket néztek. Mindkettőt
+security definer segédfüggvényekkel javítottam (`answer_owner_game_active()`,
+`team_owner_game_status()`, a Fázis 3 hibát egy külön követő migrációban:
+`20260808113233_fix_anon_rls_gaps.sql`, mivel a Fázis 3 fájl már push-olva
+volt). Mindezt `set role anon`-os SQL-szimulációval igazoltam vissza, valós
+teszt-adatokkal, majd töröltem őket.
+
+Ezzel egy időben lezártam a Fázis 3 dokumentációban nyitva hagyott
+mid-game-újracsatlakozási hiányosságot is (nem csak elhalasztottam újra): a
+`games` anon SELECT policy `status = 'lobby'`-ról `status <> 'finished'`-re
+szélesült, így egy csapat oldal-újratöltés után (pl. háttérbe került mobil
+lap) is látja az este címét, ha korábban már csatlakozott — a `/play/[pin]`
+szerver-oldali PIN-feloldás (ami az ÚJ csatlakozást engedélyezi) továbbra is
+csak lobby-ban ad vissza sort.
+
+Host felület (`/host/[game_id]`) kiegészítve élő kérdés-vezérlővel: "Kvíz
+indítása", "Következő kérdés"/"Timer indítása"/"Zárás most"/"Megoldás
+feltárása" lineáris állapotgép, "Következő kör"/"Játék befejezése", élő
+beküldési számláló (`postgres_changes` az `answers`-en). Mivel a host
+`authenticated` és a Fázis 2 óta hiányzó `questions`-select jogot Fázis 4
+pótolta rá (lásd lent), a vezérlő logika közvetlenül a host böngészőjéből,
+SvelteKit action-ök nélkül éri el/írja a DB-t.
+
+Csapat felület (`/play/[pin]`) kiegészítve típusonkénti válasz-UI-val
+(gombrács, csúszka, HTML5 drag-and-drop sorrend-lista), helyi
+visszaszámlálással (`timer_start` szerver-időbélyege alapján, önzáró), és a
+"Duplázás" joker gombbal. A payload-típusok egy közös helyen élnek:
+`src/lib/realtime/protocol.ts`.
+
+Fázis 2 hiba javítva: a host (`role_id = 3`) eddig egyáltalán nem fért hozzá
+a kérdésbankhoz, pedig a DATA_MODEL.md 1. szakasza szerint futtathat estét
+meglévő kérdésbankból — kiegészítő select-only RLS policy-k `role_id in
+(1,2,3)`-ra a `questions`/opció-táblák/`round_questions`/`themes`/
+`question_types` mellé.
+
+Dokumentáció: `docs/features/jokers.md` (joker-mechanika, beleértve az ismert
+korlátot, hogy a host-nak online kell lennie a joker rögzítéséhez),
+`docs/architecture/REALTIME_PROTOCOL.md` (teljes esemény-táblázat konkrét
+payload-okkal, Postgres Changes szakasz, RLS csapda + újracsatlakozás
+magyarázat), DATA_MODEL.md implementációs jegyzetek a 3. és 4. szakaszban.
