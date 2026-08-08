@@ -342,6 +342,33 @@ Vagyis ha egy admin által dupla pontosra állított kérdésen a csapat még a 
   kérdéseket. Kiegészítő select-only RLS policy-k kerültek `role_id in
 (1,2,3)`-ra a meglévő admin `for all` (1,2) policy-k mellé.
 
+### Implementáció (Fázis 5, `supabase/migrations/20260808115203_scoring.sql`)
+
+- **`evaluate_question(p_question_id uuid)`** security definer RPC zárja le
+  a fenti "Pontszámítás a két szorzóval kombinálva" képletet — a
+  DATA_MODEL.md eredetileg "Edge Function"-t irányzott elő
+  (`evaluate_answer`), a tényleges implementáció RPC lett helyette
+  (indoklás, decay-képlet dokumentált döntése, teljes leírás:
+  `docs/features/scoring.md`).
+- **`team_answer_result(p_team_id, p_question_id)`** RPC adja vissza egy
+  csapat saját kiértékelt eredményét — nem sima anon SELECT policy, mert
+  RLS nem tud a lekérdezés paramétereihez kötni auth session nélkül
+  (részletek: `docs/features/scoring.md`).
+- **`round_leaderboard(p_round_id, p_limit)`** staff-only RPC az 5. szakasz
+  kör-specifikus top N lekérdezéséhez, `teams`-ből indulva (nem
+  `answers`-ből), hogy a 0 pontos csapatok is szerepeljenek.
+- **Fázis 2 hiba javítva** (`20260808115901_fix_audit_log_entity_id.sql`):
+  a `log_table_change()` audit trigger `coalesce(NEW.id, OLD.id)` típusos
+  rekordmező-hozzáférést használt, ami runtime hibával elszállt minden
+  olyan táblán, aminek NEM "id" az elsődleges kulcs oszlopa —
+  `question_slider_config`-nál (PK: `question_id`) ez azt jelentette, hogy
+  bármilyen INSERT/UPDATE/DELETE erre a táblára (tehát egy slider típusú
+  kérdés admin felületen történő létrehozása/szerkesztése) eddig hibázott.
+  A sandbox HTTPS-blokkolása miatt Fázis 2-ben ez nem derült ki élő
+  böngészős teszttel; a Fázis 5-ös SQL-tesztfixturák felvitelekor bukott
+  ki. Javítás: `to_jsonb(...)->>'id'` szöveges kiolvasás, ami hiányzó mező
+  esetén null-t ad típushiba helyett.
+
 ---
 
 ## 4. `games` / `teams` / `rounds` (visszaállítva az eredeti, egyszerű felépítésre)
@@ -463,6 +490,19 @@ limit 3;
 A `final_leaderboard_reveal` ugyanezt számolja `round_id` szűrés nélkül, `limit` nélkül, `teams.total_score` alapján (ami amúgy is a kumulált pontszám).
 
 Timer-minta (server_start_time + lokális visszaszámlálás + szerver-oldali validáció beküldésnél) — változatlan a korábbi döntéshez képest.
+
+### Implementáció (Fázis 5)
+
+A fenti kör-specifikus top N lekérdezés `round_leaderboard(p_round_id,
+p_limit)` staff-only RPC-ként valósult meg, egy eltéréssel a fenti mintától:
+`teams`-ből indul `left join`-nal `answers`-re (nem `answers`-ből `join`-nal
+`teams`-re), hogy a 0 pontos vagy egyáltalán nem válaszoló csapatok is
+szerepeljenek az összesítésben — enélkül egy csapat, aki egyszer sem
+válaszolt a körben, ki sem szerepelne a rangsorban. A `final_leaderboard_reveal`-hez
+nem kellett külön RPC, mivel a `teams.total_score`-t az `evaluate_question`
+(3. szakasz) már folyamatosan karbantartja — a host kliens egyszerű
+`order by total_score desc` lekérdezéssel jut hozzá. Részletek:
+`docs/features/scoring.md`.
 
 ---
 

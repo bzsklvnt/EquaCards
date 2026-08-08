@@ -189,3 +189,89 @@ korlátot, hogy a host-nak online kell lennie a joker rögzítéséhez),
 `docs/architecture/REALTIME_PROTOCOL.md` (teljes esemény-táblázat konkrét
 payload-okkal, Postgres Changes szakasz, RLS csapda + újracsatlakozás
 magyarázat), DATA_MODEL.md implementációs jegyzetek a 3. és 4. szakaszban.
+
+## 2026-08-08 — Fázis 5: Pontszámítás + ranglista
+
+Migráció (`supabase/migrations/20260808115203_scoring.sql`):
+`evaluate_question(p_question_id)`, `team_answer_result(p_team_id,
+p_question_id)`, `round_leaderboard(p_round_id, p_limit)` — a DATA_MODEL.md 3. és 5. szakaszának képletei szerint. Részletes leírás: `docs/features/scoring.md`.
+
+**Tervtől eltérő döntés: Edge Function helyett Postgres RPC.** A
+DATA_MODEL.md eredetileg egy `evaluate_answer` Edge Function-t irányzott elő.
+Mivel ebben a sandboxban a kimenő HTTPS a `*.supabase.co` felé blokkolt, egy
+ténylegesen deployolt Edge Function-t sem böngészőből, sem közvetlen HTTP-vel
+nem lehetett volna tesztelni — csak "vakon" deployolni. A már bevált SQL/
+`set role` tesztelési mintával (Fázis 3/4) viszont egy RPC függvény teljes
+körűen, minden ágra kiterjedően tesztelhető. Funkcionálisan egyenértékű (a
+host egyetlen `.rpc()` hívással indítja), nincs hidegindítás, és a logika a
+jövőben is könnyen átemelhető Edge Function-be, ha valódi HTTP endpoint
+válna szükségessé.
+
+**Decay-képlet — a DATA_MODEL.md nem rögzítette, itt bevezetett döntés:**
+lineáris decay 100%-ról (azonnali válasz) 50%-ra (a `time_limit_seconds`
+lejártakor), utána 50%-on plafonozva.
+
+**`team_answer_result` biztonsági indoklása:** mivel a csapatoknak nincs auth
+session-jük, egy `using` RLS policy nem tudna a lekérdezés WHERE-jében
+megadott `team_id`-hoz kötni — egy sima anon SELECT policy az `answers`-en
+vagy semmit nem engedne, vagy `game_id` alapján (amit a csapat legitim módon
+ismer) az ÖSSZES csapat válaszát kiadná. Az RPC ehelyett `team_id` +
+`question_id` UUID-párra van paraméterezve, egyetlen sort ad vissza — ugyanaz
+az "ismert UUID = de facto tulajdonjog" minta, mint a Fázis 4
+`team_joker_uses_select_anon`-nál, nem új biztonsági kompromisszum.
+
+**Fázis 2 hiba találva és javítva** (tesztfixturák felvitele közben,
+`supabase/migrations/20260808115901_fix_audit_log_entity_id.sql`): a
+`log_table_change()` audit trigger `coalesce(NEW.id, OLD.id)` típusos
+rekordmező-hozzáférést használt, ami runtime hibával elszállt minden olyan
+táblán, aminek NEM "id" az elsődleges kulcs oszlopa —
+`question_slider_config`-nál (PK: `question_id`) ez azt jelentette, hogy
+bármilyen írás erre a táblára (tehát egy slider típusú kérdés létrehozása/
+szerkesztése az admin felületen) eddig hibázott éles környezetben. A sandbox
+HTTPS-blokkolása miatt Fázis 2-ben ez nem derült ki élő böngészős teszttel.
+Javítás: `to_jsonb(...)->>'id'` szöveges kiolvasás típushiba helyett.
+
+**Verifikáció:** a szokásos módon `execute_sql` + `set role`/JWT-claim
+szimulációval, valós adatbázis ellen, nem lokális mockkal. Egy teljes
+tesztjátékot építettem fel (1 kérdés mind a 4 típusból, 2 csapat: "Fast" —
+gyors/helyes válaszok, joker-használó egy kérdésen — és "Slow" —
+lassú/részben hibás válaszok), minden típusra kézzel kiszámolt várt
+pontszámmal, és az `evaluate_question` minden esetben pontosan azt adta
+vissza (decay, `points_multiplier`, joker-szorzó, `multi_choice` parciális
+pont és a rossz-jelölés-nullázza-a-pontot szabály mind egyezett). Külön
+teszteltem: az anon szerepkör `42501`-gyel elutasítva az `evaluate_question`
+és `round_leaderboard` hívásán (grant-szinten, nem csak a függvényen belüli
+role-check miatt); kétszeri `evaluate_question` hívás idempotens (nem
+duplázza a `teams.total_score`-t); `team_answer_result` csak a kért
+`team_id`+`question_id` sorát adja vissza, nem létező párra üres eredményt.
+A staff-jogosultság szimulációjához egy ideiglenes `auth.users`/`profiles`
+teszt-sort hoztam létre (role_id=1), NEM a valós felhasználói fiókot
+módosítva — minden teszt-adatot (játék, kérdések, csapatok, válaszok,
+audit_logs bejegyzések, a teszt-profil) töröltem a végén; ellenőriztem, hogy
+a valós `profiles` sor (`role_id = 4`) érintetlen maradt.
+
+Host felület (`/host/[game_id]`): `revealAnswer()` a helyes válasz
+összeállítása előtt meghívja az `evaluate_question` RPC-t. Egy kör utolsó
+kérdésének feltárása után "Kör eredményének feltárása" gomb jelenik meg a
+"Következő kérdés" helyett (`round_leaderboard` lekérdezés +
+`round_leaderboard_reveal` broadcast + saját megjelenítés egy
+`round_summary` UI-lépésben); az utolsó kör után hasonlóan "Végeredmény
+feltárása" (`final_leaderboard_reveal`, `final_summary` lépés). Csak ezután
+kattintható a tényleges "Következő kör"/"Játék lezárása" gomb.
+
+Csapat felület (`/play/[pin]`): a `question_reveal` beérkezésekor lekéri a
+saját pontját (`team_answer_result`), zöld/piros felirattal jelezve a
+helyes/helytelen státuszt és a kapott pontot. A `round_leaderboard_reveal`/
+`final_leaderboard_reveal` beérkezésekor teljes képernyős ranglista-nézetre
+vált, saját csapat kiemelve.
+
+**TV felület elhalasztva Fázis 6-ra:** a DATA_MODEL.md 9. szakasza szerint a
+`/tv/[game_id]` kivetítő kifejezetten Fázis 6 ("Polírozás") scope-ja. A
+leaderboard broadcast payloadok már most is alkalmasak arra, hogy egy
+jövőbeli TV kliens minden backend-módosítás nélkül feliratkozzon rájuk.
+
+Dokumentáció: `docs/features/scoring.md` (új — Edge Function vs. RPC
+indoklás, decay-döntés, mindhárom RPC leírása), `docs/architecture/REALTIME_PROTOCOL.md`
+(`round_leaderboard_reveal`/`final_leaderboard_reveal` tervezettből
+implementáltra, `question_reveal` frissítve), DATA_MODEL.md implementációs
+jegyzetek a 3. és 5. szakaszban.

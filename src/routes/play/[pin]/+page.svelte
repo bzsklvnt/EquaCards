@@ -6,7 +6,9 @@
 		JokerActivatePayload,
 		QuestionRevealPayload,
 		QuestionShowPayload,
-		TimerStartPayload
+		TimerStartPayload,
+		RoundLeaderboardRevealPayload,
+		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
 	import type { ActionData, PageData } from './$types';
 
@@ -25,6 +27,9 @@
 	let secondsLeft = $state(0);
 	let locked = $state(false);
 	let revealInfo = $state<QuestionRevealPayload | null>(null);
+	let myResult = $state<{ is_correct: boolean; points_awarded: number } | null>(null);
+	let roundLeaderboard = $state<RoundLeaderboardRevealPayload | null>(null);
+	let finalLeaderboard = $state<FinalLeaderboardRevealPayload | null>(null);
 	let submitted = $state(false);
 	let submitError = $state('');
 	let jokerUsed = $state(false);
@@ -90,6 +95,8 @@
 		orderedItems = payload.ordering_items ? [...payload.ordering_items] : [];
 		locked = false;
 		revealInfo = null;
+		myResult = null;
+		roundLeaderboard = null;
 		submitted = false;
 		submitError = '';
 		timerInfo = null;
@@ -132,8 +139,30 @@
 		});
 
 		channel.on('broadcast', { event: 'question_reveal' }, ({ payload }) => {
-			revealInfo = payload as QuestionRevealPayload;
+			const reveal = payload as QuestionRevealPayload;
+			revealInfo = reveal;
 			locked = true;
+
+			// A csapatok pontja szándékosan nincs benne a broadcastban (mindenki
+			// ugyanazt a csatornát hallgatja) — a saját pontot egy külön,
+			// team_id + question_id paraméterezésű RPC-vel kérdezzük le, ami csak
+			// egyetlen sort ad vissza. Lásd docs/architecture/REALTIME_PROTOCOL.md.
+			data.supabase
+				.rpc('team_answer_result', {
+					p_team_id: info.teamId,
+					p_question_id: reveal.question_id
+				})
+				.then(({ data: rows }) => {
+					myResult = rows?.[0] ?? null;
+				});
+		});
+
+		channel.on('broadcast', { event: 'round_leaderboard_reveal' }, ({ payload }) => {
+			roundLeaderboard = payload as RoundLeaderboardRevealPayload;
+		});
+
+		channel.on('broadcast', { event: 'final_leaderboard_reveal' }, ({ payload }) => {
+			finalLeaderboard = payload as FinalLeaderboardRevealPayload;
 		});
 
 		channel.subscribe(async (status) => {
@@ -260,10 +289,39 @@
 	{#if joined}
 		<h1>{gameTitle}</h1>
 
-		{#if revealInfo}
+		{#if finalLeaderboard}
+			<div class="leaderboard">
+				<h2>Végeredmény</h2>
+				<ol>
+					{#each finalLeaderboard.standings as row (row.team_id)}
+						<li class:own={row.team_id === joined.teamId}>
+							{row.name} — {row.total_score} pont
+						</li>
+					{/each}
+				</ol>
+			</div>
+		{:else if roundLeaderboard}
+			<div class="leaderboard">
+				<h2>{roundLeaderboard.round_title} — Top 3</h2>
+				<ol>
+					{#each roundLeaderboard.top3 as row (row.team_id)}
+						<li class:own={row.team_id === joined.teamId}>
+							{row.name} — {row.round_score} pont
+						</li>
+					{/each}
+				</ol>
+				<p>Várj a következő körre…</p>
+			</div>
+		{:else if revealInfo}
 			<div class="reveal">
 				<p>Helyes válasz: <strong>{revealInfo.correct_answer}</strong></p>
-				<p>{submitted ? 'A válaszod elküldve.' : 'Nem küldtél választ időben.'}</p>
+				{#if myResult}
+					<p class:correct={myResult.is_correct} class:incorrect={!myResult.is_correct}>
+						{myResult.is_correct ? 'Eltaláltad!' : 'Nem talált.'} +{myResult.points_awarded} pont
+					</p>
+				{:else}
+					<p>{submitted ? 'A válaszod elküldve.' : 'Nem küldtél választ időben.'}</p>
+				{/if}
 			</div>
 		{:else if currentQuestion}
 			<p class="round-title">
@@ -447,6 +505,28 @@
 		margin-top: 0.75rem;
 		background: #fef3c7;
 		border: 2px solid #f59e0b;
+	}
+
+	.leaderboard ol {
+		list-style: decimal;
+		text-align: left;
+		padding-left: 1.5rem;
+		margin: 1rem 0;
+	}
+
+	.leaderboard li.own {
+		font-weight: bold;
+		color: #2563eb;
+	}
+
+	.correct {
+		color: #15803d;
+		font-weight: bold;
+	}
+
+	.incorrect {
+		color: #b91c1c;
+		font-weight: bold;
 	}
 
 	.error {

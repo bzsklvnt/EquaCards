@@ -6,7 +6,9 @@
 		PresenceTeam,
 		QuestionShowPayload,
 		QuestionRevealPayload,
-		JokerActivatePayload
+		JokerActivatePayload,
+		RoundLeaderboardRevealPayload,
+		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
 	import type { PageData } from './$types';
 
@@ -26,9 +28,13 @@
 	let teams = $state<PresenceTeam[]>([]);
 	let questionTypes = $state<{ id: number; code: string }[]>([]);
 	let roundQuestions = $state<RoundQuestionRow[]>([]);
-	let uiStep = $state<'idle' | 'shown' | 'timing' | 'locked' | 'revealed'>('idle');
+	let uiStep = $state<
+		'idle' | 'shown' | 'timing' | 'locked' | 'revealed' | 'round_summary' | 'final_summary'
+	>('idle');
 	let statusMessage = $state('');
 	let submissionCount = $state(0);
+	let roundTop3 = $state<RoundLeaderboardRevealPayload['top3']>([]);
+	let finalStandings = $state<FinalLeaderboardRevealPayload['standings']>([]);
 
 	let currentIndex = $derived(
 		roundQuestions.findIndex((q) => q.question_id === game.current_question_id)
@@ -290,6 +296,15 @@
 	async function revealAnswer() {
 		const current = roundQuestions[currentIndex];
 		if (!current) return;
+
+		const { error: evalError } = await data.supabase.rpc('evaluate_question', {
+			p_question_id: current.question_id
+		});
+		if (evalError) {
+			statusMessage = evalError.message;
+			return;
+		}
+
 		const code = typeCode(current.question_type_id);
 		let correctAnswer = '';
 
@@ -325,6 +340,57 @@
 		};
 		await channel?.send({ type: 'broadcast', event: 'question_reveal', payload });
 		uiStep = 'revealed';
+	}
+
+	async function revealRoundLeaderboard() {
+		if (!game.current_round_id) return;
+		const { data: rows, error } = await data.supabase.rpc('round_leaderboard', {
+			p_round_id: game.current_round_id,
+			p_limit: 3
+		});
+		if (error) {
+			statusMessage = error.message;
+			return;
+		}
+
+		roundTop3 = (rows ?? []).map((row, i) => ({
+			team_id: row.team_id,
+			name: row.name,
+			round_score: row.round_score,
+			rank: i + 1
+		}));
+
+		const round = rounds.find((r) => r.id === game.current_round_id);
+		const payload: RoundLeaderboardRevealPayload = {
+			round_id: game.current_round_id,
+			round_title: round?.title ?? '',
+			top3: roundTop3
+		};
+		await channel?.send({ type: 'broadcast', event: 'round_leaderboard_reveal', payload });
+		uiStep = 'round_summary';
+	}
+
+	async function revealFinalLeaderboard() {
+		const { data: rows, error } = await data.supabase
+			.from('teams')
+			.select('id, name, total_score')
+			.eq('game_id', game.id)
+			.order('total_score', { ascending: false });
+		if (error) {
+			statusMessage = error.message;
+			return;
+		}
+
+		finalStandings = (rows ?? []).map((row, i) => ({
+			team_id: row.id,
+			name: row.name,
+			total_score: row.total_score ?? 0,
+			rank: i + 1
+		}));
+
+		const payload: FinalLeaderboardRevealPayload = { standings: finalStandings };
+		await channel?.send({ type: 'broadcast', event: 'final_leaderboard_reveal', payload });
+		uiStep = 'final_summary';
 	}
 
 	async function advanceToNextRound() {
@@ -403,13 +469,9 @@
 		<p class="submissions">Beérkezett válaszok: {submissionCount} / {teams.length}</p>
 
 		<div class="controls">
-			{#if uiStep === 'idle' || uiStep === 'revealed'}
+			{#if uiStep === 'idle'}
 				{#if currentIndex + 1 < roundQuestions.length}
 					<button onclick={showNextQuestion}>Következő kérdés</button>
-				{:else if nextRoundAfterCurrent()}
-					<button onclick={advanceToNextRound}>Következő kör</button>
-				{:else}
-					<button onclick={finishGame}>Játék befejezése</button>
 				{/if}
 			{:else if uiStep === 'shown'}
 				<button onclick={startTimer}>Timer indítása</button>
@@ -417,6 +479,34 @@
 				<button onclick={lockAnswers}>Zárás most</button>
 			{:else if uiStep === 'locked'}
 				<button onclick={revealAnswer}>Megoldás feltárása</button>
+			{:else if uiStep === 'revealed'}
+				{#if currentIndex + 1 < roundQuestions.length}
+					<button onclick={showNextQuestion}>Következő kérdés</button>
+				{:else if nextRoundAfterCurrent()}
+					<button onclick={revealRoundLeaderboard}>Kör eredményének feltárása</button>
+				{:else}
+					<button onclick={revealFinalLeaderboard}>Végeredmény feltárása</button>
+				{/if}
+			{:else if uiStep === 'round_summary'}
+				<div class="leaderboard">
+					<h3>Kör vége — Top 3</h3>
+					<ol>
+						{#each roundTop3 as row (row.team_id)}
+							<li>{row.name} — {row.round_score} pont</li>
+						{/each}
+					</ol>
+					<button onclick={advanceToNextRound}>Következő kör</button>
+				</div>
+			{:else if uiStep === 'final_summary'}
+				<div class="leaderboard">
+					<h3>Végeredmény</h3>
+					<ol>
+						{#each finalStandings as row (row.team_id)}
+							<li>{row.name} — {row.total_score} pont</li>
+						{/each}
+					</ol>
+					<button onclick={finishGame}>Játék lezárása</button>
+				</div>
 			{/if}
 		</div>
 
@@ -475,6 +565,13 @@
 
 	.controls {
 		margin: 1.5rem 0;
+	}
+
+	.leaderboard ol {
+		padding-left: 1.5rem;
+		text-align: left;
+		max-width: 20rem;
+		margin: 1rem auto;
 	}
 
 	.status-message {

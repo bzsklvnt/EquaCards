@@ -40,9 +40,21 @@ export type AnswerLockedPayload = {
 
 export type QuestionRevealPayload = {
 	question_id: string;
-	// Egyetlen, előre formázott, emberi olvasásra kész string — a Fázis 4
-	// egyelőre nem számol valós pontot (az evaluate_answer Edge Function
-	// Fázis 5-ben készül el), ezért a payload csak a helyes választ mutatja,
-	// nem a csapatok pontszámát. Lásd docs/architecture/REALTIME_PROTOCOL.md.
+	// Egyetlen, előre formázott, emberi olvasásra kész string. Szándékosan
+	// NINCS benne pontszám sem Fázis 5-ben — a payload mindenkihez eljut a
+	// csatornán, a csapatok pontja viszont csak a sajátjuké lehet (lásd
+	// section 5 tervezési elve). A kliens a `team_answer_result` RPC-vel
+	// kérdezi le a saját pontját ugyanerre a question_id-ra, a reveal
+	// beérkezésekor. Lásd docs/architecture/REALTIME_PROTOCOL.md.
 	correct_answer: string;
+};
+
+export type RoundLeaderboardRevealPayload = {
+	round_id: string;
+	round_title: string;
+	top3: { team_id: string; name: string; round_score: number; rank: number }[];
+};
+
+export type FinalLeaderboardRevealPayload = {
+	standings: { team_id: string; name: string; total_score: number; rank: number }[];
 };

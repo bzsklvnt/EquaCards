@@ -27,8 +27,8 @@ importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
 | `answer_locked`            | host / auto | `{question_id}`                              | 4     |
 | `question_reveal`          | host        | `QuestionRevealPayload` (lásd lent)          | 4     |
 | `game_finished`            | host        | `{}`                                         | 4     |
-| `round_leaderboard_reveal` | host        | _tervezett, Fázis 5_                         | 5     |
-| `final_leaderboard_reveal` | host        | _tervezett, Fázis 5_                         | 5     |
+| `round_leaderboard_reveal` | host        | `RoundLeaderboardRevealPayload` (lásd lent)  | 5     |
+| `final_leaderboard_reveal` | host        | `FinalLeaderboardRevealPayload` (lásd lent)  | 5     |
 
 ### `team_joined` (Fázis 3)
 
@@ -112,24 +112,62 @@ duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
   }
   ```
   Egyetlen, előre formázott, emberi olvasásra kész string (pl.
-  `"A, C"`, `"42"`, `"Elem1 → Elem2 → Elem3"`). **Fázis 4-ben ez NEM
-  tartalmazza a csapatok pontszámát** — az `evaluate_answer` Edge Function
-  (Fázis 5) még nem létezik, tehát nincs valós `points_awarded` érték,
-  amit szét lehetne osztani. A DATA_MODEL.md 5. szakaszának eredeti
-  `{question_id, correct_answer, points_awarded}` payload-ját ezért egy
-  lépésben, Fázis 5-ben egészítjük ki — utána is csak a saját csapat
-  pontja kerül a payloadba/egy külön, csapatonkénti lekérdezésbe, sosem a
-  többieké (lásd a section 5 tervezési elvét: kérdésenként senki sem lát
-  folyamatos rangsort).
-- **Kliens teendő:** csapat — helyes válasz megjelenítése.
+  `"A, C"`, `"42"`, `"Elem1 → Elem2 → Elem3"`). **Szándékosan NINCS benne
+  pontszám Fázis 5-ben sem** — ez a payload mindenkihez eljut ugyanazon a
+  csatornán, a csapatok pontja viszont csak a sajátjuké lehet (section 5
+  tervezési elve: kérdésenként senki sem lát folyamatos rangsort/mást
+  pontját). A host a broadcast előtt meghívja az `evaluate_question` RPC-t
+  (`docs/features/scoring.md`), ami kitölti az `answers.is_correct`/
+  `points_awarded`-et; a csapat kliens ezután **külön, saját** hívással
+  (`team_answer_result(team_id, question_id)` RPC) kérdezi le a saját
+  eredményét — ez nem lehetne sima anon SELECT policy, mert egy `using`
+  policy nem tudna a lekérdezés WHERE-jében megadott `team_id`-hoz kötni
+  (nincs auth session, amiből az RLS a "sajátot" levezetné).
+- **Kliens teendő:** csapat — helyes válasz megjelenítése, majd a
+  `team_answer_result` válasza alapján saját helyes/helytelen + pontszám
+  kiírása.
+
+### `round_leaderboard_reveal` (Fázis 5)
+
+- **Küldő:** host, "Kör eredményének feltárása" gomb — csak a kör utolsó
+  kérdésének feltárása után jelenik meg, a "Következő kör" gomb helyett.
+- **Payload** (`RoundLeaderboardRevealPayload`):
+  ```ts
+  {
+  	round_id: string;
+  	round_title: string;
+  	top3: Array<{ team_id: string; name: string; round_score: number; rank: number }>;
+  }
+  ```
+  A `round_leaderboard(round_id, limit)` staff-only RPC-ből (`docs/features/scoring.md`)
+  számolva — csak a kör-specifikus top 3, NEM az össz-pontszám (section 5
+  tervezési elve).
+- **Kliens teendő:** csapat/TV — teljes képernyős top 3 lista, saját csapat
+  kiemelve; a host is megjeleníti (nem csak broadcastol). A csapat oldalon
+  ez marad látszódva a következő `question_show`-ig.
+
+### `final_leaderboard_reveal` (Fázis 5)
+
+- **Küldő:** host, "Végeredmény feltárása" gomb — csak az utolsó kör utolsó
+  kérdésének (és a hozzá tartozó kör-ranglistának) feltárása után.
+- **Payload** (`FinalLeaderboardRevealPayload`):
+  ```ts
+  {
+  	standings: Array<{ team_id: string; name: string; total_score: number; rank: number }>;
+  }
+  ```
+  A `teams.total_score`-ból, `order by total_score desc` — nincs `round_id`
+  szűrés, nincs `limit`, mindenki szerepel.
+- **Kliens teendő:** csapat/TV — teljes végeredmény lista, saját csapat
+  kiemelve.
 
 ### `game_finished` (Fázis 4)
 
-- **Küldő:** host, "Játék befejezése" gomb (az utolsó kör utolsó kérdése
-  után).
+- **Küldő:** host, "Játék lezárása" gomb (a `final_leaderboard_reveal` utáni
+  lépés).
 - **Payload:** `{}`
-- **Kliens teendő:** _tervezett, Fázis 5/6_ — jelenleg nincs külön kliens
-  oldali kezelése.
+- **Kliens teendő:** _tervezett, Fázis 6_ — jelenleg nincs külön kliens
+  oldali kezelése (a csapat felület a `final_leaderboard_reveal`-en marad).
 
 ## Presence (Fázis 3)
 

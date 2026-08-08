@@ -747,7 +747,23 @@ export type Database = {
 					isSetofReturn: true;
 				};
 			};
+			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
 			game_status: { Args: { p_game_id: string }; Returns: string };
+			round_leaderboard: {
+				Args: { p_limit?: number; p_round_id: string };
+				Returns: {
+					name: string;
+					round_score: number;
+					team_id: string;
+				}[];
+			};
+			team_answer_result: {
+				Args: { p_question_id: string; p_team_id: string };
+				Returns: {
+					is_correct: boolean;
+					points_awarded: number;
+				}[];
+			};
 			team_owner_game_status: { Args: { p_team_id: string }; Returns: string };
 		};
 		Enums: {
