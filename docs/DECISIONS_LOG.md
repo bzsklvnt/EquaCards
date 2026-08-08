@@ -489,3 +489,46 @@ továbbra is a felhasználó feladata marad.
 Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` "Komponens-konzisztencia
 audit (Fázis H)" szakasz + a komponens-könyvtár táblázat kiegészítve
 `Textarea`-val és a hiányzó propokkal.
+
+## 2026-08-08 — Fázis I: Játékélmény polírozás
+
+Új függőség: `canvas-confetti` (+ `@types/canvas-confetti`) — kicsi,
+függőségmentes, nincs értelme saját konfetti-rendszert építeni.
+
+- **Konfetti**: `src/lib/effects/confetti.ts` (`fireWinnerConfetti()`),
+  bekötve a `round_leaderboard_reveal`/`final_leaderboard_reveal`
+  eseményekbe. `/tv/[game_id]`-n mindig elsül (publikus, közös kijelző);
+  `/play/[pin]`-en csak akkor, ha a saját csapat lett az 1. helyezett —
+  pontosan a terv előírása szerint.
+- **Újracsatlakozás állapot**: új `ReconnectOverlay.svelte` komponens
+  (megosztott, mert `/play/[pin]` és `/tv/[game_id]` szó szerint ugyanazt
+  az UI-t igényelte), `TimerRing.svelte` új `inactive` propja (szürke,
+  forgó, számláló-szöveg nélküli variáns). Mindkét felület helyi
+  `connectionStatus` állapotot tart a channel `subscribe()`
+  callback-jéből, ugyanazt a mintát követve, mint a `/host/[game_id]`
+  Fázis F-es `ConnectionStatusStore`-ja (itt viszont nincs megosztott
+  header, tehát nem context, hanem helyi `$state`).
+- **Üres állapotok**: `/admin/questions` szűrő 0 találattal — "Nincs
+  kérdés ebben a témában." + "Szűrő törlése" link, megkülönböztetve az
+  általános "Még nincs kérdés."-től. A lobby 0-csapatos üres állapota már
+  megvolt korábbi fázisokból. A riport-oldal "0 lezárt este" állapota
+  **tudatosan elhalasztva Fázis D-re** — a `/reports` jelenleg placeholder,
+  egy üres állapotot egy még nem létező lista fölé építeni értelmetlen
+  munka lenne.
+- **Betöltés-állapotok / villanás-javítás**: a `themeCss` kezdőértéke
+  mind a 8 érintett fájlban (`/`, `/login`, `/play`, `/play/[pin]`,
+  `/host/[game_id]`, `/tv/[game_id]`, `/admin` layout, `/reports`) `''`
+  helyett `tokensToCssText(defaultTokens)` — az async `getActiveTokens()`
+  Supabase-hívás visszatéréséig a helyes alapértelmezett színekkel
+  render-el, nem stílus nélkül. `/host/[game_id]`: a `roundQuestions`
+  betöltése alatt "Kérdések betöltése…" felirat a "Kérdés 1 / 0"-szerű
+  villanás helyett.
+
+Módszertani korlát (ismételten): a sandbox HTTPS-blokkolása miatt ez a
+fázis is kód-szintű maradt — `npm run check`/`lint`/`build` ellenőrzéssel,
+élő böngészős vizuális/audio teszt nélkül.
+
+Dokumentáció: új `docs/features/game-experience-polish.md`,
+`docs/architecture/DESIGN_SYSTEM.md` komponens-könyvtár táblázat
+kiegészítve a `TimerRing` új `inactive` propjával és a
+`ReconnectOverlay.svelte`-vel.

@@ -2,12 +2,12 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import Button from '$lib/components/Button.svelte';
 
 	let { data, children } = $props();
 
-	let themeCss = $state('');
+	let themeCss = $state(tokensToCssText(defaultTokens));
 	let mobileNavOpen = $state(false);
 
 	// Az admin felület a mindig érvényes alapértelmezett vizuális témát

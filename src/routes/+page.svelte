@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import Button from '$lib/components/Button.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	let themeCss = $state('');
+	let themeCss = $state(tokensToCssText(defaultTokens));
 
 	onMount(() => {
 		getActiveTokens(data.supabase, null).then((tokens) => {

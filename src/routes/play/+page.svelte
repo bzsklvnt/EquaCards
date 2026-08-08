@@ -2,13 +2,13 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	let pin = $state('');
-	let themeCss = $state('');
+	let themeCss = $state(tokensToCssText(defaultTokens));
 
 	onMount(() => {
 		getActiveTokens(data.supabase, null).then((tokens) => {

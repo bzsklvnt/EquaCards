@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { onMount, untrack } from 'svelte';
-	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import type { ActionData, PageData } from './$types';
@@ -16,7 +16,7 @@
 	let email = $state(untrack(() => form?.email ?? ''));
 	let password = $state('');
 
-	let themeCss = $state('');
+	let themeCss = $state(tokensToCssText(defaultTokens));
 
 	onMount(() => {
 		getActiveTokens(data.supabase, null).then((tokens) => {

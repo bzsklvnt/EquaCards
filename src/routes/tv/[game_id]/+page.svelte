@@ -10,21 +10,24 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
-	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import { playTick, playCountdownEnd, playReveal, playLeaderboard } from '$lib/audio/sfx';
+	import { fireWinnerConfetti } from '$lib/effects/confetti';
 	import PinDisplay from '$lib/components/PinDisplay.svelte';
 	import TeamChip from '$lib/components/TeamChip.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
+	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const game = untrack(() => data.game);
 
-	let themeCss = $state('');
+	let themeCss = $state(tokensToCssText(defaultTokens));
 	let qrDataUrl = $state('');
 	let teams = $state<PresenceTeam[]>([]);
 	let gameStatus = $state(game.status);
+	let connectionStatus = $state<'connected' | 'reconnecting' | 'disconnected'>('connected');
 
 	let currentQuestion = $state<QuestionShowPayload | null>(null);
 	let timerInfo = $state<TimerStartPayload | null>(null);
@@ -81,19 +84,25 @@
 			currentQuestion = null;
 			revealInfo = null;
 			playLeaderboard();
+			fireWinnerConfetti();
 		});
 
 		channel.on('broadcast', { event: 'final_leaderboard_reveal' }, ({ payload }) => {
 			finalLeaderboard = payload as FinalLeaderboardRevealPayload;
 			roundLeaderboard = null;
 			playLeaderboard();
+			fireWinnerConfetti();
 		});
 
 		channel.on('broadcast', { event: 'game_finished' }, () => {
 			gameStatus = 'finished';
 		});
 
-		channel.subscribe();
+		channel.subscribe((status) => {
+			if (status === 'SUBSCRIBED') connectionStatus = 'connected';
+			else if (status === 'CLOSED') connectionStatus = 'disconnected';
+			else connectionStatus = 'reconnecting';
+		});
 
 		return () => {
 			channel.unsubscribe();
@@ -130,6 +139,10 @@
 </svelte:head>
 
 <main class="cabinet" style={themeCss}>
+	{#if connectionStatus !== 'connected'}
+		<ReconnectOverlay />
+	{/if}
+
 	{#if finalLeaderboard}
 		<div class="screen" in:fade={{ duration: 250 }}>
 			<h1>Végeredmény</h1>

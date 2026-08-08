@@ -62,7 +62,16 @@
 				</td>
 			</tr>
 		{:else}
-			<tr><td colspan="6">Még nincs kérdés.</td></tr>
+			<tr>
+				<td colspan="6" class="empty-row">
+					{#if themeFilter}
+						Nincs kérdés ebben a témában.
+						<a href={resolve('/admin/questions')}>Szűrő törlése</a>
+					{:else}
+						Még nincs kérdés.
+					{/if}
+				</td>
+			</tr>
 		{/each}
 	</tbody>
 </table>
@@ -110,5 +119,14 @@
 
 	.error {
 		color: var(--danger);
+	}
+
+	.empty-row {
+		color: var(--marquee-dim);
+	}
+
+	.empty-row a {
+		color: var(--cyan);
+		margin-left: 0.5rem;
 	}
 </style>

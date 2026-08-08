@@ -11,7 +11,7 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
-	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import {
 		playTick,
 		playCountdownEnd,
@@ -20,11 +20,13 @@
 		playJokerActivate,
 		playLeaderboard
 	} from '$lib/audio/sfx';
+	import { fireWinnerConfetti } from '$lib/effects/confetti';
 	import ChoiceButton from '$lib/components/ChoiceButton.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -37,7 +39,7 @@
 	let deviceToken = $state('');
 	let gameTitle = $state(untrack(() => data.game?.title ?? ''));
 	let gameDesignThemeId = $state<string | null>(untrack(() => data.game?.design_theme_id ?? null));
-	let themeCss = $state('');
+	let themeCss = $state(tokensToCssText(defaultTokens));
 
 	let currentQuestion = $state<QuestionShowPayload | null>(null);
 	let timerInfo = $state<TimerStartPayload | null>(null);
@@ -57,6 +59,7 @@
 	let orderedItems = $state<{ id: string; item_text: string }[]>([]);
 	let dragIndex = $state<number | null>(null);
 	let joinName = $state('');
+	let connectionStatus = $state<'connected' | 'reconnecting' | 'disconnected'>('connected');
 
 	let channel: ReturnType<typeof data.supabase.channel> | undefined;
 
@@ -194,21 +197,28 @@
 		channel.on('broadcast', { event: 'round_leaderboard_reveal' }, ({ payload }) => {
 			roundLeaderboard = payload as RoundLeaderboardRevealPayload;
 			playLeaderboard();
+			if (roundLeaderboard.top3[0]?.team_id === info.teamId) fireWinnerConfetti();
 		});
 
 		channel.on('broadcast', { event: 'final_leaderboard_reveal' }, ({ payload }) => {
 			finalLeaderboard = payload as FinalLeaderboardRevealPayload;
 			playLeaderboard();
+			if (finalLeaderboard.standings[0]?.team_id === info.teamId) fireWinnerConfetti();
 		});
 
 		channel.subscribe(async (status) => {
 			if (status === 'SUBSCRIBED') {
+				connectionStatus = 'connected';
 				await channel!.track({ team_id: info.teamId, name: info.teamName });
 				await channel!.send({
 					type: 'broadcast',
 					event: 'team_joined',
 					payload: { team_id: info.teamId, name: info.teamName }
 				});
+			} else if (status === 'CLOSED') {
+				connectionStatus = 'disconnected';
+			} else {
+				connectionStatus = 'reconnecting';
 			}
 		});
 
@@ -329,6 +339,10 @@
 </svelte:head>
 
 <main class="cabinet" style={themeCss}>
+	{#if joined && connectionStatus !== 'connected'}
+		<ReconnectOverlay />
+	{/if}
+
 	{#if joined}
 		<h1>{gameTitle}</h1>
 

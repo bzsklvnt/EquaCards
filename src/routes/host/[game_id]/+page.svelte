@@ -11,7 +11,7 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
-	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import { playReveal, playLeaderboard, playJokerActivate } from '$lib/audio/sfx';
 	import { getConnectionStatusContext } from '$lib/realtime/connection-status.svelte';
 	import { getHostProgressContext } from '$lib/realtime/host-progress.svelte';
@@ -48,7 +48,7 @@
 	let submissionCount = $state(0);
 	let roundTop3 = $state<RoundLeaderboardRevealPayload['top3']>([]);
 	let finalStandings = $state<FinalLeaderboardRevealPayload['standings']>([]);
-	let themeCss = $state('');
+	let themeCss = $state(tokensToCssText(defaultTokens));
 
 	let currentIndex = $derived(
 		roundQuestions.findIndex((q) => q.question_id === game.current_question_id)
@@ -527,6 +527,8 @@
 				<p class="empty">Még senki sem csatlakozott.</p>
 			{/each}
 		</div>
+	{:else if game.status === 'active' && roundQuestions.length === 0}
+		<p class="loading">Kérdések betöltése…</p>
 	{:else if game.status === 'active'}
 		<p class="round-label">{rounds.find((r) => r.id === game.current_round_id)?.title}</p>
 		<p class="progress">Kérdés {currentIndex + 1} / {roundQuestions.length}</p>
@@ -676,5 +678,10 @@
 
 	.empty {
 		color: var(--marquee-dim);
+	}
+
+	.loading {
+		color: var(--marquee-dim);
+		font-family: var(--font-led);
 	}
 </style>
