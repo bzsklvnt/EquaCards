@@ -71,7 +71,10 @@ RLS: mindenki olvashatja (kell a random-válogatás lekérdezéshez), csak `role
 ## 2. Kérdésbank — normalizált, típusonként külön opció-tábla, témával cimkézve
 
 ```sql
--- Téma/kategória cimke — nagy, összesített kérdésbankon belül ezzel szűrsz
+-- Téma/kategória cimke — nagy, összesített kérdésbankon belül ezzel szűrsz.
+-- FONTOS: ez tisztán tartalmi kategória, NEM vizuális köntös — a vizuális témák
+-- külön táblában élnek (lásd 8. szakasz), hogy ne kelljen egy "Sport" tartalmi
+-- kérdéscsokorhoz kötelezően "Sport" kinézetet társítani.
 create table themes (
   id uuid primary key default gen_random_uuid(),
   title text unique not null             -- pl. "Sport", "Sex and the City", "Zene - 90-es évek"
@@ -308,6 +311,7 @@ create table games (
   pin text unique not null,
   title text not null,
   status text not null default 'lobby',  -- lobby | active | paused | finished
+  design_theme_id uuid references design_themes(id),  -- opcionális, lásd 8. szakasz (migrációs sorrend: design_themes előbb jön létre, lásd supabase_setup.sql)
   current_round_id uuid references rounds(id),
   current_question_id uuid references questions(id),
   host_id uuid references profiles(id),
@@ -455,11 +459,13 @@ create trigger trg_audit_questions
 - **Globális beállítások** (csak `super_admin`): pl. kérdés-újrafelhasználási cooldown hónapban (`app_settings`)
 - **Kérdésbank CRUD:** kérdés felvitele/szerkesztése, `theme_id` cimkével kategorizálva, típusonként dedikált szerkesztő űrlap (pl. `multi_choice`-nál 6-8 opció mező dinamikusan, `slider`-nél min/max/tolerancia csúszka)
 - **Estekonstrukció:** "Random húzás" gomb egy adott témára — a rendszer a cooldown-on kívüli kérdések közül automatikusan válogat, amit még finomíthatsz kézzel, mielőtt beszúrod a kör `round_questions` listájába. Bármelyik kérdésnél kipipálható a **"Dupla pontos kérdés"** (`points_multiplier = 2`)
-- Témák (`themes`) és kérdéstípusok (`question_types`) karbantartása
+- Témák (`themes`) és kérdéstípusok (`question_types`) karbantartása — tisztán tartalmi kategorizálás
+- **Külön "Vizuális témák" menüpont:** `design_themes` CRUD (szín/font token szerkesztő, "alapértelmezett" jelölő) — nincs kapcsolat a tartalmi témákkal
 - Korábbi kvízesték statisztikái, riportok
 
 ### Host felület (`/host/[game_id]`)
 
+- Este indításakor **vizuális téma választása** a `design_themes` közül (nem kötelező — üresen hagyva az alapértelmezett érvényes), teljesen függetlenül attól, milyen tartalmi témájú kérdések futnak aznap
 - Lobby: csatlakozott csapatok élő listája (Presence), QR + PIN
 - Kör/kérdés vezérlő: "Következő kérdés", "Timer indítás", "Válaszok lezárása", "Megoldás feltárása"
 - Élő beküldési számláló — Postgres Changes az `answers` táblán, jelezve azt is, ha egy csapat jokert használt az adott kérdésen
@@ -483,7 +489,105 @@ create trigger trg_audit_questions
 
 ---
 
-## 8. MVP fázisok
+## 8. Vizuális köntös / design téma rendszer
+
+**Külön tábla, független a tartalmi `themes`-től.** Egy design téma (pl. "Retro Arcade") és egy tartalmi téma (pl. "Sport") két teljesen független dolog — egy estén bármelyik design témát bármelyik tartalmi kérdéscsokorral párosíthatod, nincs kényszerkapcsolat. Több alapértelmezett design téma is lesz, amik közül választhatsz.
+
+```sql
+create table design_themes (
+  id uuid primary key default gen_random_uuid(),
+  title text unique not null,             -- pl. "Retro Arcade", "Kocsmai Krétatábla"
+  design_tokens jsonb not null,           -- a teljes CSS változó-készlet ehhez a témához, lásd lent
+  is_default boolean not null default false,
+  created_at timestamptz default now()
+);
+
+-- DB-szinten kikényszerítve: egyszerre csak EGY design téma lehet az alapértelmezett
+create unique index idx_design_themes_default on design_themes (is_default) where is_default = true;
+
+-- Ha egy admin egy másik témát jelöl alapértelmezettnek, a régi automatikusan leváltódik —
+-- nem kell a UI-nak külön "előbb kapcsold ki a régit" logikát implementálnia
+create or replace function enforce_single_default_design_theme()
+returns trigger as $$
+begin
+  if NEW.is_default then
+    update design_themes set is_default = false where id != NEW.id and is_default = true;
+  end if;
+  return NEW;
+end;
+$$ language plpgsql;
+
+create trigger trg_single_default_design_theme
+  before insert or update on design_themes
+  for each row execute function enforce_single_default_design_theme();
+
+-- Első seed: a jóváhagyott retro arcade stílusterv, alapértelmezettként megjelölve
+insert into design_themes (title, design_tokens, is_default) values (
+  'Retro Arcade',
+  '{
+    "--cabinet": "#150E2C",
+    "--cabinet-2": "#211640",
+    "--cabinet-3": "#2C1D54",
+    "--marquee": "#F5F0FF",
+    "--marquee-dim": "#A79BC9",
+    "--cyan": "#35E7FF",
+    "--magenta": "#FF3E9A",
+    "--power": "#B6FF3E",
+    "--danger": "#FF5A36",
+    "--coin": "#FFD23E",
+    "--violet": "#9B5CFF",
+    "font_display": "Press Start 2P",
+    "font_led": "Silkscreen",
+    "font_body": "Inter"
+  }'::jsonb,
+  true
+);
+```
+
+**Miért `design_tokens not null` (teljes készlet, nem csak felülírás):** a korábbi tervben ("felülíró kulcsok" a tartalmi `themes` táblán) hosszú távon hibaforrás lett volna — ha a kódban a hardcode-olt alap token-készlet valaha megváltozik, egy csak-felülírést tároló régi téma csendben, észrevétlenül más színt kapna. Egy önálló, teljes token-készletet tároló `design_themes` sor **stabil, önmagában értelmezhető** — nem függ a kód aktuális állapotától.
+
+```sql
+-- games tábla: a design_theme_id FÜGGETLEN a tartalmi témától, opcionális
+-- (ha üres, az is_default=true design téma érvényes)
+design_theme_id uuid references design_themes(id)
+```
+
+**Hogyan alkalmazódik futásidőben:**
+
+```ts
+// src/lib/theme/tokens.ts
+export const defaultTokens = {/* ugyanaz a készlet, mint a seed — végső biztonsági háló */};
+
+export function resolveTokens(designThemeTokens: Record<string, string> | null) {
+	return { ...defaultTokens, ...(designThemeTokens ?? {}) };
+}
+```
+
+```ts
+// A host/csapat/TV betöltéskor:
+// 1. Ha games.design_theme_id ki van töltve → az ahhoz tartozó design_themes.design_tokens
+// 2. Ha nincs kitöltve → a design_themes sor, ahol is_default = true
+// 3. Ha az sincs (elvileg nem fordulhat elő, de védőháló) → a kódban hardcode-olt defaultTokens
+async function getActiveTokens(gameDesignThemeId: string | null) {
+	const theme = gameDesignThemeId
+		? await fetchDesignTheme(gameDesignThemeId)
+		: await fetchDefaultDesignTheme();
+	return resolveTokens(theme?.design_tokens ?? null);
+}
+```
+
+A kapott objektum **inline style-ként kerül a gyökér elemre**, így minden alul lévő komponens, ami `var(--cyan)`-t használ, automatikusan a kiválasztott téma színét kapja, séma- vagy komponens-módosítás nélkül.
+
+**Mit ad ez a felépítés:**
+
+- Egy design téma **teljesen független** attól, milyen tartalmi témájú (`themes`) kérdésekkel fut az este — a host bármelyik design témát választhatja bármelyik tartalmi kérdéscsokorhoz, vagy maradhat az alapértelmezettnél
+- Több alapértelmezett design téma lesz a `design_themes` táblában (most csak a Retro Arcade van seedelve, de a tábla eleve úgy készült, hogy bármikor bővíthető legyen újakkal, admin CRUD-on keresztül)
+- A "melyik az alapértelmezett" kérdés **DB-szinten** garantáltan egyértelmű (részleges unique index + trigger), nem app-oldali fegyelemre bízott szabály
+- Az admin felületen ez egy önálló "Vizuális témák" menüpont, elkülönítve a tartalmi "Témák" (kérdés-cimkék) szerkesztőjétől — a kettőt nem szabad összekeverni a UI-ban sem
+
+---
+
+## 9. MVP fázisok
 
 1. **Jogosultság + admin váz** — `roles`/`profiles`, auth, admin route védelem, `audit_logs` tábla + generikus trigger függvény bekötve a `profiles`/role-változásokra
 2. **Kérdésbank CRUD** — `themes`, `question_types` + normalizált opció-táblák, `app_settings` (cooldown), `round_questions` join tábla + `last_used_at` trigger, típusonkénti admin űrlapok, audit trigger bekötve a kérdés-táblákra
