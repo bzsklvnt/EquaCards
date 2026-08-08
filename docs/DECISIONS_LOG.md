@@ -738,3 +738,29 @@ részletesen `docs/features/user-management.md`-ben):
 Dokumentáció: új `docs/features/user-management.md`,
 `docs/architecture/DATA_MODEL.md` 1. szakasz (`profiles.email` +
 "Implementáció (Fázis B)" alszakasz).
+
+## 2026-08-08 — Fázis C: Admin globális beállítások UI
+
+A review #2 admin-hézaga: az `app_settings` eddig csak SQL-lel volt
+szerkeszthető. `/admin/settings` (`role_id = 1` guard, mint `/admin/users`)
+— **nem kellett új RLS**, az `app_settings_write_super_admin` policy már
+a Fázis 2 óta pontosan ezt a szűkítést kényszeríti ki.
+
+A lista forrása szigorúan `select * from app_settings` — nincs
+hardcode-olt kulcs-lista a UI-ban, egy jövőbeli új `app_settings` sor
+kód-módosítás nélkül megjelenne. Az input-widget típusát (`number`
+input/`Checkbox`/szöveg `Input`/nyers-JSON `Textarea`) a betöltött érték
+JS `typeof`-ja dönti el futásidőben; egy rejtett `value_type` mező viszi
+át ezt a szerver action-nek, hogy a beküldött stringet a megfelelő JS
+típusra tudja visszaparse-olni (különben pl. a cooldown hónapszám
+string-ként íródna vissza szám helyett). Egy kis, nem-kötelező
+`SETTING_META` lookup ad barátságosabb címkét/mértékegységet ismert
+kulcsokhoz (jelenleg csak `question_reuse_cooldown_months` → "hónap") —
+ismeretlen kulcs enélkül is helyesen megjelenik, csak a nyers nevét
+mutatja.
+
+Ugyanaz a `svelte-sonner` toast + plain-form-action minta, mint Fázis
+B-ben (indoklás ott, nem ismételve).
+
+Dokumentáció: új `docs/features/app-settings.md` (a jelenlegi kulcsok
+táblázatával).
