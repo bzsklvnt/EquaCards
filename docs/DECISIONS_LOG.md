@@ -28,3 +28,38 @@ A `PUB_QUIZ_APP_TERV.md` tartalma bekerült a `docs/architecture/DATA_MODEL.md`-
 protokoll séma-oldala, audit log, felület-áttekintés, MVP fázisok). A gyökérben lévő
 `PUB_QUIZ_APP_TERV.md` törölve — a `docs/architecture/DATA_MODEL.md` az egyetlen
 forrás igazság, nem tartunk két helyen duplikált másolatot. Fázis 1 innentől indítható.
+
+## 2026-08-08 — Fázis 1: Jogosultság + admin váz + audit log
+
+Migráció (`supabase/migrations/20260807234850_roles_profiles_audit.sql`):
+`roles`/`profiles` a DATA_MODEL.md 1. szakasza szerint, `audit_logs` +
+`log_table_change()` trigger a 6. szakasza szerint, rákötve a `profiles`
+táblára. Ezen felül (nem volt explicit SQL a tervben, indoklás a
+DATA_MODEL.md 1. szakaszának "Implementáció" alszakaszában): `handle_new_user()`
+trigger az `auth.users`-en (automatikus `profiles` sor létrehozás, alap
+`role_id = 4`), `current_user_role_id()` segédfüggvény a rekurzív RLS
+elkerülésére, és konkrét RLS policy-k a `roles`/`profiles`/`audit_logs`
+táblákon. A migrációt közvetlenül a Supabase MCP-n keresztül alkalmaztam az
+éles (üres) `PubQuiz` projektre (`wnmgilblkdqunhpwoulj`); a security/performance
+advisorok által jelzett problémákat (mutable search_path, anon/authenticated
+RPC-elérés a trigger-függvényeken, `auth.uid()` újrakiértékelése soronként)
+kijavítottam és belefésültem az egyetlen migrációs fájlba, mielőtt commitoltam
+— nem hagytam a "hiba, majd 2 javító migráció" történetet a repóban, mivel ezt
+még senki más nem húzta le.
+
+Supabase auth: email/jelszó, `@supabase/ssr` szerinti szabványos SvelteKit
+minta (`+layout.server.ts` + `+layout.ts` + `+layout.svelte` session-szinkron,
+`src/lib/supabase.ts` böngésző-kliens). `/login` (bejelentkezés + regisztráció
+egy oldalon, mód-váltóval), `/logout` (`+server.ts` POST action).
+`/admin/+layout.server.ts` route guard: bejelentkezés nélkül `/login`-ra
+irányít, `role_id` 1/2 (super_admin/admin) nélkül 403-at ad.
+
+Az auth-folyamatot élő böngészőben csak részben tudtam tesztelni: ennek a
+sandboxnak az egress-proxy szabályzata policy-szinten (403) blokkolja a
+kimenő kapcsolatot a `*.supabase.co` felé, így a tényleges signup/login hívás
+nem futott le helyben (ez a sandbox hálózati korlátja, nem a kódé — a Vercel
+preview deploy nincs e mögött a proxy mögött, ott működnie kell). Amit
+ellenőriztem: a build/lint/typecheck tiszta, a form action helyesen építi fel
+és küldi a kérést (a hálózati hívás pontosan itt bukott el, kódszinten nem),
+és a DB-oldalt közvetlenül SQL-lel (`pg_trigger`, `pg_policies`) + a Supabase
+security/performance advisorokkal igazoltam vissza.

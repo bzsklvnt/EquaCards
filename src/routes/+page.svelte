@@ -1,2 +1,18 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<script lang="ts">
+	import { resolve } from '$app/paths';
+
+	let { data } = $props();
+</script>
+
+<main>
+	<h1>EquaCards — Pub Kvíz</h1>
+
+	{#if data.user}
+		<p>Bejelentkezve: {data.user.email}</p>
+		<form method="POST" action="/logout">
+			<button type="submit">Kijelentkezés</button>
+		</form>
+	{:else}
+		<p><a href={resolve('/login')}>Bejelentkezés / Regisztráció</a></p>
+	{/if}
+</main>

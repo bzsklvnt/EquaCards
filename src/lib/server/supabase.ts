@@ -1,6 +1,7 @@
 import { createServerClient, type CookieMethodsServer } from '@supabase/ssr';
 import type { RequestEvent } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
+import type { Database } from '$lib/types/database.types';
 
 export function createSupabaseServerClient(event: RequestEvent) {
 	if (!env.PUBLIC_SUPABASE_URL || !env.PUBLIC_SUPABASE_ANON_KEY) {
@@ -16,5 +17,7 @@ export function createSupabaseServerClient(event: RequestEvent) {
 		}
 	};
 
-	return createServerClient(env.PUBLIC_SUPABASE_URL, env.PUBLIC_SUPABASE_ANON_KEY, { cookies });
+	return createServerClient<Database>(env.PUBLIC_SUPABASE_URL, env.PUBLIC_SUPABASE_ANON_KEY, {
+		cookies
+	});
 }

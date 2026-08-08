@@ -39,6 +39,15 @@ create table profiles (
 
 RLS minden admin-jellegű táblán (`themes`, `questions`, `rounds`, `round_questions`, `question_types`, opció-táblák) `role_id in (1,2)`-re épül; `games` indítás/vezérlés `role_id in (1,2,3)`-ra.
 
+### Implementáció (Fázis 1, `supabase/migrations/20260807234850_roles_profiles_audit.sql`)
+
+A fenti terven felül a megvalósítás a következőket vezette be, mert a működéshez szükségesek voltak, de a tervben nem szerepeltek explicit SQL-ként:
+
+- **`handle_new_user()` trigger** az `auth.users`-en: minden új regisztrációnál automatikusan létrehoz egy `profiles` sort `role_id = 4` (viewer) alapértelmezéssel. Az első `super_admin`-t emiatt kézzel kell felléptetni: `update profiles set role_id = 1 where id = '<uuid>';`
+- **`current_user_role_id()` segédfüggvény** (`security definer`, csak `authenticated`-nek grantelve): a bejelentkezett felhasználó `role_id`-ját adja vissza, hogy a `profiles`/`audit_logs` RLS szabályok ne okozzanak rekurzív policy-kiértékelést a `profiles` táblán saját magán.
+- **Konkrét RLS policy-k** a `roles`/`profiles`/`audit_logs` táblákon a fenti szöveges szabály alapján: mindenki olvashatja a saját profilját és a `roles` referenciatáblát; `role_id in (1,2)` olvashatja az összes profilt; csak `super_admin` (1) módosíthat bármely profilt (pl. role kiosztás), egy felhasználó a sajátját szerkesztheti, de a `role_id`-t nem tudja saját magának módosítani.
+- A `handle_new_user`/`log_table_change` trigger-függvényeken és a `current_user_role_id()`-n a public/anon RPC-elérés le van tiltva (`revoke execute ... from anon, authenticated`, `current_user_role_id`-nál csak `authenticated`-nek visszaadva) — a Supabase security advisor ezt jelezte, mivel alapból minden új public-séma függvényre EXECUTE jogot ad `anon`/`authenticated`-nek is.
+
 ### Globális beállítások (superadmin szerkeszti)
 
 Egyetlen kulcs-érték tábla azoknak a beállításoknak, amiket a superadmin utólag, kód nélkül módosíthat — elsőként a kérdés-újrafelhasználási hűtési idő (lásd 2. szakasz), de bármi bővíthető ide később séma-módosítás nélkül.
