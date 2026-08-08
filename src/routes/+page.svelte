@@ -16,6 +16,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>EquaCards — Pub Kvíz</title>
+</svelte:head>
+
 <main class="cabinet" style={themeCss}>
 	<h1>EquaCards — Pub Kvíz</h1>
 

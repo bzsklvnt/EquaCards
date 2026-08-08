@@ -13,6 +13,10 @@
 	let drawCount = $state('8');
 </script>
 
+<svelte:head>
+	<title>{data.game.title} — Admin</title>
+</svelte:head>
+
 <h1>{data.game.title}</h1>
 <p class="status">Állapot: {data.game.status}</p>
 <a href={resolve('/host/[game_id]', { game_id: data.game.id })}>Élő lebonyolítás megnyitása →</a>

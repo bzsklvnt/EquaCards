@@ -22,6 +22,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Design téma szerkesztése — Admin</title>
+</svelte:head>
+
 <h1>Design téma szerkesztése</h1>
 
 {#if form?.error}

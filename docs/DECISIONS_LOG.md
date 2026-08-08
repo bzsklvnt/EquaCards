@@ -862,3 +862,102 @@ dinamikus betöltése" alszakasz, `docs/features/design-themes.md`
 "ismert korlát" szakasza átírva a tényleges megoldásra,
 `docs/architecture/DATA_MODEL.md` 8. szakasz Fázis 6 implementációs
 jegyzete frissítve.
+
+---
+
+## 2026-08-08 — Fázis M: MVP KÉSZ
+
+A `NEXT_STEPS.md` 13. szakaszának hat pontja mind lezárva:
+
+1. **Favicon + oldal-címek.** A korábban a SvelteKit alapértelmezett
+   Svelte-logó favicon (`src/lib/assets/favicon.svg`) lecserélve egy
+   saját, retro-arcade stílusú ikonra (sötét kabinet-háttér, sárga
+   "érme" kör cián kerettel, pixeles "?" — a STYLE_GUIDE.html
+   `--cabinet`/`--coin`/`--cyan`/`--magenta` színeivel). 11 route-ról
+   hiányzott `<title>` (a sweep az összes `+page.svelte`/`+error.svelte`
+   fájlt átnézte) — mind pótolva, a meglévő "{Cím} — Admin" / "— Host" /
+   "— Kivetítő" konvenciót követve. **Nem** került statikus alapértelmezett
+   `<title>` az `app.html`-be: mivel minden route-nak már van saját
+   `<svelte:head><title>`-je, egy statikus cím az `app.html`-ben a HTML
+   spec "első `<title>` a dokumentum-sorrendben nyer" szabálya miatt
+   ténylegesen **felülírta volna** minden oldal saját címét (mert korábban
+   érkezik a dokumentumban, mint a `%sveltekit.head%` helyére injektált
+   oldal-specifikus cím) — ellenőrizve, hogy tényleg minden route-nak van
+   már saját címe, ezért ez a védőháló feleslegesnek, sőt károsnak
+   bizonyult.
+2. **404 / általános hibaoldal.** Új `src/routes/+error.svelte` — a
+   design rendszerhez illő "GAME OVER" panel (`--font-led` státuszkód,
+   `--font-display` cím, `--danger` szín), `$app/state`
+   `page.status`/`page.error.message` alapján. Szándékosan **nem** hív
+   dinamikus téma-lekérdezést (`getActiveTokens`) — csak a statikus
+   `defaultTokens`-t használja, mert a hibaoldalnak akkor is meg kell
+   jelennie, ha maga a Supabase-elérés az ok.
+3. **PIN brute-force védelem.** Egyszerű, memóriabeli IP-alapú számláló
+   (`src/lib/server/rate-limit.ts`), bekötve a `/play/[pin]` `load()`-jába
+   ÉS a `join` action-be is (különben egy szkript a `load()`-ot kihagyva,
+   közvetlen POST-tal megkerülhetné). Részletek, küszöbérték-indoklás és
+   ismert korlátok (nem elosztott, Vercel serverless instance-onként
+   külön számol): `docs/features/rate-limiting.md`.
+4. **`manifest.json` a `/play`-hez.** Új `static/manifest.json` +
+   `static/icon.svg` (ugyanaz a retro-arcade ikon, nagyobb vászonra,
+   `rx=0` teljes kifutással a maskable ikon "safe zone" elváráshoz), és
+   egy új `src/routes/play/+layout.svelte`, ami csak a `/play` alatti
+   route-okra köti be a `<link rel="manifest">`/`apple-touch-icon`/
+   `theme-color` fejléc-elemeket — szándékosan nem globálisan az
+   `app.html`-ben, mert a kérés kifejezetten a csapat-felületre
+   (ismétlődő heti használat, "Kezdőképernyőhöz adás") szólt, nem az
+   admin/host/tv felületekre.
+5. **DATA_MODEL.md 1–9. szakasz kereszt-ellenőrzés.** Módszeres átvizsgálás
+   (minden táblát/oszlopot/RPC-t a tényleges route-okkal/komponensekkel
+   összevetve) 4 dokumentálatlan hiányt talált:
+   - `questions.created_by` és `games.host_id` **soha nem lett kitöltve**
+     insertkor, holott a séma és a `docs/architecture/DATA_MODEL.md` már
+     régóta tartalmazza őket — ez egyértelmű "elfelejtve bekötni" hiba
+     volt, nem tudatos scope-vágás, ezért **most javítva**: mindkét
+     insert action (`/admin/games` `create`, `/admin/questions/new`
+     `create`) átadja a bejelentkezett admin `user.id`-ját. Ez **nem**
+     vezet be új jogosultsági logikát — a `/host` route védelme továbbra
+     is szerepkör-alapú, a `host_id` egyelőre csak tájékoztató metaadat.
+   - `teams.color`, `question_choice_options.image_url` (per-opció kép a
+     feleletválasztós kérdéseknél) és az `audit_logs` 2. pontja szerinti
+     **explicit app-oldali** üzleti esemény-naplózás (`game.start`,
+     `question.reveal` stb. — a generikus DB trigger csak `profiles`-ra
+     és a `questions`+opció-táblákra van bekötve) **nincs UI-lefedettsége**.
+     Mindhárom valódi, önálló funkció-bővítés lenne (nem egyetlen sornyi
+     javítás, mint a fenti kettő), ezért **tudatosan kimaradtak** ebből a
+     checklistából — dokumentálva `docs/architecture/DATA_MODEL.md`
+     megfelelő szakaszaiban ("Ismert MVP-korlátok" alcímek alatt), és
+     ugyanabba a bizalmi-modell kategóriába esnek, mint a korábban már
+     elfogadott kompromisszumok (lásd lent).
+6. **Vercel környezeti változók.** Ez a sandbox nem fér hozzá a Vercel
+   dashboard-hoz/API-hoz (nincs `vercel` CLI, nincs API token) — ezt **nem
+   lehetett innen ellenőrizni**, ez marad felhasználói teendő. A ténylegesen
+   szükséges változók (a repo `.env.example`-je szerint) mindössze
+   `PUBLIC_SUPABASE_URL` és `PUBLIC_SUPABASE_ANON_KEY` — a `NEXT_STEPS.md`
+   által is említett `SUPABASE_SECRET_KEY` **nem kell**, mert az app sosem
+   használt service-role klienst (Fázis B óta tudatos döntés, lásd az
+   akkori bejegyzést); ez a változó csak a NEXT_STEPS.md javaslatszövegében
+   szerepelt, a repóban soha nem lett bevezetve. **Teendő a felhasználónak:**
+   ellenőrizni, hogy a fenti két változó helyesen van-e beállítva Vercelen
+   mindhárom környezetben (Production, Preview, Development).
+
+### Amit ez a fázis szándékosan kihagyott (és miért)
+
+- `teams.color`, per-opció `image_url`, explicit üzleti audit-naplózás —
+  lásd az 5. pontot fent, mindhárom önálló funkció-bővítés, nem
+  launch-checklist tétel.
+- Vercel env var tényleges beállítása — nincs dashboard-hozzáférés ebből
+  a sandboxból, felhasználói teendő marad.
+- Minden korábbi fázis végén már dokumentált, tudatosan vállalt
+  MVP-korlát (lásd a `Csomag-összefoglaló` utáni "Amit szándékosan nem
+  teszek be ebbe a listába" szakaszt feljebb: `evaluate_answer` RPC-ként
+  nem Edge Function-ként, `device_token`-alapú csapat-azonosítás,
+  auth nélküli TV mód, automata tesztelés) — ezek továbbra is érvényben
+  maradnak, ez a fázis nem érintette őket.
+
+**Ezzel a `NEXT_STEPS.md` teljes fázis-listája (F→G→H→I→J→K→L, majd
+B→C→D→E, végül M) lezárva — az alkalmazás MVP-kész egy hobbi-szintű,
+baráti körben tartott pub kvízestére.**
+
+Dokumentáció: `docs/architecture/DATA_MODEL.md` 2., 4. és 6. szakasz új
+"Ismert MVP-korlátok" alszakaszok, új `docs/features/rate-limiting.md`.

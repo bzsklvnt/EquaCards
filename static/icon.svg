@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<title>EquaCards</title>
+	<rect width="512" height="512" fill="#150e2c" />
+	<circle cx="256" cy="256" r="192" fill="#ffd23e" stroke="#35e7ff" stroke-width="32" />
+	<g fill="#150e2c" shape-rendering="crispEdges">
+		<rect x="176" y="112" width="48" height="48" />
+		<rect x="224" y="112" width="48" height="48" />
+		<rect x="272" y="112" width="48" height="48" />
+		<rect x="304" y="160" width="48" height="48" />
+		<rect x="272" y="208" width="48" height="48" />
+		<rect x="224" y="256" width="48" height="48" />
+		<rect x="224" y="336" width="48" height="48" />
+	</g>
+	<rect x="392" y="72" width="48" height="48" fill="#ff3e9a" transform="rotate(45 416 96)" />
+</svg>

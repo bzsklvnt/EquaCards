@@ -1,7 +1,20 @@
-import { fail } from '@sveltejs/kit';
+import { error as kitError, fail } from '@sveltejs/kit';
+import { isRateLimited } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
+// A PIN 6 jegyű (kb. 900 000 lehetőség) — szekvenciális találgatás elleni
+// gát. IP-nkénti, memóriabeli számláló (lásd $lib/server/rate-limit.ts),
+// mindkét belépési ponton (load ÉS a join action) érvényesítve, mert egy
+// szkript közvetlenül POST-olhatna a ?/join action-re a load() kihagyásával.
+const PIN_ATTEMPT_LIMIT = 20;
+const PIN_ATTEMPT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MESSAGE = 'Túl sok próbálkozás, várj egy percet, mielőtt újra próbálkozol.';
+
+export const load: PageServerLoad = async ({ params, locals: { supabase }, getClientAddress }) => {
+	if (isRateLimited(getClientAddress(), PIN_ATTEMPT_LIMIT, PIN_ATTEMPT_WINDOW_MS)) {
+		kitError(429, RATE_LIMIT_MESSAGE);
+	}
+
 	const { data: game } = await supabase
 		.from('games')
 		.select('id, title, design_theme_id')
@@ -13,7 +26,11 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 };
 
 export const actions: Actions = {
-	join: async ({ request, params, locals: { supabase } }) => {
+	join: async ({ request, params, locals: { supabase }, getClientAddress }) => {
+		if (isRateLimited(getClientAddress(), PIN_ATTEMPT_LIMIT, PIN_ATTEMPT_WINDOW_MS)) {
+			return fail(429, { error: RATE_LIMIT_MESSAGE });
+		}
+
 		const formData = await request.formData();
 		const name = (formData.get('name') as string)?.trim();
 		const deviceToken = formData.get('device_token') as string;

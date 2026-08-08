@@ -16,7 +16,8 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 };
 
 export const actions: Actions = {
-	create: async ({ request, locals: { supabase } }) => {
+	create: async ({ request, locals: { supabase, safeGetSession } }) => {
+		const { user } = await safeGetSession();
 		const formData = await request.formData();
 		const questionTypeId = Number(formData.get('question_type_id'));
 
@@ -46,7 +47,8 @@ export const actions: Actions = {
 				points: parsed.points,
 				points_multiplier: parsed.points_multiplier,
 				time_limit_seconds: parsed.time_limit_seconds,
-				points_decay: parsed.points_decay
+				points_decay: parsed.points_decay,
+				created_by: user?.id
 			})
 			.select('id')
 			.single();

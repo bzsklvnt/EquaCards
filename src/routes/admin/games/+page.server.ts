@@ -15,7 +15,8 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 };
 
 export const actions: Actions = {
-	create: async ({ request, locals: { supabase } }) => {
+	create: async ({ request, locals: { supabase, safeGetSession } }) => {
+		const { user } = await safeGetSession();
 		const formData = await request.formData();
 		const title = (formData.get('title') as string)?.trim();
 
@@ -25,7 +26,7 @@ export const actions: Actions = {
 
 		const { data: game, error } = await supabase
 			.from('games')
-			.insert({ title, pin: generatePin() })
+			.insert({ title, pin: generatePin(), host_id: user?.id })
 			.select('id')
 			.single();
 

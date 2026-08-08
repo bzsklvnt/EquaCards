@@ -11,6 +11,10 @@
 	let themeFilter = $state(untrack(() => data.themeFilter ?? ''));
 </script>
 
+<svelte:head>
+	<title>Kérdésbank — Admin</title>
+</svelte:head>
+
 <h1>Kérdésbank</h1>
 
 {#if form?.error}

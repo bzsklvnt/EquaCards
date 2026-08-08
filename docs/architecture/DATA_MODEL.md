@@ -221,6 +221,18 @@ limit 8;
   olvashatja" szabályát `authenticated`-re értelmeztük (nem `anon`-ra),
   ugyanúgy, ahogy a Fázis 1 `profiles`/`roles` szabályainál.
 
+### Ismert MVP-korlátok (Fázis M kereszt-ellenőrzés)
+
+- `questions.created_by` most már kitöltődik (a kérdést létrehozó admin
+  `user.id`-ja) az `/admin/questions/new` action-ben — korábban végig
+  `null` maradt, mert az insert nem adta át.
+- `question_choice_options.image_url` a séma óta létezik, de **nincs hozzá
+  admin UI** — a `QuestionForm.svelte` csak `option_text`/`is_correct`
+  mezőket kezel opciónként. Csak a kérdés-szintű `image_url` (117. sor)
+  van bekötve. Szándékosan kihagyva az MVP-ből: külön opció-kép feltöltő
+  mezőt és a host/play/tv renderelést is érintené, ez már egy önálló
+  funkció, nem launch-checklist tétel.
+
 ---
 
 ## 3. Válaszok — normalizálva, típusonként külön tábla (valódi FK-kkal)
@@ -507,6 +519,20 @@ execute ... from public` **önmagában nem** veszi el az `anon`/
   `revoke ... from public` **és** `revoke ... from anon, authenticated`
   **együtt**, mielőtt a tényleges `grant`-ot kiadnánk.
 
+### Ismert MVP-korlátok (Fázis M kereszt-ellenőrzés)
+
+- `games.host_id` most már kitöltődik (a kvízestét létrehozó admin
+  `user.id`-ja) az `/admin/games` `create` action-ben — korábban végig
+  `null` maradt. Fontos: ez **nem** hozott létre új jogosultsági szabályt
+  — a `/host` route védelme továbbra is szerepkör-alapú
+  (`role_id in (1,2,3)`, lásd 1. szakasz), bármelyik host bármelyik
+  estét futtathatja, a `host_id` egyelőre csak tájékoztató metaadat.
+- `teams.color` a séma óta létezik, de **nincs hozzá UI** — sem a
+  csatlakozáskor nem választható/generálódik szín, sem a host lobby
+  lista, sem a TV kivetítő nem jelenít meg csapat-színt. Szándékosan
+  kihagyva az MVP-ből: a csapatnév önmagában elég a megkülönböztetéshez
+  egy ~40 fős baráti esten.
+
 ---
 
 ## 5. Real-time protokoll (Broadcast csatorna: `game:{game_id}`)
@@ -615,6 +641,24 @@ create trigger trg_audit_questions
 - Az `action` és `entity_type` szabad szöveg, tehát új eseménytípusokat bármikor bevezethetsz visszamenőleges kompatibilitás törése nélkül (ha később szigorítani akarod, rátehetsz egy `check` constraintet vagy egy referencia táblát, hasonlóan a `question_types` mintához).
 - `before_data`/`after_data` jsonb-ben tárolja a teljes rekordot, így visszaállítható/diff-elhető, ha valaha kellene "ki törölte ezt a kérdést" típusú vizsgálat.
 - RLS: `audit_logs`-t csak `super_admin` olvashatja; írás kizárólag a trigger/service-role útján történik, kliens sosem ír bele közvetlenül.
+
+### Ismert MVP-korlát (Fázis M kereszt-ellenőrzés)
+
+A generikus DB trigger (1. pont fent) ténylegesen be van kötve
+`profiles` (`trg_audit_profiles`, Fázis 1) és a `questions` +
+típusonkénti opció-táblák (`trg_audit_questions`,
+`trg_audit_question_choice_options`, `trg_audit_question_slider_config`,
+`trg_audit_question_ordering_items`, Fázis 2) módosításaira. A 2. pontban
+leírt **explicit app-oldali insert** (`game.start`, `question.reveal`
+stb.) viszont **sehol nincs bekötve** a kódban — a `games`/`teams`/
+`answers`/`team_joker_uses`/`round_questions` táblák egyetlen
+státuszváltása vagy eseménye sem kerül `audit_logs`-ba, és nincs is admin
+felület a napló megtekintésére. Szándékosan kihagyva az MVP-ből — a
+séma szerint bármikor pótolható séma-módosítás nélkül (lásd fent), de
+egy ~40 fős baráti esten nem blokkoló hiány, ugyanabba a kategóriába
+esik, mint a többi, `docs/DECISIONS_LOG.md`-ben már elfogadott
+bizalmi-modell alapú kompromisszum (pl. `device_token`-alapú
+csapat-azonosítás valódi auth helyett).
 
 ---
 

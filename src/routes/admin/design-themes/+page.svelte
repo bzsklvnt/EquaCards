@@ -7,6 +7,10 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
 
+<svelte:head>
+	<title>Vizuális témák — Admin</title>
+</svelte:head>
+
 <h1>Vizuális témák</h1>
 <p class="hint">
 	A vizuális köntös (szín/font token-készlet) teljesen független a kérdésbank tartalmi témáitól —

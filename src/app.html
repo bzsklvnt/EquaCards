@@ -6,12 +6,11 @@
 		<meta name="text-scale" content="scale" />
 		<!--
 			A design_themes seed ("Retro Arcade") ezt a három betűtípust várja el
-			(docs/architecture/DATA_MODEL.md 8. szakasz). Statikusan betöltve, mert
-			a design_tokens jsonb tetszőleges jövőbeli betűtípus-nevet is
-			tartalmazhat, amit a rendszer nem tud dinamikusan Google Fonts-ról
-			betölteni — egy admin által felvitt új téma más betűtípussal a
-			böngésző alapértelmezett betűjére esik vissza, amíg ide kézzel be nem
-			kerül a hozzá tartozó <link>.
+			(docs/architecture/DATA_MODEL.md 8. szakasz). Statikusan betöltve gyors
+			első betöltéshez (nincs villanás alapértelmezett betűtípusra); a
+			src/lib/theme/tokens.ts loadThemeFonts()-a ugyanezt dinamikusan is
+			megteszi minden design_tokens-ben szereplő betűtípusra, így egy admin
+			által felvitt új téma más betűtípussal is helyesen töltődik be.
 		-->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />

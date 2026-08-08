@@ -1,0 +1,26 @@
+{
+	"name": "EquaCards — Pub Kvíz",
+	"short_name": "EquaCards",
+	"description": "Csapat felület heti pub kvízestékhez.",
+	"start_url": "/play",
+	"scope": "/play",
+	"display": "standalone",
+	"orientation": "portrait",
+	"background_color": "#150e2c",
+	"theme_color": "#150e2c",
+	"lang": "hu",
+	"icons": [
+		{
+			"src": "/icon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/icon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "maskable"
+		}
+	]
+}

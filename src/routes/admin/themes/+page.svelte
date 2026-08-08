@@ -9,6 +9,10 @@
 	let newTitle = $state('');
 </script>
 
+<svelte:head>
+	<title>Témák — Admin</title>
+</svelte:head>
+
 <h1>Témák</h1>
 
 {#if form?.error}

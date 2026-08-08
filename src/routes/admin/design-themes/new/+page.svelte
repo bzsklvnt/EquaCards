@@ -22,6 +22,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Új design téma — Admin</title>
+</svelte:head>
+
 <h1>Új design téma</h1>
 
 {#if form?.error}

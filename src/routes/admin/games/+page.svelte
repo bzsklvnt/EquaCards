@@ -10,6 +10,10 @@
 	let newTitle = $state('');
 </script>
 
+<svelte:head>
+	<title>Kvízesték — Admin</title>
+</svelte:head>
+
 <h1>Kvízesték</h1>
 
 {#if form?.error}

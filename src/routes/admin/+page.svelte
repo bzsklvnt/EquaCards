@@ -1,3 +1,7 @@
+<svelte:head>
+	<title>Vezérlőpult — Admin</title>
+</svelte:head>
+
 <h1>Vezérlőpult</h1>
 <p>Válassz az oldalsávból: kérdésbank, témák, vizuális témák, kvízesték.</p>
 

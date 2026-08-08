@@ -5,6 +5,10 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
 
+<svelte:head>
+	<title>Új kérdés — Admin</title>
+</svelte:head>
+
 <h1>Új kérdés</h1>
 <QuestionForm
 	themes={data.themes}
