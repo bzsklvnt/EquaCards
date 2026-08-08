@@ -256,11 +256,36 @@ export type Database = {
 					}
 				];
 			};
+			design_themes: {
+				Row: {
+					created_at: string | null;
+					design_tokens: Json;
+					id: string;
+					is_default: boolean;
+					title: string;
+				};
+				Insert: {
+					created_at?: string | null;
+					design_tokens: Json;
+					id?: string;
+					is_default?: boolean;
+					title: string;
+				};
+				Update: {
+					created_at?: string | null;
+					design_tokens?: Json;
+					id?: string;
+					is_default?: boolean;
+					title?: string;
+				};
+				Relationships: [];
+			};
 			games: {
 				Row: {
 					created_at: string | null;
 					current_question_id: string | null;
 					current_round_id: string | null;
+					design_theme_id: string | null;
 					finished_at: string | null;
 					host_id: string | null;
 					id: string;
@@ -273,6 +298,7 @@ export type Database = {
 					created_at?: string | null;
 					current_question_id?: string | null;
 					current_round_id?: string | null;
+					design_theme_id?: string | null;
 					finished_at?: string | null;
 					host_id?: string | null;
 					id?: string;
@@ -285,6 +311,7 @@ export type Database = {
 					created_at?: string | null;
 					current_question_id?: string | null;
 					current_round_id?: string | null;
+					design_theme_id?: string | null;
 					finished_at?: string | null;
 					host_id?: string | null;
 					id?: string;
@@ -306,6 +333,13 @@ export type Database = {
 						columns: ['current_round_id'];
 						isOneToOne: false;
 						referencedRelation: 'rounds';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'games_design_theme_id_fkey';
+						columns: ['design_theme_id'];
+						isOneToOne: false;
+						referencedRelation: 'design_themes';
 						referencedColumns: ['id'];
 					},
 					{

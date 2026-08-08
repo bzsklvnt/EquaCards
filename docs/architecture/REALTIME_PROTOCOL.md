@@ -76,7 +76,8 @@ importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
 - **Kliens teendő:** csapat — típusonkénti válasz-UI renderelése
   (`src/routes/play/[pin]/+page.svelte`): gombrács (`single_choice` /
   `multi_choice` / `true_false`), csúszka (`slider`), drag-and-drop lista
-  (`ordering`).
+  (`ordering`). TV (Fázis 6, `/tv/[game_id]`) — nagy betűs prompt
+  megjelenítése, válasz-UI nélkül (a TV csak megjelenít).
 
 ### `timer_start` (Fázis 4)
 
@@ -85,7 +86,8 @@ importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
 - **Kliens teendő:** csapat — helyi visszaszámlálás a `server_start_time +
 duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
   meg az `answer_locked` broadcastot — az csak a hoszt "zárás most" korai
-  lezárására szolgál).
+  lezárására szolgál). TV — ugyanaz a helyi visszaszámlálás, nagy kijelzős
+  számmal.
 
 ### `joker_activate` (Fázis 4)
 
@@ -166,8 +168,9 @@ duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
 - **Küldő:** host, "Játék lezárása" gomb (a `final_leaderboard_reveal` utáni
   lépés).
 - **Payload:** `{}`
-- **Kliens teendő:** _tervezett, Fázis 6_ — jelenleg nincs külön kliens
-  oldali kezelése (a csapat felület a `final_leaderboard_reveal`-en marad).
+- **Kliens teendő:** csapat — nincs külön kezelése, a felület a
+  `final_leaderboard_reveal`-en marad. TV — záró "Köszönjük a játékot!"
+  képernyőre vált.
 
 ## Presence (Fázis 3)
 
@@ -209,6 +212,11 @@ bejegyzésként jelenik meg még akkor is, ha véletlenül több lapon van nyitv
 az utolsó `track()` felülírja az előzőt ugyanazon a kulcson), host oldalon egy
 véletlen, csak a saját kapcsolatot azonosító kulcs (a host nem jelenik meg
 csapatként a listában).
+
+**TV oldal** (`/tv/[game_id]`, Fázis 6) ugyanezt a mintát követi, mint a
+host: véletlen presence-kulccsal csatlakozik, `track()`-et nem hív (nem
+jelenik meg csapatként), csak a `sync` eseményre figyel a lobby-képernyő élő
+csapatszámlálójához/névlistájához.
 
 ## Postgres Changes (Fázis 4)
 

@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { onMount, untrack } from 'svelte';
+	import { fade, fly, scale } from 'svelte/transition';
 	import type {
 		JokerActivatePayload,
 		QuestionRevealPayload,
@@ -10,6 +11,15 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
+	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import {
+		playTick,
+		playCountdownEnd,
+		playCorrect,
+		playIncorrect,
+		playJokerActivate,
+		playLeaderboard
+	} from '$lib/audio/sfx';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -21,6 +31,8 @@
 	let joined = $state<JoinedInfo | null>(null);
 	let deviceToken = $state('');
 	let gameTitle = $state(untrack(() => data.game?.title ?? ''));
+	let gameDesignThemeId = $state<string | null>(untrack(() => data.game?.design_theme_id ?? null));
+	let themeCss = $state('');
 
 	let currentQuestion = $state<QuestionShowPayload | null>(null);
 	let timerInfo = $state<TimerStartPayload | null>(null);
@@ -65,7 +77,16 @@
 			localStorage.setItem(storageKey, JSON.stringify(info));
 			joined = info;
 			gameTitle = form.game.title;
+			gameDesignThemeId = form.game.design_theme_id ?? null;
 		}
+	});
+
+	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — ugyanaz a feloldási minta,
+	// mint a host/TV oldalon.
+	$effect(() => {
+		getActiveTokens(data.supabase, gameDesignThemeId).then((tokens) => {
+			themeCss = tokensToCssText(tokens);
+		});
 	});
 
 	// A szerver-oldali load csak 'lobby' állapotú games sort ad vissza (azt
@@ -78,11 +99,14 @@
 		if (data.game || !joined) return;
 		data.supabase
 			.from('games')
-			.select('title')
+			.select('title, design_theme_id')
 			.eq('id', joined.gameId)
 			.single()
 			.then(({ data: g }) => {
-				if (g) gameTitle = g.title;
+				if (g) {
+					gameTitle = g.title;
+					gameDesignThemeId = g.design_theme_id;
+				}
 			});
 	});
 
@@ -154,15 +178,21 @@
 				})
 				.then(({ data: rows }) => {
 					myResult = rows?.[0] ?? null;
+					if (myResult) {
+						if (myResult.is_correct) playCorrect();
+						else playIncorrect();
+					}
 				});
 		});
 
 		channel.on('broadcast', { event: 'round_leaderboard_reveal' }, ({ payload }) => {
 			roundLeaderboard = payload as RoundLeaderboardRevealPayload;
+			playLeaderboard();
 		});
 
 		channel.on('broadcast', { event: 'final_leaderboard_reveal' }, ({ payload }) => {
 			finalLeaderboard = payload as FinalLeaderboardRevealPayload;
+			playLeaderboard();
 		});
 
 		channel.subscribe(async (status) => {
@@ -188,9 +218,15 @@
 		if (!timerInfo) return;
 		const endTime = new Date(timerInfo.server_start_time).getTime() + timerInfo.duration * 1000;
 
+		let lastWholeSecond = -1;
 		const tick = () => {
 			const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
 			secondsLeft = remaining;
+			if (remaining !== lastWholeSecond) {
+				lastWholeSecond = remaining;
+				if (remaining > 0 && remaining <= 5) playTick();
+				else if (remaining === 0) playCountdownEnd();
+			}
 			if (remaining <= 0) {
 				locked = true;
 			}
@@ -269,6 +305,7 @@
 	async function activateJoker() {
 		if (!joined || !currentQuestion || jokerUsed || locked) return;
 		jokerUsed = true;
+		playJokerActivate();
 		await channel?.send({
 			type: 'broadcast',
 			event: 'joker_activate',
@@ -285,27 +322,33 @@
 	<title>{gameTitle || 'Csatlakozás'} — EquaCards</title>
 </svelte:head>
 
-<main>
+<main class="cabinet" style={themeCss}>
 	{#if joined}
 		<h1>{gameTitle}</h1>
 
 		{#if finalLeaderboard}
-			<div class="leaderboard">
+			<div class="leaderboard" in:fade={{ duration: 200 }}>
 				<h2>Végeredmény</h2>
 				<ol>
-					{#each finalLeaderboard.standings as row (row.team_id)}
-						<li class:own={row.team_id === joined.teamId}>
+					{#each finalLeaderboard.standings as row, i (row.team_id)}
+						<li
+							class:own={row.team_id === joined.teamId}
+							in:fly={{ x: -24, delay: i * 120, duration: 300 }}
+						>
 							{row.name} — {row.total_score} pont
 						</li>
 					{/each}
 				</ol>
 			</div>
 		{:else if roundLeaderboard}
-			<div class="leaderboard">
+			<div class="leaderboard" in:fade={{ duration: 200 }}>
 				<h2>{roundLeaderboard.round_title} — Top 3</h2>
 				<ol>
-					{#each roundLeaderboard.top3 as row (row.team_id)}
-						<li class:own={row.team_id === joined.teamId}>
+					{#each roundLeaderboard.top3 as row, i (row.team_id)}
+						<li
+							class:own={row.team_id === joined.teamId}
+							in:fly={{ x: -24, delay: i * 120, duration: 300 }}
+						>
 							{row.name} — {row.round_score} pont
 						</li>
 					{/each}
@@ -313,10 +356,14 @@
 				<p>Várj a következő körre…</p>
 			</div>
 		{:else if revealInfo}
-			<div class="reveal">
+			<div class="reveal" in:fade={{ duration: 200 }}>
 				<p>Helyes válasz: <strong>{revealInfo.correct_answer}</strong></p>
 				{#if myResult}
-					<p class:correct={myResult.is_correct} class:incorrect={!myResult.is_correct}>
+					<p
+						class:correct={myResult.is_correct}
+						class:incorrect={!myResult.is_correct}
+						in:scale={{ start: 0.7, duration: 300 }}
+					>
 						{myResult.is_correct ? 'Eltaláltad!' : 'Nem talált.'} +{myResult.points_awarded} pont
 					</p>
 				{:else}
@@ -324,11 +371,17 @@
 				{/if}
 			</div>
 		{:else if currentQuestion}
-			<p class="round-title">
-				{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
-			</p>
-			<p class="prompt">{currentQuestion.prompt}</p>
-			{#if timerInfo}<p class="timer">{secondsLeft}s</p>{/if}
+			{#key currentQuestion.question_id}
+				<div in:fly={{ y: 16, duration: 300 }}>
+					<p class="round-title">
+						{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
+					</p>
+					<p class="prompt">{currentQuestion.prompt}</p>
+				</div>
+			{/key}
+			{#if timerInfo}
+				<p class="timer" class:urgent={secondsLeft <= 5}>{secondsLeft}s</p>
+			{/if}
 
 			{#if submitted}
 				<p>Válasz elküldve, várj a többiekre…</p>
@@ -422,11 +475,37 @@
 </main>
 
 <style>
-	main {
+	main.cabinet {
 		max-width: 24rem;
-		margin: 3rem auto;
+		margin: 0 auto;
 		text-align: center;
-		padding: 0 1rem;
+		padding: 2rem 1rem;
+		background: linear-gradient(160deg, var(--cabinet), var(--cabinet-2) 60%, var(--cabinet-3));
+		color: var(--marquee);
+		font-family: var(--font-body);
+		min-height: 100vh;
+	}
+
+	main.cabinet h1 {
+		font-family: var(--font-display);
+		font-size: 1.1rem;
+		line-height: 1.6;
+		color: var(--cyan);
+	}
+
+	main.cabinet a {
+		color: var(--marquee-dim);
+	}
+
+	main.cabinet button {
+		font-family: var(--font-body);
+		font-weight: 600;
+		background: var(--violet);
+		color: var(--marquee);
+		border: 2px solid var(--magenta);
+		border-radius: 0.5rem;
+		padding: 0.6rem 1.25rem;
+		cursor: pointer;
 	}
 
 	form {
@@ -442,8 +521,14 @@
 		gap: 0.25rem;
 	}
 
+	input[type='text'] {
+		padding: 0.5rem;
+		border-radius: 0.375rem;
+		border: none;
+	}
+
 	.round-title {
-		color: #666;
+		color: var(--marquee-dim);
 		font-size: 0.875rem;
 	}
 
@@ -453,8 +538,14 @@
 	}
 
 	.timer {
+		font-family: var(--font-led);
 		font-size: 2rem;
 		font-weight: bold;
+		color: var(--power);
+	}
+
+	.timer.urgent {
+		color: var(--danger);
 	}
 
 	.options {
@@ -464,16 +555,18 @@
 	}
 
 	.option {
+		font-family: var(--font-body);
 		padding: 0.75rem;
-		border: 2px solid #ccc;
+		border: 2px solid var(--marquee-dim);
 		border-radius: 0.5rem;
-		background: white;
+		background: var(--cabinet-2);
+		color: var(--marquee);
 		cursor: pointer;
 	}
 
 	.option.selected {
-		border-color: #2563eb;
-		background: #eff6ff;
+		border-color: var(--cyan);
+		background: color-mix(in srgb, var(--cyan) 20%, var(--cabinet-2));
 	}
 
 	.slider {
@@ -481,8 +574,10 @@
 	}
 
 	.slider-value {
+		font-family: var(--font-led);
 		font-size: 1.5rem;
 		font-weight: bold;
+		color: var(--coin);
 	}
 
 	.ordering {
@@ -494,17 +589,25 @@
 
 	.ordering li {
 		padding: 0.5rem;
-		border: 1px solid #ccc;
+		border: 1px solid var(--marquee-dim);
 		border-radius: 0.25rem;
 		margin-bottom: 0.25rem;
-		background: white;
+		background: var(--cabinet-2);
+		color: var(--marquee);
 		cursor: grab;
 	}
 
 	.joker {
 		margin-top: 0.75rem;
-		background: #fef3c7;
-		border: 2px solid #f59e0b;
+		background: var(--coin);
+		color: var(--cabinet);
+		border: 2px solid var(--danger);
+	}
+
+	.leaderboard h2 {
+		font-family: var(--font-display);
+		font-size: 1rem;
+		color: var(--coin);
 	}
 
 	.leaderboard ol {
@@ -516,20 +619,20 @@
 
 	.leaderboard li.own {
 		font-weight: bold;
-		color: #2563eb;
+		color: var(--cyan);
 	}
 
 	.correct {
-		color: #15803d;
+		color: var(--power);
 		font-weight: bold;
 	}
 
 	.incorrect {
-		color: #b91c1c;
+		color: var(--danger);
 		font-weight: bold;
 	}
 
 	.error {
-		color: #b91c1c;
+		color: var(--danger);
 	}
 </style>

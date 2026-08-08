@@ -602,6 +602,16 @@ create trigger trg_audit_questions
 - QR + PIN nagy méretben a lobby fázisban, aktív kérdésnél nagy betűs prompt + timer; kör végén top 3 animált reveal (`round_leaderboard_reveal`); a legvégén teljes végeredmény (`final_leaderboard_reveal`)
 - Nem igényel saját táblát/oszlopot — pusztán egy read-only kliens, ami a meglévő broadcast eseményekre (`question_show`, `timer_start`, `question_reveal`, `round_leaderboard_reveal`, `final_leaderboard_reveal`) hallgat
 
+### Implementáció (Fázis 6)
+
+A `/tv/[game_id]` route ugyanazt az anon hozzáférési szintet használja, mint
+a csapat kliens — nincs saját role-alapú route guard, a `games_select_anon`
+RLS policy-ra támaszkodik. Broadcast-vezérelt állapotgép (lobby → kérdés +
+timer → feltárás → kör-/végeredmény → lezárva), Presence a lobby-képernyő
+élő csapatszámlálójához (a TV nem `track()`-el, csak `sync`-re figyel).
+Részletek, beleértve a hozzáférési döntés indoklását:
+`docs/features/tv-mode.md`.
+
 ---
 
 ## 8. Vizuális köntös / design téma rendszer
@@ -699,6 +709,22 @@ A kapott objektum **inline style-ként kerül a gyökér elemre**, így minden a
 - Több alapértelmezett design téma lesz a `design_themes` táblában (most csak a Retro Arcade van seedelve, de a tábla eleve úgy készült, hogy bármikor bővíthető legyen újakkal, admin CRUD-on keresztül)
 - A "melyik az alapértelmezett" kérdés **DB-szinten** garantáltan egyértelmű (részleges unique index + trigger), nem app-oldali fegyelemre bízott szabály
 - Az admin felületen ez egy önálló "Vizuális témák" menüpont, elkülönítve a tartalmi "Témák" (kérdés-cimkék) szerkesztőjétől — a kettőt nem szabad összekeverni a UI-ban sem
+
+### Implementáció (Fázis 6, `supabase/migrations/20260808123000_design_themes.sql`)
+
+- A `design_themes` tábla, a `enforce_single_default_design_theme()` trigger
+  és a Retro Arcade seed a fenti terv szerint jött létre. `games.design_theme_id`
+  `alter table`-lel került fel (a `games` már Fázis 2 óta létezik).
+- RLS: `role_id in (1,2)` teljes CRUD, `role_id in (1,2,3)` (host) csak
+  olvas, `anon` (csapat + TV) is olvashat — a `design_tokens` tisztán
+  vizuális adat, nincs benne védendő tartalom.
+- A token feloldás (`games.design_theme_id` → `design_themes` sor → ha
+  üres, `is_default = true` sor → ha az sincs, hardcode-olt fallback) és a
+  CSS custom property-vé alakítás (`src/lib/theme/tokens.ts`) a host, a
+  csapat és a TV felület mindegyikén ugyanúgy fut. Az admin CRUD
+  (`/admin/design-themes`) a token-készletet szabad JSON-ként szerkeszti,
+  nem fix mezőkkel — részletek, beleértve a betűtípus-betöltés ismert
+  korlátját: `docs/features/design-themes.md`.
 
 ---
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import { resolve } from '$app/paths';
 	import QRCode from 'qrcode';
 	import type {
@@ -10,9 +11,12 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
+	import { getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { playReveal, playLeaderboard, playJokerActivate } from '$lib/audio/sfx';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	const designThemes = untrack(() => data.designThemes);
 
 	type RoundQuestionRow = {
 		order_index: number;
@@ -35,10 +39,32 @@
 	let submissionCount = $state(0);
 	let roundTop3 = $state<RoundLeaderboardRevealPayload['top3']>([]);
 	let finalStandings = $state<FinalLeaderboardRevealPayload['standings']>([]);
+	let themeCss = $state('');
 
 	let currentIndex = $derived(
 		roundQuestions.findIndex((q) => q.question_id === game.current_question_id)
 	);
+
+	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — a games.design_theme_id
+	// alapján feloldott token-készlet a gyökér elemre kerül inline style-ként.
+	$effect(() => {
+		const themeId = game.design_theme_id;
+		getActiveTokens(data.supabase, themeId).then((tokens) => {
+			themeCss = tokensToCssText(tokens);
+		});
+	});
+
+	async function selectDesignTheme(themeId: string) {
+		const { error } = await data.supabase
+			.from('games')
+			.update({ design_theme_id: themeId || null })
+			.eq('id', game.id);
+		if (error) {
+			statusMessage = error.message;
+			return;
+		}
+		game = { ...game, design_theme_id: themeId || null };
+	}
 
 	let channel: ReturnType<typeof data.supabase.channel> | undefined;
 
@@ -132,6 +158,7 @@
 				.insert({ team_id: p.team_id, question_id: p.question_id, joker_type: p.joker_type });
 			if (!error) {
 				statusMessage = `Joker aktiválva egy csapat által.`;
+				playJokerActivate();
 			}
 		});
 
@@ -340,6 +367,7 @@
 		};
 		await channel?.send({ type: 'broadcast', event: 'question_reveal', payload });
 		uiStep = 'revealed';
+		playReveal();
 	}
 
 	async function revealRoundLeaderboard() {
@@ -368,6 +396,7 @@
 		};
 		await channel?.send({ type: 'broadcast', event: 'round_leaderboard_reveal', payload });
 		uiStep = 'round_summary';
+		playLeaderboard();
 	}
 
 	async function revealFinalLeaderboard() {
@@ -391,6 +420,7 @@
 		const payload: FinalLeaderboardRevealPayload = { standings: finalStandings };
 		await channel?.send({ type: 'broadcast', event: 'final_leaderboard_reveal', payload });
 		uiStep = 'final_summary';
+		playLeaderboard();
 	}
 
 	async function advanceToNextRound() {
@@ -430,7 +460,7 @@
 	<title>{game.title} — Host</title>
 </svelte:head>
 
-<main>
+<main class="cabinet" style={themeCss}>
 	<a href={resolve('/admin/games/[id]', { id: game.id })}>← Vissza az estéhez</a>
 
 	<h1>{game.title}</h1>
@@ -448,7 +478,28 @@
 			<p>Csatlakozás: <code>{joinUrl}</code></p>
 		</div>
 
+		<label class="theme-picker">
+			Vizuális köntös
+			<select
+				value={game.design_theme_id ?? ''}
+				onchange={(e) => selectDesignTheme(e.currentTarget.value)}
+			>
+				<option value="">Alapértelmezett</option>
+				{#each designThemes as theme (theme.id)}
+					<option value={theme.id}>{theme.title}</option>
+				{/each}
+			</select>
+		</label>
+
 		<button onclick={startGame}>Kvíz indítása</button>
+		<a
+			class="tv-link"
+			href={resolve('/tv/[game_id]', { game_id: game.id })}
+			target="_blank"
+			rel="noopener"
+		>
+			Kivetítő megnyitása (TV mód) →
+		</a>
 
 		<h2>Csapatok ({teams.length})</h2>
 		<ul>
@@ -463,7 +514,11 @@
 		<p class="progress">Kérdés {currentIndex + 1} / {roundQuestions.length}</p>
 
 		{#if roundQuestions[currentIndex]}
-			<p class="prompt">{roundQuestions[currentIndex].prompt}</p>
+			{#key roundQuestions[currentIndex].question_id}
+				<p class="prompt" in:fly={{ y: 16, duration: 300 }}>
+					{roundQuestions[currentIndex].prompt}
+				</p>
+			{/key}
 		{/if}
 
 		<p class="submissions">Beérkezett válaszok: {submissionCount} / {teams.length}</p>
@@ -488,21 +543,25 @@
 					<button onclick={revealFinalLeaderboard}>Végeredmény feltárása</button>
 				{/if}
 			{:else if uiStep === 'round_summary'}
-				<div class="leaderboard">
+				<div class="leaderboard" in:fade={{ duration: 200 }}>
 					<h3>Kör vége — Top 3</h3>
 					<ol>
-						{#each roundTop3 as row (row.team_id)}
-							<li>{row.name} — {row.round_score} pont</li>
+						{#each roundTop3 as row, i (row.team_id)}
+							<li in:fly={{ x: -24, delay: i * 120, duration: 300 }}>
+								{row.name} — {row.round_score} pont
+							</li>
 						{/each}
 					</ol>
 					<button onclick={advanceToNextRound}>Következő kör</button>
 				</div>
 			{:else if uiStep === 'final_summary'}
-				<div class="leaderboard">
+				<div class="leaderboard" in:fade={{ duration: 200 }}>
 					<h3>Végeredmény</h3>
 					<ol>
-						{#each finalStandings as row (row.team_id)}
-							<li>{row.name} — {row.total_score} pont</li>
+						{#each finalStandings as row, i (row.team_id)}
+							<li in:fly={{ x: -24, delay: i * 120, duration: 300 }}>
+								{row.name} — {row.total_score} pont
+							</li>
 						{/each}
 					</ol>
 					<button onclick={finishGame}>Játék lezárása</button>
@@ -524,10 +583,63 @@
 </main>
 
 <style>
-	main {
+	main.cabinet {
 		max-width: 32rem;
-		margin: 2rem auto;
+		margin: 0 auto;
+		padding: 2rem 1rem;
 		text-align: center;
+		background: linear-gradient(160deg, var(--cabinet), var(--cabinet-2) 60%, var(--cabinet-3));
+		color: var(--marquee);
+		font-family: var(--font-body);
+		min-height: 100vh;
+	}
+
+	main.cabinet a {
+		color: var(--marquee-dim);
+	}
+
+	main.cabinet h1 {
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		line-height: 1.6;
+		color: var(--cyan);
+		text-shadow: 0 0 12px color-mix(in srgb, var(--cyan) 60%, transparent);
+	}
+
+	main.cabinet button {
+		font-family: var(--font-body);
+		font-weight: 600;
+		background: var(--violet);
+		color: var(--marquee);
+		border: 2px solid var(--magenta);
+		border-radius: 0.5rem;
+		padding: 0.6rem 1.25rem;
+		cursor: pointer;
+	}
+
+	main.cabinet button:hover {
+		background: var(--magenta);
+	}
+
+	.theme-picker {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		max-width: 16rem;
+		margin: 0 auto 1.5rem;
+		color: var(--marquee-dim);
+		font-size: 0.875rem;
+	}
+
+	.theme-picker select {
+		padding: 0.4rem;
+		border-radius: 0.375rem;
+	}
+
+	.tv-link {
+		display: block;
+		margin-top: 0.75rem;
+		font-size: 0.875rem;
 	}
 
 	.join-box {
@@ -539,18 +651,21 @@
 	}
 
 	.pin {
+		font-family: var(--font-led);
 		font-size: 3rem;
 		font-weight: bold;
 		letter-spacing: 0.5rem;
+		color: var(--coin);
 	}
 
 	.round-label {
 		font-weight: bold;
 		margin-top: 1.5rem;
+		color: var(--power);
 	}
 
 	.progress {
-		color: #666;
+		color: var(--marquee-dim);
 	}
 
 	.prompt {
@@ -559,7 +674,7 @@
 	}
 
 	.submissions {
-		color: #666;
+		color: var(--marquee-dim);
 		font-size: 0.875rem;
 	}
 
@@ -574,8 +689,14 @@
 		margin: 1rem auto;
 	}
 
+	.leaderboard h3 {
+		font-family: var(--font-display);
+		font-size: 1rem;
+		color: var(--coin);
+	}
+
 	.status-message {
-		color: #b45309;
+		color: var(--coin);
 	}
 
 	ul {
@@ -587,6 +708,6 @@
 	}
 
 	.empty {
-		color: #666;
+		color: var(--marquee-dim);
 	}
 </style>

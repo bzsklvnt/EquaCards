@@ -9,6 +9,7 @@
 	<a href={resolve('/admin/themes')}>Témák</a>
 	<a href={resolve('/admin/questions')}>Kérdésbank</a>
 	<a href={resolve('/admin/games')}>Kvízesték</a>
+	<a href={resolve('/admin/design-themes')}>Vizuális témák</a>
 	<span class="spacer"></span>
 	<span>{data.profile.display_name}</span>
 	<form method="POST" action="/logout">

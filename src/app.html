@@ -4,6 +4,21 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<!--
+			A design_themes seed ("Retro Arcade") ezt a három betűtípust várja el
+			(docs/architecture/DATA_MODEL.md 8. szakasz). Statikusan betöltve, mert
+			a design_tokens jsonb tetszőleges jövőbeli betűtípus-nevet is
+			tartalmazhat, amit a rendszer nem tud dinamikusan Google Fonts-ról
+			betölteni — egy admin által felvitt új téma más betűtípussal a
+			böngésző alapértelmezett betűjére esik vissza, amíg ide kézzel be nem
+			kerül a hozzá tartozó <link>.
+		-->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap"
+		/>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

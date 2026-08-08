@@ -4,7 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
 	const { data: game } = await supabase
 		.from('games')
-		.select('id, title')
+		.select('id, title, design_theme_id')
 		.eq('pin', params.pin)
 		.eq('status', 'lobby')
 		.single();
@@ -27,7 +27,7 @@ export const actions: Actions = {
 
 		const { data: game } = await supabase
 			.from('games')
-			.select('id, title')
+			.select('id, title, design_theme_id')
 			.eq('pin', params.pin)
 			.eq('status', 'lobby')
 			.single();

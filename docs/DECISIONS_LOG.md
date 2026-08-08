@@ -275,3 +275,79 @@ indoklás, decay-döntés, mindhárom RPC leírása), `docs/architecture/REALTIM
 (`round_leaderboard_reveal`/`final_leaderboard_reveal` tervezettből
 implementáltra, `question_reveal` frissítve), DATA_MODEL.md implementációs
 jegyzetek a 3. és 5. szakaszban.
+
+## 2026-08-08 — Fázis 6: Polírozás (design témák, TV mód, animáció, hang)
+
+A felhasználó a "Minden egyben" opciót választotta a Fázis 6 scope-jára: a
+DATA_MODEL.md 9. szakaszának "hangeffektek, animációk, TV mód" listája
+mellett a 8. szakaszban korábban csak megtervezett (nem implementált)
+vizuális design téma rendszer is ebben a fázisban készült el, mivel a TV mód
+és a host/csapat felület végleges köntöse ettől függ.
+
+Migráció (`supabase/migrations/20260808123000_design_themes.sql`):
+`design_themes` tábla + `enforce_single_default_design_theme()` trigger +
+Retro Arcade seed a DATA_MODEL.md 8. szakasza szerint; `games.design_theme_id`
+(`alter table`, mivel a `games` már létezik). RLS: admin/super_admin (1,2)
+teljes CRUD, host (3) csak olvas, `anon` (csapat + TV) is olvas — a
+`design_tokens` tisztán vizuális adat. Mindhárom szint + az egyetlen-
+alapértelmezett trigger SQL-lel ellenőrizve (`set role`/JWT-claim
+szimulációval), teszt-adatok törölve.
+
+**Token-feloldás** (`src/lib/theme/tokens.ts`): `games.design_theme_id` → az
+adott `design_themes` sor → ha üres, `is_default = true` sor → ha az sincs,
+hardcode-olt fallback. A `design_tokens` kulcsai néha `--`-vel kezdődnek,
+néha nem (`font_display` stb.) — egységes `--kebab-case` CSS custom
+property névre normalizálva, hogy a stíluslapokban egyetlen konvenciót
+kelljen ismerni. Alkalmazva a host, csapat és TV felület gyökér elemén
+inline style-ként.
+
+**Betűtípus-betöltés — tudatos MVP-korlát:** a seedelt téma három Google
+Fontot vár el, ezek statikusan be vannak linkelve a `src/app.html`-ben. A
+rendszer nem tölt be dinamikusan tetszőleges betűtípust a
+`design_tokens`-ből — egy admin által felvitt, más betűtípust megadó téma a
+böngésző alapértelmezettjére esik vissza. Egy teljesen dinamikus Google
+Fonts betöltő külön feature lenne, nem indokolt egyetlen seedelt témánál.
+
+Admin CRUD (`/admin/design-themes`): a token-készletet szabad JSON
+textarea-val szerkeszti (nem fix mezőkkel) — szándékos, mert a
+`design_tokens` séma explicit célja a séma-módosítás nélküli bővíthetőség,
+amit egy fix-mezős form elvenne. Az alapértelmezett téma nem törölhető sem
+a lista, sem a szerkesztő oldalról (mindkét delete action ellenőrzi).
+
+**Hangeffektek — sandbox-korlát, tudatos döntés:** ebben a sandboxban nincs
+mód valódi hangfájlokat beszerezni vagy tesztelni (nincs audio-asset
+pipeline, a kimenő HTTPS is korlátozott). `src/lib/audio/sfx.ts` ezért Web
+Audio API oszcillátorokkal generált, rövid szintetikus hangokat használ
+(tick, lejárat-búgás, helyes/helytelen dallam, joker power-up, ranglista-
+fanfár) — nulla extra asset, nulla hálózati függés. Ez konzisztens a projekt
+korábbi, hasonló környezeti korlátokról szóló döntéseivel (pl. a Fázis 5-ös
+Edge Function → RPC váltás).
+
+**TV felület** (`/tv/[game_id]`): broadcast-vezérelt, prioritásos
+állapotgép (final leaderboard → round leaderboard → reveal → kérdés+timer →
+lobby → záró képernyő), ugyanazt az anon hozzáférési szintet használja, mint
+a csapat kliens — **szándékosan nincs role-alapú route guard rajta**: az URL
+a `games.id` UUID-t tartalmazza (nem kitalálható), és a megjelenített adat
+ugyanaz, amit a csapatok a saját telefonjukon is látnak. Ugyanaz a "de facto
+tulajdonjog egy ismert UUID-n keresztül" biztonsági szint, mint amit a
+projekt a `team_answer_result`/`team_joker_uses` RPC-knél már korábban is
+tudatosan elfogadott. Presence a lobby élő csapatszámlálójához (host-mintát
+követve: nem `track()`-el). A host lobby nézete "Kivetítő megnyitása"
+linket kapott.
+
+**Animáció:** Svelte beépített `fly`/`fade`/`scale` átmenetek a
+kérdésváltásnál, a feltárásnál és a ranglisták staggered belépésénél — host,
+csapat és TV felületen egyaránt, nem igényelt külső animációs könyvtárat.
+
+Ellenőrzés: `npm run check`/`build`/`lint` mind tiszta; a design_themes RLS
+és a single-default trigger SQL-lel ellenőrizve valós adatbázis ellen
+(teszt-adatok törölve). A böngészős animáció/hang/vizuális megjelenés
+élőben ebben a sandboxban nem tesztelhető (HTTPS-blokk) — kódszinten
+ellenőrizve (típusellenőrzés, build), valós böngészős kipróbálás a
+felhasználó felelőssége marad, mint minden korábbi fázisban.
+
+Dokumentáció: `docs/features/design-themes.md` (új), `docs/features/tv-mode.md`
+(új), `docs/architecture/DATA_MODEL.md` implementációs jegyzetek a 7. és 8.
+szakaszban, `docs/architecture/REALTIME_PROTOCOL.md` frissítve (TV Presence-
+minta, TV kliens-teendők a `question_show`/`timer_start`/`game_finished`
+eseményeknél).
