@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import type { SupabaseClient } from '@supabase/supabase-js';
-	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { Toaster } from 'svelte-sonner';
 	import Button from './Button.svelte';
 	import type { Database } from '$lib/types/database.types';
@@ -25,17 +25,18 @@
 		children: Snippet;
 	} = $props();
 
-	let themeCss = $state(tokensToCssText(defaultTokens));
 	let mobileNavOpen = $state(false);
 
 	// A dashboard-héj (admin + riportok) a mindig érvényes alapértelmezett
 	// vizuális témát használja (nincs games sorhoz kötve, mint a
-	// host/csapat/TV) — ugyanaz a token-feloldás, csak design_theme_id nélkül.
-	onMount(() => {
-		getActiveTokens(supabase, null).then((tokens) => {
-			themeCss = tokensToCssText(tokens);
-		});
-	});
+	// host/csapat/TV) — ugyanaz a token-feloldás, csak design_theme_id
+	// nélkül. Fázis P5 — reaktív hook: ha egy admin a /admin/settings
+	// oldalon átállítja a globális alapértelmezettet, ez a nyitott
+	// admin/riportok fül azonnal, reload nélkül átveszi.
+	const theme = createReactiveThemeTokens(
+		untrack(() => supabase),
+		() => null
+	);
 
 	// A mobil hamburger-menü záródjon be automatikusan navigációkor — a
 	// pathname olvasása regisztrálja a reaktív függőséget az $effect-ben.
@@ -63,7 +64,7 @@
 	const reportsHref = resolve('/reports');
 </script>
 
-<div class="admin-shell" style={themeCss}>
+<div class="admin-shell" style={theme.css}>
 	<Toaster
 		theme="dark"
 		toastOptions={{

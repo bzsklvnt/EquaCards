@@ -101,6 +101,65 @@ rangsor-alapú keretszín (`--marquee-dim` alapból, `--coin` a top 3-nál,
 döntés (a helyezés vizuálisan megkülönbözteti a sorokat), nem az
 arcade-panel mintától való véletlen elkanyarodás.
 
+### Reaktív design téma alkalmazás (Fázis P5)
+
+**A probléma:** minden felület (`DashboardShell`, `/host`, `/play/[pin]`,
+`/tv`) a `getActiveTokens()`-t eddig egyszer, `onMount`/egy `$effect`
+belsejében hívta meg, és az eredményt egy sima `$state`-be írta — egy
+design téma váltás (akár a globális alapértelmezett `is_default` átállítása
+egy admin által, akár egy adott este `design_theme_id`-jának megváltoztatása
+a hosttól) csak akkor jelent meg, ha a néző oldal-újratöltést végzett.
+
+**A megoldás — `src/lib/theme/reactive-tokens.svelte.ts`
+(`createReactiveThemeTokens()`)**: egy újrahasznosítható Svelte 5 rune-hook
+(`.svelte.ts` fájlban, `$state`/`$effect` a modul szintjén, a Svelte
+dokumentáció "custom hooks" mintája), ami:
+
+1. A hívó által átadott `designThemeId: () => string | null` getterre
+   `$effect`-ként feliratkozik — ha az adott este `design_theme_id`-ja
+   megváltozik (pl. a host a lobby-ban átvált egy másik témára, ami a
+   host saját, helyi `$state`-jét frissíti), a hook automatikusan
+   újra feloldja a tokeneket.
+2. **Emellett** feliratkozik egy `postgres_changes` eseményre a
+   `design_themes` táblán (`event: '*'`, nincs finomabb szűrés — a tábla
+   mérete elhanyagolható) — ha BÁRMELYIK design téma sor változik (pl. egy
+   admin átállítja a globális `is_default`-ot a `/admin/settings`
+   "Globális alapértelmezett design téma" választójával, vagy szerkeszti
+   egy meglévő téma token-készletét a `/admin/design-themes/[id]`-n),
+   minden nyitott, ezt a hookot használó felület újra feloldja a
+   tokeneket — reload nélkül.
+
+Minden felület egy `theme = createReactiveThemeTokens(supabase, () => ...)`
+objektumot kap, és a gyökér elemen `style={theme.css}`-t használ a korábbi
+sima `themeCss` `$state` helyett:
+
+- **`DashboardShell`** (admin + riportok): `() => null` — mindig a
+  globális alapértelmezettet követi.
+- **`/host/[game_id]`**: `() => game.design_theme_id` — a host saját
+  választása (helyi `$state`, `selectDesignTheme()` írja) már eleve
+  reaktív bemenet.
+- **`/play/[pin]`, `/tv/[game_id]`**: `() => gameDesignThemeId` — ezt a
+  helyi `$state`-et **egy külön, dedikált `postgres_changes` feliratkozás**
+  tartja élőben szinkronban a `games.design_theme_id` oszloppal (`UPDATE`
+  esemény, `id=eq.<game_id>` szűrővel), mert ezek a felületek nem a saját
+  módosításukat, hanem a HOST másik kliensen történő módosítását kell
+  észleljék. Ehhez a `games` táblát fel kellett venni a
+  `supabase_realtime` publikációba
+  (`supabase/migrations/20260809160000_games_realtime.sql`) — ugyanaz a
+  gyökérok, mint a Fázis O2-es élő válasz-számlálónál
+  (`20260808134500_answers_realtime.sql`): a publikáció korábban csak az
+  `answers` táblát tartalmazta, a `games` tábla `postgres_changes`
+  eseményei emiatt egyetlen kliensnek sem jutottak el, a kliens-oldali
+  feliratkozástól és az RLS-től (`games_select_anon`, már eleve megengedő)
+  függetlenül.
+
+**A `supabase.channel()` hívások OK-sága**: a `createReactiveThemeTokens()`
+minden hívása saját `design_themes_reactive_tokens` nevű csatornát nyit —
+ez oldalanként egyszeri, nem ütközik más csatornákkal (`game:{id}` stb.),
+és a `$effect` cleanup-ja (`channel.unsubscribe()`) automatikusan
+lezárja, ha a `designThemeId()` bemenet változik vagy a komponens
+elpusztul.
+
 ## Komponens-könyvtár (`src/lib/components/`)
 
 | Komponens                 | Props                                                                                                                                  | Jegyzet                                                                                                                                |

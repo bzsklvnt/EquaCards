@@ -60,3 +60,24 @@ nem funkcionális követelmény egy új beállítás megjelenéséhez.
 Ugyanaz a `svelte-sonner` toast minta, mint a `/admin/users`-nél (Fázis
 B) — a `Toaster` már globálisan fel van szerelve az `/admin` layout-ban,
 nem kellett újra bekötni.
+
+## Globális alapértelmezett design téma (Fázis P5)
+
+Az oldal tetején egy külön szekció (nem `app_settings` sor — a
+`design_themes.is_default` mező, `docs/architecture/DATA_MODEL.md` 8.
+szakasz) egy legördülőt ad a felvitt design témákkal. Ez **nem új
+funkcionalitás** — az `is_default` eddig is állítható volt egy adott téma
+teljes szerkesztő oldalán (`/admin/design-themes/[id]`, checkbox) —, csak
+egy gyorsabb, dedikált útvonal ugyanahhoz a mezőhöz, hogy egy super_admin
+ne kelljen a teljes szerkesztő formot megnyitnia csak ehhez. A `?/set_default_theme`
+action egyetlen `update design_themes set is_default = true where
+id = ...`-t futtat; az `enforce_single_default_design_theme()` trigger
+(Fázis 6) automatikusan leveszi az `is_default`-ot a korábbi
+alapértelmezettről — nincs itt sem külön "előbb kapcsold ki a régit"
+logika.
+
+A választás **azonnal, oldal-újratöltés nélkül** alkalmazódik minden
+nyitott felületen (admin/riportok, és minden olyan kvízeste, aminek nincs
+saját `design_theme_id`-ja) — lásd
+`docs/architecture/DESIGN_SYSTEM.md` "Reaktív design téma alkalmazás
+(Fázis P5)" szakasz.

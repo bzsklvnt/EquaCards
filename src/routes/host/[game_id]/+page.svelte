@@ -11,7 +11,7 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
-	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { playReveal, playLeaderboard, playJokerActivate } from '$lib/audio/sfx';
 	import { getConnectionStatusContext } from '$lib/realtime/connection-status.svelte';
 	import { getHostProgressContext } from '$lib/realtime/host-progress.svelte';
@@ -52,7 +52,6 @@
 	let submissionCount = $state(0);
 	let roundTop3 = $state<RoundLeaderboardRevealPayload['top3']>([]);
 	let finalStandings = $state<FinalLeaderboardRevealPayload['standings']>([]);
-	let themeCss = $state(tokensToCssText(defaultTokens));
 
 	let currentIndex = $derived(
 		roundQuestions.findIndex((q) => q.question_id === game.current_question_id)
@@ -123,12 +122,12 @@
 
 	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — a games.design_theme_id
 	// alapján feloldott token-készlet a gyökér elemre kerül inline style-ként.
-	$effect(() => {
-		const themeId = game.design_theme_id;
-		getActiveTokens(data.supabase, themeId).then((tokens) => {
-			themeCss = tokensToCssText(tokens);
-		});
-	});
+	// Fázis P5 — reaktív hook: a globális alapértelmezett VAGY az adott este
+	// design_theme_id-jának változása azonnal, reload nélkül alkalmazódik.
+	const theme = createReactiveThemeTokens(
+		untrack(() => data.supabase),
+		() => game.design_theme_id
+	);
 
 	async function selectDesignTheme(themeId: string) {
 		const { error } = await data.supabase
@@ -575,7 +574,7 @@
 	<title>{game.title} — Host</title>
 </svelte:head>
 
-<main class="cabinet" style={themeCss}>
+<main class="cabinet" style={theme.css}>
 	{#if statusMessage}
 		<p class="status-message">{statusMessage}</p>
 	{/if}

@@ -18,7 +18,16 @@ export const load: PageServerLoad = async ({ parent, locals: { supabase } }) => 
 		.select('key, value, updated_at')
 		.order('key');
 
-	return { settings: settings ?? [] };
+	// Fázis P5 — a globális alapértelmezett design téma (design_themes.is_default)
+	// eddig csak az adott téma teljes szerkesztő oldalán (/admin/design-themes/[id])
+	// volt állítható egy checkbox-szal; ez itt egy gyorsabb, dedikált választó,
+	// ugyanahhoz a mezőhöz.
+	const { data: designThemes } = await supabase
+		.from('design_themes')
+		.select('id, title, is_default')
+		.order('title');
+
+	return { settings: settings ?? [], designThemes: designThemes ?? [] };
 };
 
 export const actions: Actions = {
@@ -65,5 +74,29 @@ export const actions: Actions = {
 		}
 
 		return { success: true, key };
+	},
+
+	// Fázis P5 — gyors globális design téma választó. Az
+	// enforce_single_default_design_theme() trigger (DATA_MODEL.md 8.
+	// szakasz) automatikusan leveszi az is_default-ot a korábbi
+	// alapértelmezettről, itt nincs külön teendő ehhez.
+	set_default_theme: async ({ request, locals: { supabase } }) => {
+		const formData = await request.formData();
+		const themeId = formData.get('design_theme_id') as string;
+
+		if (!themeId) {
+			return fail(400, { error: 'Válassz egy design témát.' });
+		}
+
+		const { error } = await supabase
+			.from('design_themes')
+			.update({ is_default: true })
+			.eq('id', themeId);
+
+		if (error) {
+			return fail(400, { error: error.message });
+		}
+
+		return { success: true, themeSet: true };
 	}
 };

@@ -1,0 +1,11 @@
+-- Fázis P5 — a design téma reaktív alkalmazásához (docs/architecture/
+-- DESIGN_SYSTEM.md, "Reaktív design téma alkalmazás") a /play és /tv
+-- felületnek élőben kell értesülnie, ha a host átváltja AZ ADOTT ESTE
+-- design_theme_id-ját (a games sor UPDATE-je). Ugyanaz a gyökérok, mint a
+-- Fázis O2-ben (20260808134500_answers_realtime.sql): a supabase_realtime
+-- publikációnak korábban csak az `answers` tábla volt tagja, a `games`
+-- tábla postgres_changes eseményei emiatt egyetlen kliensnek sem jutottak
+-- el, függetlenül a kliens-oldali feliratkozástól vagy az RLS-től
+-- (`games_select_anon`, anon SELECT `status <> 'finished'`-re, már eleve
+-- megengedő).
+alter publication supabase_realtime add table games;

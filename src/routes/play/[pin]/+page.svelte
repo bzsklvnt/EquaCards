@@ -11,7 +11,7 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
-	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import {
 		playTick,
 		playCountdownEnd,
@@ -43,7 +43,6 @@
 	let deviceToken = $state('');
 	let gameTitle = $state(untrack(() => data.game?.title ?? ''));
 	let gameDesignThemeId = $state<string | null>(untrack(() => data.game?.design_theme_id ?? null));
-	let themeCss = $state(tokensToCssText(defaultTokens));
 
 	let currentQuestion = $state<QuestionShowPayload | null>(null);
 	let timerInfo = $state<TimerStartPayload | null>(null);
@@ -96,11 +95,43 @@
 	});
 
 	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — ugyanaz a feloldási minta,
-	// mint a host/TV oldalon.
+	// mint a host/TV oldalon. Fázis P5 — reaktív hook: a globális
+	// alapértelmezett VAGY a `gameDesignThemeId` (lásd lent, a games
+	// tábla postgres_changes-eseményéből élőben frissülő) változása
+	// azonnal, reload nélkül alkalmazódik.
+	const theme = createReactiveThemeTokens(
+		untrack(() => data.supabase),
+		() => gameDesignThemeId
+	);
+
+	// Fázis P5 — ha a host átváltja EZ az este design témáját, amíg a
+	// csapat már csatlakozva van (nem csak csatlakozáskor/oldalbetöltéskor
+	// olvassuk ki), a games sor postgres_changes eseménye frissíti a
+	// gameDesignThemeId-t élőben — ez feeds a fenti reaktív hook-ba.
 	$effect(() => {
-		getActiveTokens(data.supabase, gameDesignThemeId).then((tokens) => {
-			themeCss = tokensToCssText(tokens);
-		});
+		const info = joined;
+		if (!info) return;
+
+		const themeChangesChannel = data.supabase
+			.channel(`games_theme:${info.gameId}`)
+			.on(
+				'postgres_changes',
+				{
+					event: 'UPDATE',
+					schema: 'public',
+					table: 'games',
+					filter: `id=eq.${info.gameId}`
+				},
+				(payload) => {
+					const newRow = payload.new as { design_theme_id: string | null };
+					gameDesignThemeId = newRow.design_theme_id;
+				}
+			)
+			.subscribe();
+
+		return () => {
+			themeChangesChannel.unsubscribe();
+		};
 	});
 
 	// A szerver-oldali load csak 'lobby' állapotú games sort ad vissza (azt
@@ -520,7 +551,7 @@
 	<title>{gameTitle || 'Csatlakozás'} — EquaCards</title>
 </svelte:head>
 
-<main class="cabinet" style={themeCss}>
+<main class="cabinet" style={theme.css}>
 	{#if joined && connectionStatus !== 'connected'}
 		<ReconnectOverlay />
 	{/if}

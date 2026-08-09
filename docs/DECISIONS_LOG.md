@@ -1554,3 +1554,38 @@ A tervdokumentum opcionális, localStorage-alapú "gyors előrender" pontját
 "Szándékosan kihagyott elem" szakasza.
 
 Dokumentáció: `docs/features/team-reconnect.md` (új fájl).
+
+---
+
+## 2026-08-09 — Fázis P5: globális design téma választó + reaktív alkalmazás
+
+1. **Gyors globális téma-választó a `/admin/settings`-en**: nem új
+   funkcionalitás (az `is_default` eddig is állítható volt a
+   `/admin/design-themes/[id]` szerkesztőben) — egy dedikált legördülő +
+   `?/set_default_theme` action ugyanahhoz a mezőhöz, hogy ne kelljen a
+   teljes szerkesztő formot megnyitni. A trigger (Fázis 6) automatikusan
+   leveszi az `is_default`-ot a korábbi alapértelmezettről.
+2. **Reaktivitás**: egy design téma váltás (globális alapértelmezett VAGY
+   egy adott este `design_theme_id`-ja) eddig csak oldal-újratöltésnél
+   jelent meg. Új `src/lib/theme/reactive-tokens.svelte.ts`
+   (`createReactiveThemeTokens()`) — egy Svelte 5 rune-hook, ami a
+   `designThemeId()` bemenet változására ÉS a `design_themes` tábla
+   BÁRMILYEN `postgres_changes` eseményére újra feloldja + alkalmazza a
+   tokeneket. Mind a négy felület (`DashboardShell`, `/host`, `/play/[pin]`,
+   `/tv`) ezt használja a korábbi egyszeri `onMount`/`$effect` +
+   sima `themeCss` `$state` minta helyett.
+3. **`/play` és `/tv` külön kiegészítés**: ezek nem a saját, hanem a HOST
+   másik kliensen történő téma-váltását kell észleljék — egy dedikált
+   `postgres_changes` feliratkozás a `games` táblán (`UPDATE`,
+   `id=eq.<game_id>`) tartja élőben szinkronban a helyi
+   `gameDesignThemeId` state-et. Ehhez a `games` táblát fel kellett venni
+   a `supabase_realtime` publikációba
+   (`supabase/migrations/20260809160000_games_realtime.sql`) — ugyanaz a
+   gyökérok, mint Fázis O2-nél (`answers`): a publikáció korábban csak
+   egy táblát tartalmazott, élőben ellenőrizve (`select * from
+pg_publication_tables where pubname = 'supabase_realtime'`), migráció
+   után megerősítve, hogy a `games` bekerült.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Reaktív design
+téma alkalmazás (Fázis P5)" szakasz, `docs/features/app-settings.md`
+kiegészítve.

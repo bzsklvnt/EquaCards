@@ -1,14 +1,32 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
+	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import Input from '$lib/components/Input.svelte';
 	import Checkbox from '$lib/components/Checkbox.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
+	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	let selectedDefaultThemeId = $state(
+		untrack(() => data.designThemes.find((t) => t.is_default)?.id ?? data.designThemes[0]?.id ?? '')
+	);
+
+	const handleSetDefaultTheme: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			if (result.type === 'success') {
+				toast.success('Globális alapértelmezett design téma frissítve.');
+			} else if (result.type === 'failure') {
+				toast.error((result.data?.error as string) ?? 'Nem sikerült frissíteni a témát.');
+			}
+			await update();
+		};
+	};
 
 	// Csak prezentációs "cukorka" ismert kulcsokhoz (barátságosabb címke +
 	// mértékegység) — ha egy jövőbeli app_settings sor nincs itt felsorolva,
@@ -51,6 +69,35 @@
 {#if form?.error}
 	<p class="error">{form.error}</p>
 {/if}
+
+<section class="setting-row">
+	<div class="setting-info">
+		<span class="setting-label">Globális alapértelmezett design téma</span>
+		<p class="setting-description">
+			Ez a köntös érvényes minden olyan kvízestén, amihez a host nem választott külön design témát (<a
+				href={resolve('/admin/design-themes')}>Vizuális témák</a
+			>). A választás azonnal, oldal-újratöltés nélkül alkalmazódik minden érintett nyitott
+			felületen.
+		</p>
+	</div>
+	{#if data.designThemes.length === 0}
+		<p class="empty">Még nincs felvett design téma.</p>
+	{:else}
+		<form
+			method="POST"
+			action="?/set_default_theme"
+			use:enhance={handleSetDefaultTheme}
+			class="setting-form"
+		>
+			<Select name="design_theme_id" bind:value={selectedDefaultThemeId}>
+				{#each data.designThemes as theme (theme.id)}
+					<option value={theme.id}>{theme.title}{theme.is_default ? ' (jelenlegi)' : ''}</option>
+				{/each}
+			</Select>
+			<Button type="submit">Beállítás alapértelmezettként</Button>
+		</form>
+	{/if}
+</section>
 
 <div class="settings-list">
 	{#each data.settings as setting (setting.key)}
@@ -110,6 +157,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
+		margin-top: 1rem;
 	}
 
 	.setting-row {

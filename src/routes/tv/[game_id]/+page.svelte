@@ -10,7 +10,7 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
-	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { playTick, playCountdownEnd, playReveal, playLeaderboard } from '$lib/audio/sfx';
 	import { fireWinnerConfetti } from '$lib/effects/confetti';
 	import PinDisplay from '$lib/components/PinDisplay.svelte';
@@ -24,7 +24,15 @@
 	let { data }: { data: PageData } = $props();
 	const game = untrack(() => data.game);
 
-	let themeCss = $state(tokensToCssText(defaultTokens));
+	let gameDesignThemeId = $state<string | null>(game.design_theme_id);
+	// Fázis P5 — reaktív hook: a globális alapértelmezett VAGY az adott
+	// este design_theme_id-jának változása (lásd lent, a games tábla
+	// postgres_changes eseményéből élőben frissülő gameDesignThemeId)
+	// azonnal, reload nélkül alkalmazódik.
+	const theme = createReactiveThemeTokens(
+		untrack(() => data.supabase),
+		() => gameDesignThemeId
+	);
 	let qrDataUrl = $state('');
 	let teams = $state<PresenceTeam[]>([]);
 	let gameStatus = $state(game.status);
@@ -47,11 +55,33 @@
 		QRCode.toDataURL(joinUrl, { width: 320 }).then((url) => (qrDataUrl = url));
 	});
 
-	onMount(() => {
-		getActiveTokens(data.supabase, game.design_theme_id).then((tokens) => {
-			themeCss = tokensToCssText(tokens);
-		});
+	// Fázis P5 — ha a host átváltja EZ az este design témáját, amíg a TV
+	// már nyitva van, a games sor postgres_changes eseménye frissíti a
+	// gameDesignThemeId-t élőben — ez feeds a fenti reaktív hook-ba.
+	$effect(() => {
+		const themeChangesChannel = data.supabase
+			.channel(`games_theme:${game.id}`)
+			.on(
+				'postgres_changes',
+				{
+					event: 'UPDATE',
+					schema: 'public',
+					table: 'games',
+					filter: `id=eq.${game.id}`
+				},
+				(payload) => {
+					const newRow = payload.new as { design_theme_id: string | null };
+					gameDesignThemeId = newRow.design_theme_id;
+				}
+			)
+			.subscribe();
 
+		return () => {
+			themeChangesChannel.unsubscribe();
+		};
+	});
+
+	onMount(() => {
 		const channel = data.supabase.channel(`game:${game.id}`, {
 			config: { presence: { key: crypto.randomUUID() } }
 		});
@@ -145,7 +175,7 @@
 	<title>{game.title} — Kivetítő</title>
 </svelte:head>
 
-<main class="cabinet" style={themeCss}>
+<main class="cabinet" style={theme.css}>
 	{#if connectionStatus !== 'connected'}
 		<ReconnectOverlay />
 	{/if}
