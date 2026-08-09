@@ -12,6 +12,7 @@
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
+	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
 	import {
 		playTick,
 		playCountdownEnd,
@@ -69,6 +70,7 @@
 
 	onMount(() => {
 		deviceToken = crypto.randomUUID();
+		calibrateServerClock(data.supabase);
 
 		const saved = localStorage.getItem(storageKey);
 		if (saved) {
@@ -391,7 +393,7 @@
 
 		let lastWholeSecond = -1;
 		const tick = () => {
-			const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+			const remaining = Math.max(0, Math.round((endTime - serverNow()) / 1000));
 			secondsLeft = remaining;
 			if (remaining !== lastWholeSecond) {
 				lastWholeSecond = remaining;
@@ -448,7 +450,7 @@
 			question_id: currentQuestion.question_id,
 			team_id: joined.teamId,
 			answer_time_ms: timerInfo
-				? Date.now() - new Date(timerInfo.server_start_time).getTime()
+				? serverNow() - new Date(timerInfo.server_start_time).getTime()
 				: null
 		});
 

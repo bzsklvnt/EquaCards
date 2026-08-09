@@ -1673,3 +1673,44 @@ branch-re. Rövid összefoglaló:
 
 Nincs a P1–P7 listából szándékosan kihagyott elem, a P4-es opcionális
 localStorage-gyorsítás kivételével (indoklás: `docs/features/team-reconnect.md`).
+
+---
+
+## 2026-08-09 — Sürgősségi javítás: timer-csúszás a Fázis P2 UTÁN is fennállt (eszköz-óra szinkronizáció)
+
+Élő megerősítés: a Fázis P2 (host self:true broadcast-echo) javítása
+UTÁN is fennállt a panasz — a `/play` órája továbbra is kevesebbet
+mutatott, mint a `/tv`-é. A P2 csak a host-vs-többiek közötti,
+hálózati kézbesítési késleltetésből eredő relatív csúszást oldotta meg;
+a ténylegesen fennmaradó hiba két, egymásra rakódó forrásból állt:
+
+1. A `games.current_question_started_at` a HOST kliens saját, helyi
+   órájából (`new Date().toISOString()`) származott.
+2. Minden kliens (host/play/tv) a SAJÁT eszközének `Date.now()`-jával
+   számolt ehhez az időbélyeghez képest.
+
+Ha két eszköz (pl. egy csapat telefonja és a TV-hez csatlakozó gép)
+rendszerórája akár csak pár másodperccel eltér EGYMÁSTÓL — valós, gyakori
+jelenség —, mindkét kliens technikailag "helyesen" számol a saját órájához
+képest, mégis eltérő hátralévő időt mutat.
+
+Javítás:
+
+1. **`start_question_timer(p_game_id, p_duration)` RPC** — a host ezzel
+   indítja a timert `games.update()` közvetlen hívás helyett; a
+   Postgres-szerver `now()`-ja kerül be `current_question_started_at`-ba,
+   és ugyanez kerül broadcast-olásra is (nem egy kliens-generált érték).
+2. **`server_now()` RPC** — anon-nak is hívható, visszaadja a
+   Postgres-szerver óráját.
+3. **`src/lib/realtime/server-clock.ts`** (`calibrateServerClock()` /
+   `serverNow()`) — minden felület egyszer kalibrálja a saját órájának
+   eltolását a szerver órájához képest (NTP-szerű minta, a kör-utazás
+   felét figyelembe véve), és a visszaszámláláshoz (+ a decay-alapú
+   pontszámításba menő `answer_time_ms`-hez a `/play`-en) mindenhol
+   `serverNow()`-t használ nyers `Date.now()` helyett.
+
+Migráció: `supabase/migrations/20260809170000_server_clock_sync.sql`,
+alkalmazva élőben, `rollback`-kal lezárt SQL-szimulációval ellenőrizve.
+
+Dokumentáció: `docs/features/timer.md` új "8. Sürgősségi javítás"
+szakasz, `docs/architecture/REALTIME_PROTOCOL.md` kiegészítve.

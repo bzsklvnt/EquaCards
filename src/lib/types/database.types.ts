@@ -839,6 +839,11 @@ export type Database = {
 					team_id: string;
 				}[];
 			};
+			server_now: { Args: never; Returns: string };
+			start_question_timer: {
+				Args: { p_duration: number; p_game_id: string };
+				Returns: string;
+			};
 			team_answer_result: {
 				Args: { p_question_id: string; p_team_id: string };
 				Returns: {

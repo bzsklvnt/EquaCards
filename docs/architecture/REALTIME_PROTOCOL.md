@@ -94,6 +94,12 @@ duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
   önzárás mellett egy szerver-oldali (RLS-szintű) kikényszerítés alapja,
   hogy egy módosított kliens ne tudjon a lejárat után válaszolni. Részletek:
   `docs/features/timer.md`.
+- **Sürgősségi javítás:** a `server_start_time` mostantól a
+  `start_question_timer()` RPC-n keresztül a Postgres-szerver `now()`-ja
+  (nem a host kliens saját órája), és minden felület a `serverNow()`
+  segédfüggvénnyel (`src/lib/realtime/server-clock.ts`) kalibrált,
+  eszköz-független órát használ a hátralévő idő számításához — lásd
+  `docs/features/timer.md` "8. Sürgősségi javítás" szakasza.
 
 ### `joker_activate` (Fázis 4)
 

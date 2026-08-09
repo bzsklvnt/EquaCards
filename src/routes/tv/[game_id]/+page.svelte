@@ -11,6 +11,7 @@
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
+	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
 	import { playTick, playCountdownEnd, playReveal, playLeaderboard } from '$lib/audio/sfx';
 	import { fireWinnerConfetti } from '$lib/effects/confetti';
 	import PinDisplay from '$lib/components/PinDisplay.svelte';
@@ -84,6 +85,8 @@
 	});
 
 	onMount(() => {
+		calibrateServerClock(data.supabase);
+
 		const channel = data.supabase.channel(`game:${game.id}`, {
 			config: { presence: { key: crypto.randomUUID() } }
 		});
@@ -159,7 +162,7 @@
 
 		let lastWholeSecond = -1;
 		const tick = () => {
-			const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+			const remaining = Math.max(0, Math.round((endTime - serverNow()) / 1000));
 			secondsLeft = remaining;
 			if (remaining !== lastWholeSecond) {
 				lastWholeSecond = remaining;

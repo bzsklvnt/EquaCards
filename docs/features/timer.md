@@ -17,7 +17,7 @@ $effect(() => {
 	const endTime = new Date(timerInfo.server_start_time).getTime() + timerInfo.duration * 1000;
 
 	const tick = () => {
-		const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+		const remaining = Math.max(0, Math.round((endTime - serverNow()) / 1000));
 		secondsLeft = remaining;
 		if (remaining <= 0) locked = true; // csak /play/[pin]-en
 	};
@@ -26,6 +26,10 @@ $effect(() => {
 	return () => clearInterval(interval);
 });
 ```
+
+`serverNow()` (`src/lib/realtime/server-clock.ts`) — **nem** sima
+`Date.now()`, lásd a 8. szakaszt. Ez egy sürgősségi javítás eredménye
+(korábban valóban `Date.now()`-t használt mindhárom felület).
 
 - **Egyszeri broadcast, lokális számolás**: a `timer_start` payload csak
   egyszer érkezik (`{ question_id, duration, server_start_time }`) — nincs
@@ -181,3 +185,62 @@ feliratkozás állítja be — **ugyanazon az úton**, mint a `/play`/`/tv`
 teszi. Ezzel a host is ugyanazt a (elkerülhetetlen) Realtime-kézbesítési
 késleltetést kapja, mint bárki más — a három felület relatív szinkronban
 indul, nem csak mindegyik önmagában helyesen számol.
+
+## 8. Sürgősségi javítás — a csúszás a Fázis P2 után is fennállt (eszköz-óra szinkronizáció)
+
+**Tünet:** a Fázis P2 javítása után a felhasználó élőben megerősítette,
+hogy a csapatok (`/play`) órája TOVÁBBRA IS kevesebbet mutatott, mint a
+TV-é — annak ellenére, hogy a host-vs-többiek relatív csúszás (7. pont)
+már javítva volt.
+
+**A valódi gyökérok — két, egymásra rakódó hibaforrás:**
+
+1. A `games.current_question_started_at` időbélyeg eddig a **host kliens
+   saját, helyi óráján** (`new Date().toISOString()`, JS `Date.now()`)
+   alapult, amit a host aztán mind a DB-be beírt, mind broadcast-olt.
+2. Minden kliens (host, csapat, TV) a **saját eszközének** `Date.now()`-
+   jával számolta ki a hátralévő időt ehhez az időbélyeghez képest.
+
+Ha bármelyik két eszköz (pl. egy csapat telefonja és a TV-hez csatlakozó
+gép/box) rendszerórája akár csak pár másodperccel eltér EGYMÁSTÓL — ami
+valós, gyakori jelenség, nem minden eszköz NTP-pontos —, a két kliens
+egymástól eltérő "hátralévő idő" értéket számol ki, még akkor is, ha
+mindketten a broadcast-ot (majdnem) egyszerre kapták meg és technikailag
+"helyesen" számolnak a SAJÁT órájukhoz képest. A Fázis P2 javítása ezt a
+konkrét hibaforrást nem érintette (az a hálózati kézbesítési
+késleltetésről szólt, nem az eszközök óráinak egymáshoz képesti
+eltéréséről) — ezért maradt fenn a panasz.
+
+**Javítás — szerver-oldali, tekintélyelvű óra + kliens-oldali kalibráció:**
+
+1. **`start_question_timer(p_game_id, p_duration)` RPC**
+   (`supabase/migrations/20260809170000_server_clock_sync.sql`) — a host
+   ezt hívja a `games.update(...)` közvetlen hívás helyett. A függvény a
+   Postgres-szerver `now()`-ját írja be `current_question_started_at`-ként,
+   és ugyanazt adja is vissza — a host ezt az egyetlen, közös,
+   tekintélyelvű időbélyeget broadcast-olja tovább, nem egy saját eszköz-
+   generáltat.
+2. **`server_now()` RPC** — kis, olcsó, `anon`-nak is hívható függvény,
+   ami visszaadja a Postgres-szerver óráját.
+3. **`src/lib/realtime/server-clock.ts` (`calibrateServerClock()` /
+   `serverNow()`)** — minden felület (`/host`, `/play/[pin]`, `/tv`)
+   `onMount`-jában egyszer meghívja a `calibrateServerClock()`-ot: ez egy
+   NTP-szerű mérést végez (a `server_now()` hívás előtt/után mért saját
+   `Date.now()`-okból megbecsüli a hálózati kör-utazás felét, és ehhez
+   képest számítja ki, mennyivel tér el a saját órája a szerver órájától
+   — `offsetMs`). A visszaszámláló `$effect`-ek (és a `submitAnswer()`
+   `answer_time_ms` számítása, ami a pontszámítás decay-képletébe megy)
+   mostantól **mindenhol** `serverNow()`-t (`Date.now() + offsetMs`)
+   használnak nyers `Date.now()` helyett.
+
+**Miért oldja meg ez a problémát véglegesen:** minden kliens ugyanahhoz a
+KÖZÖS, szerver-oldali órához kalibrálja magát, függetlenül attól, hogy a
+saját eszköze pontos-e. Két kliens hátralévő-idő számítása emiatt
+legfeljebb a kalibráció saját hibahatárán (jellemzően pár tized
+másodperc, a hálózati kör-utazás varianciájából) belül térhet el
+egymástól — nem az eszközök óráinak akár többmásodperces eltérésén.
+
+**Élőben ellenőrizve** (rollback-kal lezárt SQL-szimulációval): a
+`start_question_timer()` UPDATE...RETURNING logikája helyesen írja be és
+adja vissza a szerver `now()`-ját; a `server_now()` sikeresen hívható
+`anon` szerepkörből is.

@@ -12,6 +12,7 @@
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
+	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
 	import { playReveal, playLeaderboard, playJokerActivate } from '$lib/audio/sfx';
 	import { getConnectionStatusContext } from '$lib/realtime/connection-status.svelte';
 	import { getHostProgressContext } from '$lib/realtime/host-progress.svelte';
@@ -88,7 +89,7 @@
 		const endTime = new Date(timerInfo.server_start_time).getTime() + timerInfo.duration * 1000;
 
 		const tick = () => {
-			secondsLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+			secondsLeft = Math.max(0, Math.round((endTime - serverNow()) / 1000));
 		};
 		tick();
 		const interval = setInterval(tick, 250);
@@ -219,6 +220,8 @@
 
 	onMount(() => {
 		let disposed = false;
+
+		calibrateServerClock(data.supabase);
 
 		(async () => {
 			const { data: types } = await data.supabase.from('question_types').select('id, code');
@@ -397,22 +400,22 @@
 		// A duration-t a fenti kérdés-lekérdezésből újrahasznosítjuk, nem kell
 		// külön DB kör-utazás érte.
 		const duration = question.time_limit_seconds ?? 30;
-		const serverStartTime = new Date().toISOString();
 
-		// A games sorba is beírjuk (nem csak broadcast-oljuk) a timer
-		// kezdetét/hosszát, mert az answers INSERT RLS policy-ja
-		// (answer_within_timer, Fázis L) ezt olvassa a szerver-oldali
-		// "a válasz a duration-on belül érkezett-e" ellenőrzéshez — egy
-		// kliens-oldali óra-manipuláció így nem tud extra időt "lopni".
-		const { error: timerError } = await data.supabase
-			.from('games')
-			.update({
-				current_question_started_at: serverStartTime,
-				current_question_duration_seconds: duration
-			})
-			.eq('id', game.id);
-		if (timerError) {
-			statusMessage = timerError.message;
+		// Sürgősségi javítás — a kezdő időbélyeg korábban a host kliens
+		// saját Date.now()-jából jött (`new Date().toISOString()`), ami a
+		// host eszközének óra-pontatlanságát minden más kliensre
+		// ráterhelte (a /play és a /tv saját órája sem feltétlenül egyezik
+		// a hosszéval VAGY egymáséval). A start_question_timer() RPC a
+		// Postgres-szerver now()-ját írja be és adja vissza — egyetlen,
+		// közös, tekintélyelvű időforrás, amihez minden kliens a saját
+		// kalibrált óráját (serverNow(), src/lib/realtime/server-clock.ts)
+		// méri, nem a host eszközének esetlegesen pontatlan óráját.
+		const { data: serverStartTime, error: timerError } = await data.supabase.rpc(
+			'start_question_timer',
+			{ p_game_id: game.id, p_duration: duration }
+		);
+		if (timerError || !serverStartTime) {
+			statusMessage = timerError?.message ?? 'Nem sikerült elindítani az időzítőt.';
 			return;
 		}
 
