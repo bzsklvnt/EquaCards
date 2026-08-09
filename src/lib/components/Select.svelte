@@ -48,6 +48,8 @@
 		background: var(--cabinet-2);
 		color: var(--marquee);
 		min-height: 44px;
+		/* Fázis O5 — lásd Input.svelte jegyzete. */
+		box-sizing: border-box;
 	}
 
 	select:focus-visible {

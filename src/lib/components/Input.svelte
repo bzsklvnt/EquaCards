@@ -76,6 +76,12 @@
 		background: var(--cabinet-2);
 		color: var(--marquee);
 		min-height: 44px;
+		/* Fázis O5 — explicit border-box, hogy a min-height ténylegesen a
+		   teljes renderelt magasságot jelentse a Button/Select 44px-es
+		   min-height-jével egyező módon, böngésző-alapértelmezéstől
+		   függetlenül (élő tesztben eltérést mutatott egy input és egy
+		   mellette álló gomb magassága). */
+		box-sizing: border-box;
 	}
 
 	input:focus-visible {

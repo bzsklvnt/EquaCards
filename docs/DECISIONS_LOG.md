@@ -1307,3 +1307,48 @@ Dokumentáció: `docs/features/scoring.md` új "Fázis O4" alszakasz,
 `docs/architecture/DATA_MODEL.md` két helyen frissítve (a
 `team_joker_uses` RLS-leírás és a real-time esemény-táblázat
 `joker_activate` sora).
+
+---
+
+## 2026-08-08 — Fázis O5: Admin UI apró javítások
+
+1. **Input/gomb magasság-egyeztetés.** A `Button`/`Input`/`Select`
+   mind `min-height: 44px`-et írt elő, de explicit `box-sizing` nélkül
+   a böngésző UA-stílusától függött, hogy ez a padding+border-t is
+   magába foglalja-e — élő tesztelés magasság-eltérést talált egy input
+   és egy mellette álló gomb között (pl. `admin/games/[id]` "Darabszám"
+   input + "Random húzás" gomb). Mindhárom komponens explicit
+   `box-sizing: border-box`-ot kapott.
+2. **"Élő lebonyolítás megnyitása" elsődleges gombbá alakítva** a
+   korábbi sima szöveges link helyett (`admin/games/[id]/+page.svelte`)
+   — ugyanaz a `Button` komponens, amit minden más elsődleges
+   akció-gomb használ.
+3. **`/reports` nem használta az admin vizuális héjat** (nincs sidebar/
+   navigáció/vissza-gomb) — mert sosem is volt hozzá közös héj: az
+   `admin/+layout.svelte` role_id in (1,2)-re szűkített, a `/reports`
+   viszont role_id in (1,2,3,4)-nek szól (minden szerepkör), tehát nem
+   örökölhette egyszerűen. Megoldás: a sidebar/header markup kiemelve
+   egy megosztott `src/lib/components/DashboardShell.svelte`
+   komponensbe, amit `/admin/+layout.svelte` ÉS egy új
+   `/reports/+layout.svelte` is külön-külön becsomagol — mindkét
+   route-fa megtartja a saját, eltérő szigorúságú `+layout.server.ts`
+   jogosultság-ellenőrzését, csak a vizuális héj közös. A `DashboardShell`
+   nav-elemei szerepkör-függők: az admin-specifikus linkek (Kérdésbank
+   stb.) csak `role_id in (1,2)`-nek jelennek meg, a "Riportok" mindenkinek.
+   **Kipróbált, de elvetett alternatíva:** SvelteKit route group
+   (`(dashboard)/admin` + `(dashboard)/reports` közös layout alatt) —
+   ez a fájlrendszerben elrejtette volna a csoport nevét az URL-ből, de
+   a `resolve()` típusos router API-ja a route ID alapján generál
+   overloadokat, ami MÉG tartalmazza a csoport-nevet
+   (`"/(dashboard)/admin/games/[id]"`), és ez minden meglévő,
+   projekt-szerte szétszórt `resolve('/admin/games/[id]', {...})`
+   hívást eltört volna (pl. `host/[game_id]/+layout.svelte`-ben is) —
+   élőben ki is derült (`npm run check` 5 típushibát adott), mielőtt
+   commitolva lett volna. A komponens-alapú megoldás ugyanazt az
+   eredményt adja route-struktúra érintése nélkül.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` — komponens-táblázat
+új `DashboardShell.svelte` sora, "Layout héjak felületenként" szakasz
+átírva (a `/admin` + `/reports` közös leírással és a route-group
+alternatíva elvetésének indoklásával), új bekezdés a `box-sizing`
+javításról.

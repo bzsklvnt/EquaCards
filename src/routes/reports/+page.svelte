@@ -1,24 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import {
-		defaultTokens,
-		getActiveTokens,
-		tokensToCssText,
-		resolveTokens
-	} from '$lib/theme/tokens';
+	import { getActiveTokens, resolveTokens } from '$lib/theme/tokens';
 	import ReportChart from '$lib/components/ReportChart.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	let themeCss = $state(tokensToCssText(defaultTokens));
+	// Fázis O5 — az oldal a reports/+layout.svelte (DashboardShell) héjában
+	// renderel, ami már felveszi a témát és a hátteret a saját gyökér
+	// elemén (CSS custom property-k lefelé öröklődnek) — itt csak a
+	// ReportChart-nak kellő tényleges (nem var()) szín-értékekre van
+	// szükség, nincs saját <main>/style wrapper többé.
 	let tokens = $state(resolveTokens(null));
 
 	onMount(() => {
 		getActiveTokens(data.supabase, null).then((resolved) => {
 			tokens = resolved;
-			themeCss = tokensToCssText(resolved);
 		});
 	});
 
@@ -45,7 +43,7 @@
 	<title>Riportok — EquaCards</title>
 </svelte:head>
 
-<main class="cabinet" style={themeCss}>
+<div class="reports-page">
 	<h1>Riportok</h1>
 	<p class="intro">
 		Szia, {data.profile.display_name}! Lezárult kvízesték eredményei és statisztikái.
@@ -139,17 +137,11 @@
 			{/each}
 		</div>
 	</section>
-</main>
+</div>
 
 <style>
-	main.cabinet {
-		min-height: 100vh;
-		background: linear-gradient(160deg, var(--cabinet), var(--cabinet-2) 60%, var(--cabinet-3));
-		color: var(--marquee);
-		font-family: var(--font-body);
-		padding: 2rem;
+	.reports-page {
 		max-width: 56rem;
-		margin: 0 auto;
 	}
 
 	h1 {

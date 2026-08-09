@@ -1,27 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-
-	let themeCss = $state(tokensToCssText(defaultTokens));
-
-	onMount(() => {
-		getActiveTokens(data.supabase, null).then((tokens) => {
-			themeCss = tokensToCssText(tokens);
-		});
-	});
 </script>
 
 <svelte:head>
 	<title>{data.game.title} — Riportok</title>
 </svelte:head>
 
-<main class="cabinet" style={themeCss}>
+<div class="game-report">
 	<Button variant="ghost" href={resolve('/reports')}>← Vissza a riportokhoz</Button>
 
 	<h1>{data.game.title}</h1>
@@ -37,17 +27,11 @@
 			<p class="empty">Ehhez az estéhez nincs csapat-adat.</p>
 		{/each}
 	</div>
-</main>
+</div>
 
 <style>
-	main.cabinet {
-		min-height: 100vh;
-		background: linear-gradient(160deg, var(--cabinet), var(--cabinet-2) 60%, var(--cabinet-3));
-		color: var(--marquee);
-		font-family: var(--font-body);
-		padding: 2rem;
+	.game-report {
 		max-width: 40rem;
-		margin: 0 auto;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;

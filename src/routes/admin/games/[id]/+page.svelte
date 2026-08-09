@@ -25,7 +25,9 @@
 
 <h1>{data.game.title}</h1>
 <p class="status">Állapot: {data.game.status}</p>
-<a href={resolve('/host/[game_id]', { game_id: data.game.id })}>Élő lebonyolítás megnyitása →</a>
+<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
+	>Élő lebonyolítás megnyitása →</Button
+>
 
 {#if form?.error}
 	<p class="error">{form.error}</p>
@@ -120,10 +122,6 @@
 		font-family: var(--font-body);
 		font-size: 1rem;
 		color: var(--marquee);
-	}
-
-	a {
-		color: var(--cyan);
 	}
 
 	.status {

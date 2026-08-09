@@ -103,20 +103,21 @@ arcade-panel mintától való véletlen elkanyarodás.
 
 ## Komponens-könyvtár (`src/lib/components/`)
 
-| Komponens                 | Props                                                                                                                                  | Jegyzet                                                                                                                    |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `Button.svelte`           | `variant` (`primary`\|`secondary`\|`danger`\|`ghost`), `type`, `disabled`, `href`, `onclick`, `children`                               | `href` esetén `<a>`-ként renderel, egyébként `<button>`-ként                                                               |
-| `ChoiceButton.svelte`     | `text`, `selected`, `disabled`, `onclick`                                                                                              | Egy/több-választós válasz-opció                                                                                            |
-| `TimerRing.svelte`        | `secondsLeft`, `duration`, `size`, `inactive`                                                                                          | SVG körvisszaszámláló, `low` (≤5 mp) pulzáló `--danger`, `inactive` szürke forgó "dolgozom" állapot                        |
-| `PinDisplay.svelte`       | `pin`, `qrDataUrl`, `joinUrl`                                                                                                          | PIN + QR + csatlakozási URL egy arcade panelben                                                                            |
-| `TeamChip.svelte`         | `name`, `own`                                                                                                                          | Csapatnév pill-jelvény, `own` kiemeli a sajátot                                                                            |
-| `PodiumCard.svelte`       | `rank`, `name`, `score`, `scoreLabel`, `own`                                                                                           | Ranglista-sor, top 3-nál érem-emoji                                                                                        |
-| `Input.svelte`            | `label`, `name`, `type`, `value` (bindable), `placeholder`, `required`, `maxlength`, `minlength`, `min`, `max`, `step`, `autocomplete` | Label + input, min. 44px magasság érintéshez                                                                               |
-| `Select.svelte`           | `label`, `name`, `value` (bindable), `required`, `children`, `onchange`                                                                | Label + select, `children` az `<option>` elemekhez                                                                         |
-| `Checkbox.svelte`         | `label`, `name`, `checked` (bindable), `value`, `onchange`                                                                             | Label + checkbox, `accent-color: var(--cyan)`                                                                              |
-| `Textarea.svelte`         | `label`, `name`, `value` (bindable), `placeholder`, `required`, `rows`, `spellcheck`, `monospace`                                      | `monospace` a `--font-led`-et alkalmazza (pl. JSON-szerkesztőknél)                                                         |
-| `ReconnectOverlay.svelte` | `message`                                                                                                                              | Teljes képernyős "Kapcsolat helyreállítása…" overlay `inactive` `TimerRing`-gel — `/play`, `/tv` (Fázis I)                 |
-| `ArcadePanel.svelte`      | `children`                                                                                                                             | Generikus arcade-panel wrapper (keret + scanline) — a kérdés-kártyát csomagolja be `/host`, `/play/[pin]`, `/tv` (Fázis K) |
+| Komponens                 | Props                                                                                                                                  | Jegyzet                                                                                                                                |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button.svelte`           | `variant` (`primary`\|`secondary`\|`danger`\|`ghost`), `type`, `disabled`, `href`, `onclick`, `children`                               | `href` esetén `<a>`-ként renderel, egyébként `<button>`-ként                                                                           |
+| `ChoiceButton.svelte`     | `text`, `selected`, `disabled`, `onclick`                                                                                              | Egy/több-választós válasz-opció                                                                                                        |
+| `TimerRing.svelte`        | `secondsLeft`, `duration`, `size`, `inactive`                                                                                          | SVG körvisszaszámláló, `low` (≤5 mp) pulzáló `--danger`, `inactive` szürke forgó "dolgozom" állapot                                    |
+| `PinDisplay.svelte`       | `pin`, `qrDataUrl`, `joinUrl`                                                                                                          | PIN + QR + csatlakozási URL egy arcade panelben                                                                                        |
+| `TeamChip.svelte`         | `name`, `own`                                                                                                                          | Csapatnév pill-jelvény, `own` kiemeli a sajátot                                                                                        |
+| `PodiumCard.svelte`       | `rank`, `name`, `score`, `scoreLabel`, `own`                                                                                           | Ranglista-sor, top 3-nál érem-emoji                                                                                                    |
+| `Input.svelte`            | `label`, `name`, `type`, `value` (bindable), `placeholder`, `required`, `maxlength`, `minlength`, `min`, `max`, `step`, `autocomplete` | Label + input, min. 44px magasság érintéshez                                                                                           |
+| `Select.svelte`           | `label`, `name`, `value` (bindable), `required`, `children`, `onchange`                                                                | Label + select, `children` az `<option>` elemekhez                                                                                     |
+| `Checkbox.svelte`         | `label`, `name`, `checked` (bindable), `value`, `onchange`                                                                             | Label + checkbox, `accent-color: var(--cyan)`                                                                                          |
+| `Textarea.svelte`         | `label`, `name`, `value` (bindable), `placeholder`, `required`, `rows`, `spellcheck`, `monospace`                                      | `monospace` a `--font-led`-et alkalmazza (pl. JSON-szerkesztőknél)                                                                     |
+| `ReconnectOverlay.svelte` | `message`                                                                                                                              | Teljes képernyős "Kapcsolat helyreállítása…" overlay `inactive` `TimerRing`-gel — `/play`, `/tv` (Fázis I)                             |
+| `ArcadePanel.svelte`      | `children`                                                                                                                             | Generikus arcade-panel wrapper (keret + scanline) — a kérdés-kártyát csomagolja be `/host`, `/play/[pin]`, `/tv` (Fázis K)             |
+| `DashboardShell.svelte`   | `profile`, `supabase`, `children`                                                                                                      | Sidebar/header héj (Fázis O5) — `/admin/+layout.svelte` ÉS `/reports/+layout.svelte` is ezt burkolja be, szerepkör-függő nav-elemekkel |
 
 **Szándékosan nem lett belőlük komponens:** a `question_type_id` `<select>`
 (a Svelte fordító csak egy literál, nem-absztrahált elemen tudja alkalmazni
@@ -131,6 +132,15 @@ Minden komponens a legközelebbi `.cabinet` osztályú (vagy a design-token
 nincs saját, beépített színkészletük, a `getActiveTokens()`/`tokensToCssText()`
 (`src/lib/theme/tokens.ts`) alkalmazza őket a gyökér elemre.
 
+**`min-height: 44px` + explicit `box-sizing: border-box` (Fázis O5):** a
+`Button`/`Input`/`Select` mind `min-height: 44px`-et ír elő az érintési
+célpont-mérethez, de explicit `box-sizing` nélkül a böngésző UA-stílustól
+függ, hogy ez a padding+border-t is magába foglalja-e — élő tesztelés
+egy input és egy mellette álló gomb közötti magasság-eltérést talált.
+Mindhárom komponens mostantól explicit `box-sizing: border-box`-ot ír
+elő, hogy a `min-height` garantáltan a teljes renderelt magasságot
+jelentse, böngésző-alapértelmezéstől függetlenül.
+
 ## Fókusz és akadálymentesség
 
 Minden interaktív komponens explicit `:focus-visible` stílust kap
@@ -143,15 +153,35 @@ célpontok (gombok, checkbox, input) minimum 44×44px-esek.
 A `docs/architecture/DATA_MODEL.md` 7. szakaszának négy felülete eltérő
 célra szabott layout-keretet kap:
 
-- **`/admin`** (`src/routes/admin/+layout.svelte`): perzisztens header +
-  bal oldali sidebar navigáció (Kérdésbank, Témák, Vizuális témák,
-  Kvízesték, mindig; Felhasználók/Beállítások csak `role_id = 1`-nek;
-  Riportok mindenkinek). A még meg nem épült oldalakra (Felhasználók,
-  Beállítások, Riportok) is mutat — placeholder oldal, nem törött link
-  (a tényleges megvalósítás: Fázis B/C/D). Mobilon (`≤768px`) a sidebar
-  hamburger-menübe csukódik. Az admin felület is a
-  `getActiveTokens(supabase, null)` alapértelmezett vizuális témát kapja
-  (nincs `games` sorhoz kötve, mint a host/csapat/TV).
+- **`/admin` és `/reports`** (`src/lib/components/DashboardShell.svelte`,
+  Fázis O5): perzisztens header + bal oldali sidebar navigáció
+  (Kérdésbank, Témák, Vizuális témák, Kvízesték csak `role_id in (1,2)`-nek;
+  Felhasználók/Beállítások csak `role_id = 1`-nek; Riportok mindenkinek,
+  bejelentkezett szerepkörtől függetlenül). Mobilon (`≤768px`) a sidebar
+  hamburger-menübe csukódik. `getActiveTokens(supabase, null)`
+  alapértelmezett vizuális témát kap mindkét felület (nincs `games`
+  sorhoz kötve, mint a host/csapat/TV).
+  - **Miért megosztott komponens, nem egy közös route-fa:** a `/reports`
+    (`role_id in (1,2,3,4)` — minden szerepkör) korábban egyáltalán nem
+    használt semmilyen közös héjat (saját, csupasz oldal, navigáció és
+    vissza-gomb nélkül — élő tesztelésből jelzett hiba). A logikus
+    megoldásnak tűnő SvelteKit route group (`(dashboard)/admin` +
+    `(dashboard)/reports` közös `+layout.svelte` alatt) **kipróbálva, de
+    elvetve**: a route group a _fájlrendszerben_ elrejti a csoport nevét
+    az URL-ből, de a `resolve()` típusos router API-ja a _route ID_
+    alapján generálja az overloadokat, ami MÉG mindig tartalmazza a
+    csoport-nevet (`"/(dashboard)/admin/games/[id]"`) — ez minden, a
+    projektben szétszórt `resolve('/admin/games/[id]', {...})` hívást
+    (pl. `/host/[game_id]/+layout.svelte`-ben is) eltört volna, vagy
+    mindenhol a csoport-nevet kellett volna belekódolni egy belső
+    implementációs részletként. A megosztott `DashboardShell` komponens
+    (nem route-szintű layout, hanem `Button`/`ArcadePanel` mintájú
+    UI-komponens, amit `/admin/+layout.svelte` ÉS `/reports/+layout.svelte`
+    is `{@render children()}`-nel becsomagol) ugyanazt a vizuális
+    eredményt adja route-struktúra érintése, és így egyetlen meglévő
+    `resolve()` hívás módosítása nélkül. Mindkét route-fa megtartotta a
+    saját `+layout.server.ts` jogosultság-ellenőrzését (admin: `(1,2)`,
+    reports: `(1,2,3,4)`), csak a vizuális héjat osztják meg.
 - **`/host/[game_id]`** (`src/routes/host/[game_id]/+layout.svelte`):
   minimális header — este címe, PIN-jelvény, kör/kérdés progress
   (`3. kör / N · Kérdés 4/8`, csak aktív játéknál), kapcsolat-állapot

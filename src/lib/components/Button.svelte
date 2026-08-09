@@ -63,6 +63,10 @@
 		padding: 0.6rem 1.25rem;
 		min-height: 44px;
 		min-width: 44px;
+		/* Fázis O5 — lásd Input.svelte jegyzete: explicit border-box, hogy a
+		   min-height ténylegesen a teljes renderelt magasságot jelentse,
+		   Input/Select 44px-es min-height-jével egyező módon. */
+		box-sizing: border-box;
 		cursor: pointer;
 		border: 2px solid transparent;
 		text-decoration: none;
