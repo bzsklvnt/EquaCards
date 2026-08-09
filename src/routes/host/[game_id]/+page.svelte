@@ -187,12 +187,25 @@
 		})();
 
 		channel = data.supabase.channel(`game:${game.id}`, {
-			config: { presence: { key: crypto.randomUUID() } }
+			config: { presence: { key: crypto.randomUUID() }, broadcast: { self: true } }
 		});
 
 		channel.on('presence', { event: 'sync' }, () => {
 			const state = channel!.presenceState<PresenceTeam>();
 			teams = Object.values(state).flat();
+		});
+
+		// Fázis P2 — a timerInfo-t a host is a SAJÁT broadcast-jának
+		// vételekor állítja be (self: true fent), nem a send() hívás
+		// visszatérésekor közvetlenül. Korábban a host azonnal, a hálózati
+		// broadcast-kézbesítés kivárása nélkül elindította a saját óráját,
+		// míg a /play és /tv csak a broadcast tényleges megérkezésekor —
+		// emiatt a host 2-3 másodperccel "előrébb" járt a visszaszámlálásban,
+		// mint a csapatok/TV. Ugyanazon az úton keresztül állítva be
+		// mindhárom felület ugyanannyi (elkerülhetetlen) kézbesítési
+		// késéssel indul, tehát szinkronban marad egymással.
+		channel.on('broadcast', { event: 'timer_start' }, ({ payload }) => {
+			timerInfo = payload as TimerStartPayload;
 		});
 
 		// Fázis O4 — a team_joker_uses beszúrását mostantól a csapat kliense
@@ -366,7 +379,9 @@
 				server_start_time: serverStartTime
 			}
 		});
-		timerInfo = { question_id: next.question_id, duration, server_start_time: serverStartTime };
+		// timerInfo-t a fenti self:true broadcast-feliratkozás állítja be
+		// (Fázis P2), nem itt közvetlenül — lásd a channel.on('timer_start')
+		// megjegyzését az onMount-ban.
 		uiStep = 'timing';
 	}
 

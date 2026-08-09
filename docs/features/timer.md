@@ -150,3 +150,34 @@ tervezésileg szinkron (lásd 1. pont), és a szerver-oldali kikényszerítés
 élőben, valós DB-n igazoltan működik — de a tényleges, szemmel látható
 "nincs másodperces csúszás 2-3 fül között" ellenőrzést élő böngészőben
 kell elvégezni.
+
+## 7. Fázis P2 — a host 2-3 másodperccel "előrébb" járt, mint a csapatok/TV
+
+**Tünet (élő tesztelésből):** a csapatok (`/play`) visszaszámlálója
+induláskor 2-3 másodperccel kevesebbet mutatott, mint a host/TV
+felületeken ugyanabban a pillanatban.
+
+**Gyanított, de cáfolt ok:** az 1. pontban leírt mechanizmus (mindhárom
+felület a kapott `server_start_time`-ból számol, nem a saját fogadási
+pillanatától) kód-átolvasással ellenőrizve **helyesnek bizonyult**
+mindhárom felületen — a `/play` és `/tv` a `timer_start`
+broadcast-eseményben kapott `server_start_time`-ot használta, nem a saját
+`Date.now()`-ját induláskor.
+
+**A valódi gyökérok:** a `/host/[game_id]` a saját `timerInfo` state-jét
+**nem** a `timer_start` broadcast tényleges kézbesítésekor állította be,
+hanem közvetlenül, szinkron módon a `channel.send()` hívás visszatérése
+után — tehát a hálózati Realtime-kézbesítési késleltetés (amíg a
+broadcast ténylegesen eljut a csapatokhoz/TV-hez, jellemzően
+100ms-2mp+ a Supabase Realtime infrastruktúrán át) **kizárólag a
+csapatokat/TV-t érintette**, a host-ot nem — a host emiatt korábban
+kezdte el a saját visszaszámlálását megjeleníteni, mint amikor a többiek
+egyáltalán megkapták az eseményt.
+
+**Javítás** (`/host/[game_id]/+page.svelte`): a host saját csatornája
+mostantól `broadcast: { self: true }` konfigurációval jön létre, és a
+`timerInfo`-t egy `channel.on('broadcast', { event: 'timer_start' }, ...)`
+feliratkozás állítja be — **ugyanazon az úton**, mint a `/play`/`/tv`
+teszi. Ezzel a host is ugyanazt a (elkerülhetetlen) Realtime-kézbesítési
+késleltetést kapja, mint bárki más — a három felület relatív szinkronban
+indul, nem csak mindegyik önmagában helyesen számol.

@@ -1462,3 +1462,24 @@ kezelésében — lásd a következő, "Fázis P2" bejegyzést.
 
 Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Sidebar belső
 görgetés (Fázis P1)" szakasz.
+
+---
+
+## 2026-08-09 — Fázis P2: timer szinkron-csúszás javítása (host self-echo)
+
+Tünet: a csapatok (`/play`) visszaszámlálója induláskor 2-3 másodperccel
+kevesebbet mutatott, mint a host/TV. Kód-átolvasással kizárva a gyanított
+ok (a `server_start_time`-ból számolás mindhárom felületen már eleve
+helyesen működött) — a valódi gyökérok: a host a saját `timerInfo`
+state-jét közvetlenül, a `channel.send()` visszatérésekor állította be, a
+Realtime-kézbesítés tényleges kivárása nélkül, míg a `/play`/`/tv` csak a
+broadcast ténylegesen megérkezésekor. Emiatt a host a hálózati
+kézbesítési késleltetés nélkül, korábban indította a saját óráját.
+
+Javítás: a host csatornája `broadcast: { self: true }`-t kap, és a
+`timerInfo`-t egy `channel.on('timer_start', ...)` feliratkozás állítja
+be — ugyanazon az úton, mint a `/play`/`/tv`. Mindhárom felület ugyanazt
+az (elkerülhetetlen) kézbesítési késleltetést kapja, tehát relatív
+szinkronban indul.
+
+Dokumentáció: `docs/features/timer.md` új "7. Fázis P2" szakasz.
