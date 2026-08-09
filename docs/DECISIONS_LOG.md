@@ -1213,3 +1213,30 @@ aszinkron műveletre kötelező elvárás, a fenti minták szerint.
 
 Dokumentáció: `docs/features/timer.md` új "Fázis O1" alszakasz (5.
 pont, a korábbi "Vizuális szinkron ellenőrzése" szakasz 6.-ra tolva).
+
+---
+
+## 2026-08-08 — Fázis O2: Élő válaszszámláló — a gyökérok
+
+A host "X/40 csapat válaszolt" számlálója élesben nem frissült valós
+időben. **Nem kódhiba volt** — a kliens-oldali `postgres_changes`
+feliratkozás és az RLS (`answers_staff_all`, `role_id in (1,2,3)`) Fázis 4
+óta helyesen volt beállítva. Supabase MCP-n keresztül élőben ellenőrizve
+(`select * from pg_publication_tables where pubname = 'supabase_realtime'`):
+a **publikációnak egyetlen tagja sem volt** — a Postgres Changes funkció
+emiatt egyetlen táblán sem tudott eseményt küldeni, semmilyen kliens felé.
+
+Javítás: új `supabase/migrations/20260808134500_answers_realtime.sql`
+(`alter publication supabase_realtime add table answers;`), élőben
+alkalmazva és a publikáció tartalmának újralekérdezésével leellenőrizve.
+
+**Módszertani tanulság:** ez a projekt eddig kizárólag Broadcast/Presence
+csatornákat használt élesben tesztelt módon (Fázis 3-6) — a `postgres_changes`
+volt az egyetlen realtime funkció, ami sosem futott valódi böngészőben a
+Fázis 4 megépítése óta, és pont ez bukott ki. A `supabase_realtime`
+publikációhoz való explicit hozzáadás egy könnyen kihagyható lépés, amit
+sem a kód, sem az RLS nem jelez előre — érdemes minden jövőbeli
+`postgres_changes`-alapú funkciónál elsőként ellenőrizni.
+
+Dokumentáció: `docs/architecture/REALTIME_PROTOCOL.md` "Postgres Changes"
+szakasz kiegészítve a gyökérokkal és a módszertani tanulsággal.

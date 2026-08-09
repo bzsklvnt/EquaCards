@@ -248,6 +248,22 @@ Ez a `answers_staff_all` RLS policy alapján működik (a host `authenticated`,
 `answers`-en, tehát ők nem tudnának hasonló feliratkozást használni (ez
 szándékos, lásd lent).
 
+**Élő tesztelésből (Fázis O2): a számláló nem frissült.** A kliens-oldali
+feliratkozás és az RLS is helyesen volt beállítva Fázis 4 óta — a
+tényleges gyökérok az volt, hogy a `supabase_realtime` publikációnak
+(`select * from pg_publication_tables where pubname = 'supabase_realtime'`)
+**egyetlen tagja sem volt**. A Postgres Changes funkció a Supabase-ben erre
+a publikációra épül (ez felel meg a dashboard "Database → Replication"
+tábla-kapcsolóinak) — enélkül egyetlen táblán sem tud eseményt küldeni,
+függetlenül attól, hogy a `.on('postgres_changes', ...)` feliratkozás
+és az RLS mennyire helyes. Javítva: `supabase/migrations/20260808134500_answers_realtime.sql`
+(`alter publication supabase_realtime add table answers;`), élőben
+alkalmazva és leellenőrizve (a publikáció tagjai közt most már szerepel
+az `answers`). **Módszertani tanulság minden jövőbeli `postgres_changes`
+feliratkozáshoz**: az RLS és a kliens-oldali kód helyessége nem elég —
+a táblát explicit hozzá kell adni a `supabase_realtime` publikációhoz is,
+ez egy külön, könnyen kihagyható lépés.
+
 ## RLS-szint hozzáférés anonim (nem authentikált) klienseknek
 
 A csapatok nem Supabase Auth session-nel csatlakoznak — a `device_token`
