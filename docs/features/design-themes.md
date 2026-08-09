@@ -106,3 +106,35 @@ A lobby nézetben (`/host/[game_id]`, `game.status === 'lobby'`) egy
 legördülő lista jelenik meg a felvitt design témákkal — kiválasztáskor
 azonnal frissíti a `games.design_theme_id`-t, és a token-készlet újra
 feloldódik/alkalmazódik a host saját felületén is (élő előnézet).
+
+## Seedelt témák
+
+A "Retro Arcade" (alapértelmezett) mellett két további design téma van
+seedelve (`supabase/migrations/20260809140000_design_themes_hp_sport.sql`,
+egyik sem `is_default`):
+
+- **"Roxfort"** — Harry Potter ihletésű köntös: éjkék/sötétgránát
+  háttér (`--cabinet: #0F1A2E`), pergamen-krém szöveg
+  (`--marquee: #F1E6C8`), zafírkék elsődleges kiemelés (`--cyan:
+#4C74C9`), aranyszín "galleon" kiemelés (`--coin: #FFD700`),
+  smaragdzöld helyes válasz (`--power: #2F8F5B`), vörös hiba/veszély
+  (`--danger: #A61C21`), ametiszt lila + rózsaszín-bordó joker-gradiens
+  (`--violet: #5B3A99` / `--magenta: #B33A5B`). Betűtípusok: `Cinzel
+Decorative` (display), `Cinzel` (LED/timer — jó olvasható
+  számjegyekkel), `EB Garamond` (törzsszöveg, régi könyv hatás).
+- **"Sportaréna"** — sport ihletésű köntös: sötétkék stadion-háttér
+  (`--cabinet: #0A1F3D`), fehér "eredményjelző" szöveg (`--marquee:
+#FFFFFF`), élénk narancs elsődleges kiemelés (`--cyan: #FF6B00`),
+  arany "érem" kiemelés (`--coin: #FFC300`), zöld helyes válasz
+  (`--power: #23C16B`), piros hiba/veszély (`--danger: #E8112D`),
+  élénk lila + neon pink joker-gradiens (`--violet: #5D3FD3` /
+  `--magenta: #FF2D78`). Betűtípusok: `Anton` (display, kondenzált
+  sport-fejléc), `Bebas Neue` (LED/timer — klasszikus mezszám-stílus),
+  `Oswald` (törzsszöveg, kondenzált, jól olvasható).
+
+Mindkettő ugyanazt a teljes token-készletet adja meg, mint a Retro
+Arcade seed (lásd fent "Miért `design_tokens not null`") — nincs
+részleges/felülíró téma. A `font_display`/`font_led`/`font_body`
+értékei nem szerepelnek statikusan az `app.html`-ben, tehát a fenti
+"Betűtípusok — dinamikus betöltés" szakasz szerint futásidőben,
+Google Fonts-ról töltődnek be az első alkalmazáskor.

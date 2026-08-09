@@ -1408,3 +1408,31 @@ mostantól kérdéstípusonként eltér:
 
 Dokumentáció: `docs/features/game-experience-polish.md` új "6.
 Válaszbeküldés típusonként (Fázis O7)" szakasz.
+
+---
+
+## 2026-08-09 — Két új design téma seedelve: "Roxfort" és "Sportaréna"
+
+Admin kérésre két új sor a `design_themes` táblába (egyik sem
+`is_default` — a "Retro Arcade" marad az egyetlen alapértelmezett):
+
+- **"Roxfort"** — Harry Potter ihletésű: éjkék/pergamen alap, zafírkék
+  elsődleges kiemelés, arany "galleon" `--coin`, smaragdzöld
+  helyes/piros hiba, ametiszt+bordó joker-gradiens. Betűtípusok:
+  `Cinzel Decorative` / `Cinzel` / `EB Garamond`.
+- **"Sportaréna"** — sport ihletésű: sötétkék stadion alap, narancs
+  elsődleges kiemelés, arany "érem" `--coin`, zöld helyes/piros hiba,
+  lila+pink joker-gradiens. Betűtípusok: `Anton` / `Bebas Neue` /
+  `Oswald`.
+
+Mindkettő a teljes, meglévő token-sémát tölti ki (nincs séma-
+módosítás) — a betűtípusaik nincsenek statikusan belinkelve az
+`app.html`-ben, tehát a Fázis E-ben épített dinamikus Google Fonts
+betöltés (`loadThemeFonts()`) tölti be futásidőben, ha az admin/host
+kiválasztja őket.
+
+Migráció: `supabase/migrations/20260809140000_design_themes_hp_sport.sql`,
+alkalmazva élőben (`mcp__Supabase__apply_migration`), ellenőrizve
+SQL-lel, hogy az `is_default` egyik új sornál sem állt be és a Retro
+Arcade maradt az egyetlen alapértelmezett. Dokumentáció:
+`docs/features/design-themes.md` új "Seedelt témák" szakasz.
