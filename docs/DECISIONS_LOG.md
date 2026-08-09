@@ -1264,3 +1264,46 @@ Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Új függőség (Fázi
 O3)" alszakasz, két stale hivatkozás javítva ugyanitt (a sorrendező lista
 korábbi "natív maradt" jegyzete, és a joker-gomb elavult `--coin`/
 `--danger` színpár-hivatkozása, ami Fázis N3 óta `--magenta`/`--violet`).
+
+---
+
+## 2026-08-08 — Fázis O4: Joker-szorzó — a gyökérok versenyhelyzet volt
+
+A "Duplázás" joker szorzója élesben nem érvényesült a végső pontszámban.
+Élő, rollback-kal lezárt SQL-szimulációval igazoltam (Supabase MCP, valódi
+`authenticated`/staff kontextusban, egy 1000 pontos, `points_multiplier=2`
+kérdésen): az `evaluate_question()` join- és szorzás-logikája **teljesen
+helyesen működik**, ha a `team_joker_uses` sor létezik kiértékeléskor —
+2000 pont joker nélkül, pontosan 4000 (duplán) jokerrel, egy hívásban két
+csapatra összehasonlítva.
+
+A tényleges gyökérok nem a kiértékelésben, hanem a **beszúrás
+időzítésében** volt: az eredeti (Fázis 4-es) tervezés szerint a csapat
+kliense csak egy `joker_activate` broadcast-ot küldött, a `team_joker_uses`
+sort a **host** kliense írta be a beérkező esemény alapján — ez egy
+hálózati kör-utazásos versenyhelyzetet (csapat → Supabase Realtime →
+host → DB insert) vitt be a pontszámítás elé. Ha a host gyorsan zárt/tárt
+fel egy kérdést, vagy a broadcast késett/elveszett, a sor még nem
+létezett `evaluate_question()` lefutásakor.
+
+**Javítás:** a csapat kliense mostantól közvetlenül, szinkron ír a
+`team_joker_uses`-be — ugyanaz a bizalmi modell, mint az
+`answers_insert_anon_active_game` policy-nál (a projekt már dokumentált,
+elfogadott kompromisszuma). Új migráció
+(`supabase/migrations/20260808135500_joker_direct_insert.sql`): egy
+`team_current_question()` security-definer segédfüggvény (ugyanaz a
+minta, mint `team_owner_game_status()`) és egy új
+`team_joker_uses_insert_anon_active_game` RLS policy, ami csak akkor
+enged anon beszúrást, ha a csapat estéje `'active'` ÉS a `question_id`
+egyezik a `games.current_question_id`-vel. A `joker_activate` broadcast
+megmaradt, de mostantól csak a host UI-visszajelzésének szól — a host
+már nem ír a `team_joker_uses`-be. Élőben ellenőrizve mindkét irányban
+(`anon` kontextusban): megfelelő kérdésre/aktív estére sikeres beszúrás,
+nem aktív estére elutasított.
+
+Dokumentáció: `docs/features/scoring.md` új "Fázis O4" alszakasz,
+`docs/features/jokers.md` "Miért a host írja" szakasz teljesen átírva
+("A csapat kliense ír közvetlenül" címmel, a kódrészletek frissítve),
+`docs/architecture/DATA_MODEL.md` két helyen frissítve (a
+`team_joker_uses` RLS-leírás és a real-time esemény-táblázat
+`joker_activate` sora).

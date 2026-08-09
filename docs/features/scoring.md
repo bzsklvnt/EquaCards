@@ -73,6 +73,42 @@ Function-be — a képlet maga nem függ a hordozó rétegtől.
 points_awarded = ...`, majd `update teams set total_score = total_score +
 points_awarded`.
 
+### Fázis O4 — a joker-szorzó nem érvényesült élesben: a gyökérok nem itt volt
+
+Élő tesztelés szerint a joker (Duplázás) szorzója nem jelent meg a végső
+`points_awarded`-ban. Élő, rollback-kal lezárt SQL-szimulációval igazolva
+(Supabase MCP, valódi `authenticated`/staff kontextusban): a fenti
+`evaluate_question()` join- és szorzás-logika **teljesen helyesen
+működik**, ha a `team_joker_uses` sor ténylegesen létezik kiértékeléskor
+(egy 1000/2×szorzós kérdésnél 2000 pont joker nélkül, pontosan 4000 —
+duplán — jokerrel, egyetlen hívásban, két csapatra összehasonlítva).
+
+A tényleges gyökérok a **beszúrás időzítésében** volt, nem a
+kiértékelésben: az eredeti (Fázis 4-es) tervezés szerint a csapat kliense
+csak egy `joker_activate` broadcast-ot küldött, és a **host** kliense
+írta be a `team_joker_uses` sort a beérkező esemény alapján — ez egy
+hálózati kör-utazásos versenyhelyzetet (csapat → Supabase Realtime →
+host → DB insert) vitt be a pontszámítás elé. Ha a host gyorsan zárt/tárt
+fel egy kérdést, vagy a broadcast késett/elveszett, a sor még nem
+létezett, amikor `evaluate_question()` lefutott.
+
+**Javítás:** a csapat kliense mostantól közvetlenül, szinkron ír a
+`team_joker_uses`-be (`/play/[pin]/+page.svelte` `activateJoker()`) —
+ugyanaz a bizalmi modell, mint az `answers_insert_anon_active_game`
+policy-nál (`device_token`-alapú, nem kriptográfiailag ellenőrzött
+csapat-tulajdonlás, a projekt már dokumentált, elfogadott kompromisszuma).
+Új RLS policy: `team_joker_uses_insert_anon_active_game`
+(`supabase/migrations/20260808135500_joker_direct_insert.sql`) —
+`anon` beszúrhat, ha a csapat estéje `'active'`, ÉS a `question_id`
+egyezik a `games.current_question_id`-vel (új `team_current_question()`
+security-definer segédfüggvény, ugyanaz a minta, mint
+`team_owner_game_status()`). A `joker_activate` broadcast megmaradt, de
+mostantól csak a host UI-visszajelzésére szolgál ("Joker aktiválva egy
+csapat által."), nem az adatírásra — a host már nem ír a
+`team_joker_uses`-be. Élőben ellenőrizve mindkét irányban (`anon`
+kontextusban): megfelelő kérdésre/aktív estére sikeres beszúrás, nem
+aktív estére (`'lobby'`) elutasított.
+
 ## `team_answer_result(p_team_id uuid, p_question_id uuid)`
 
 A csapat kliense ebből kérdezi le a **saját** `(is_correct, points_awarded)`

@@ -6,10 +6,10 @@ Egy kérdés aktív ideje alatt (a `timer_start` és a válaszok lezárása —
 `answer_locked` vagy a helyi visszaszámlálás lejárta — között) egy csapat
 egy estén **egyszer** aktiválhatja a "Duplázás" jokert az éppen futó
 kérdésre. A tényleges pontszorzás (`joker_szorzó = 2`) a pontszámítás
-része — az az `evaluate_answer` Edge Function Fázis 5-ös feladata
-(`docs/architecture/DATA_MODEL.md` 3. szakasz, "Pontszámítás a két
-szorzóval kombinálva"). Ez a dokumentum a jokerhez tartozó adatmodellt és
-a csatlakozó broadcast-mechanikát írja le.
+része — a `evaluate_question` Postgres RPC számolja ki
+(`docs/features/scoring.md`, `docs/architecture/DATA_MODEL.md` 3.
+szakasz, "Pontszámítás a két szorzóval kombinálva"). Ez a dokumentum a
+jokerhez tartozó adatmodellt és a csatlakozó broadcast-mechanikát írja le.
 
 ## Adatmodell
 
@@ -29,27 +29,35 @@ egy adott joker-típusból csak egyszer élhet egy estén — a `teams` sor
 eleve egy `games` sorhoz van kötve, tehát ez estén-belüli, nem globális
 egyediség.
 
-## Miért a host írja a `team_joker_uses`-t, nem a csapat kliense
+## A csapat kliense ír közvetlenül (Fázis O4 óta)
 
-A `docs/architecture/DATA_MODEL.md` 4. szakasza szerint a csapat kliense
-csak egy `joker_activate` broadcast eseményt küld a `game:{game_id}`
-csatornán; a `team_joker_uses` sort a **host** (mint `authenticated`,
-`role_id in (1,2,3)` jogosultsággal rendelkező kliens) írja be, a
-broadcast fogadásakor. Ez szándékos tervezési döntés:
+**Eredeti (Fázis 4-es) tervezés, és miért változott:** kezdetben a csapat
+kliense csak egy `joker_activate` broadcast eseményt küldött a
+`game:{game_id}` csatornán, a `team_joker_uses` sort pedig a **host**
+(mint `authenticated`, `role_id in (1,2,3)` jogosultsággal rendelkező
+kliens) írta be, a broadcast fogadásakor — mert a csapatok anonim
+(`anon`) kliensek, és eredetileg nem volt rájuk anon insert policy.
 
-- A csapatok anonim (`anon`) kliensek — a `team_joker_uses`-en nincs
-  anon insert policy, csak `select` (hogy a saját kliensük betöltéskor el
-  tudja dönteni, inaktívvá kell-e tenni a gombot). Ha a csapat kliense
-  írhatna, egy manipulált kliens tetszőlegesen sokszor "aktiválhatná" a
-  jokerét — a host-oldali írás a `role_id in (1,2,3)` RLS mögé teszi ezt.
-- **Ismert korlát:** ez megköveteli, hogy a host böngészője éppen aktívan
-  csatlakozva legyen a csatornához, amikor a joker_activate megérkezik —
-  ha a host lapja épp nincs nyitva/csatlakozva, az adott aktiválás
-  elveszik. Egy élő, jelenlévő kvízmesterrel futó pub-kvíz estén ez
-  elfogadható kockázat (a host a teljes lebonyolítás alatt amúgy is a
-  `/host/[game_id]` oldalon van); ha valaha megbízhatóbbá kellene tenni,
-  egy szerver-oldali (Edge Function / Postgres trigger a broadcast helyett
-  egy `insert`-en) megoldás váltaná ki ezt a mintát.
+Élő tesztelés (Fázis O4, lásd `docs/DECISIONS_LOG.md` és
+`docs/features/scoring.md` "Fázis O4" szakasza) kimutatta, hogy ez a
+minta egy valódi hibát okozott: a host-közvetített írás egy hálózati
+kör-utazásos versenyhelyzetet (csapat → Supabase Realtime → host → DB
+insert) vitt be a pontszámítás elé — ha a host gyorsan zárt/tárt fel egy
+kérdést, vagy a broadcast késett/elveszett, a `team_joker_uses` sor még
+nem létezett, amikor `evaluate_question()` lefutott, és a szorzó nem
+érvényesült. A korábban itt dokumentált "ismert korlát" (host offline =
+elveszett aktiválás) ugyanennek a tervezési hibának egy másik tünete volt.
+
+**A jelenlegi megoldás:** a csapat kliense közvetlenül, szinkron ír a
+`team_joker_uses`-be — ugyanaz a bizalmi modell, mint az
+`answers_insert_anon_active_game` policy-nál (`device_token`-alapú
+azonosítás, nem kriptográfiailag ellenőrzött tulajdonlás; a projekt már
+dokumentált, elfogadott kompromisszuma egy ~40 fős baráti eseményhez, nem
+új kockázat). Az új `team_joker_uses_insert_anon_active_game` RLS policy
+(`supabase/migrations/20260808135500_joker_direct_insert.sql`) csak akkor
+engedi be a sort, ha a csapat estéje `'active'`, ÉS a beszúrt
+`question_id` egyezik a `games.current_question_id`-vel — egy manipulált
+kliens így sem tud tetszőleges kérdésre utólag/előre jokert aktiválni.
 
 ## Kliens oldali állapot
 
@@ -66,39 +74,35 @@ const { data: uses } = await supabase
 ```
 
 Ha van találat, a "Duplázás" gomb nem jelenik meg. Aktiváláskor a kliens
-optimistán (a host visszaigazolása nélkül) eltünteti a gombot — a tényleges
-DB-írás a host oldalán, aszinkron történik:
+**megvárja** a saját beszúrását, mielőtt a gombot eltünteti — nem
+optimista UI, mert a beszúrás maga a forrás igazsága (nincs már
+host-közvetítés, amit "meg kellene várni"):
 
 ```ts
-await channel.send({
-	type: 'broadcast',
-	event: 'joker_activate',
-	payload: { team_id, question_id, joker_type: 'double_points' }
+const { error } = await supabase.from('team_joker_uses').insert({
+	team_id,
+	question_id,
+	joker_type: 'double_points'
 });
-```
-
-A host (`/host/[game_id]`) a csatornára feliratkozva fogadja ezt, és
-beírja a `team_joker_uses`-be:
-
-```ts
-channel.on('broadcast', { event: 'joker_activate' }, async ({ payload }) => {
-	await supabase.from('team_joker_uses').insert({
-		team_id: payload.team_id,
-		question_id: payload.question_id,
-		joker_type: payload.joker_type
+if (error) {
+	// hibaüzenet a csapatnak, a gomb marad aktív — újrapróbálható
+} else {
+	jokerUsed = true;
+	// a broadcast már csak a host UI-visszajelzésének szól
+	await channel.send({
+		type: 'broadcast',
+		event: 'joker_activate',
+		payload: { team_id, question_id, joker_type: 'double_points' }
 	});
-});
+}
 ```
 
-Az `unique (team_id, joker_type)` constraint miatt egy második aktiválási
-kísérlet a beszúráskor hibát adna — ezt a host oldal jelenleg csendben
-figyelmen kívül hagyja (a kliens úgyis csak egyszer küldi, mivel a gomb
-eltűnik az első aktiválás után).
+A host (`/host/[game_id]`) a csatornára feliratkozva fogadja a
+broadcast-ot, de már **nem ír** a `team_joker_uses`-be — csak egy
+állapot-üzenetet jelenít meg ("Joker aktiválva egy csapat által.") és
+lejátssza a joker hangeffektet.
 
-## Mi hiányzik még (Fázis 5)
-
-- A tényleges pontszorzás: `joker_szorzó = 2, ha a csapat használt jokert
-erre a question_id-ra` — az `evaluate_answer` Edge Function fogja
-  kiszámolni, `left join team_joker_uses`-szel.
-- Vizuális visszajelzés a csapatnak, hogy a jokerük ténylegesen rögzült-e
-  (jelenleg csak optimista, host-oldali megerősítés nélküli UI van).
+Az `unique (team_id, joker_type)` constraint továbbra is garantálja DB-
+szinten, hogy egy csapat egy joker-típusból csak egyszer élhet — egy
+második aktiválási kísérlet a beszúráskor hibát adna, amit a kliens most
+már ténylegesen felismer és jelez (lásd fent), nem csendben elnyel.

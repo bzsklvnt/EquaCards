@@ -55,6 +55,7 @@
 	let submitted = $state(false);
 	let submitError = $state('');
 	let jokerUsed = $state(false);
+	let jokerError = $state('');
 
 	let selectedOptionId = $state<string | null>(null);
 	let selectedOptionIds = $state<string[]>([]);
@@ -135,6 +136,7 @@
 		roundLeaderboard = null;
 		submitted = false;
 		submitError = '';
+		jokerError = '';
 		timerInfo = null;
 	}
 
@@ -344,8 +346,32 @@
 
 	async function activateJoker() {
 		if (!joined || !currentQuestion || jokerUsed || locked) return;
+
+		// Fázis O4 — korábban a csapat csak broadcastolt, és a HOST írta be a
+		// team_joker_uses sort a beérkező esemény alapján; ez egy hálózati
+		// kör-utazásos versenyhelyzetet vitt be a pontszámítás elé (ha a host
+		// gyorsan zárt/tárt fel, vagy a broadcast késett, a sor még nem
+		// létezett evaluate_question() lefutásakor, és a szorzó nem
+		// érvényesült). A csapat kliense mostantól szinkron, közvetlenül ír
+		// (ugyanaz a bizalmi modell, mint az answers_insert_anon_active_game
+		// policy-nál) — mire ez a hívás visszatér, a sor garantáltan létezik.
+		const { error } = await data.supabase.from('team_joker_uses').insert({
+			team_id: joined.teamId,
+			question_id: currentQuestion.question_id,
+			joker_type: 'double_points'
+		});
+
+		if (error) {
+			jokerError = 'Nem sikerült aktiválni a jokert, próbáld újra.';
+			return;
+		}
+
 		jokerUsed = true;
+		jokerError = '';
 		playJokerActivate();
+
+		// A broadcast megmarad, de mostantól csak a host UI-visszajelzésére
+		// szolgál ("Joker aktiválva egy csapat által."), nem az adatírásra.
 		await channel?.send({
 			type: 'broadcast',
 			event: 'joker_activate',
@@ -516,6 +542,9 @@
 				{#if !jokerUsed}
 					<div class="joker-wrap">
 						<Button onclick={activateJoker}>Duplázás 🃏</Button>
+						{#if jokerError}
+							<p class="error">{jokerError}</p>
+						{/if}
 					</div>
 				{/if}
 			{/if}

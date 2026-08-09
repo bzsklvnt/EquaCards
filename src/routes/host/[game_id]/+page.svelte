@@ -8,7 +8,6 @@
 		QuestionShowPayload,
 		TimerStartPayload,
 		QuestionRevealPayload,
-		JokerActivatePayload,
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload
 	} from '$lib/realtime/protocol';
@@ -196,15 +195,14 @@
 			teams = Object.values(state).flat();
 		});
 
-		channel.on('broadcast', { event: 'joker_activate' }, async ({ payload }) => {
-			const p = payload as JokerActivatePayload;
-			const { error } = await data.supabase
-				.from('team_joker_uses')
-				.insert({ team_id: p.team_id, question_id: p.question_id, joker_type: p.joker_type });
-			if (!error) {
-				statusMessage = `Joker aktiválva egy csapat által.`;
-				playJokerActivate();
-			}
+		// Fázis O4 — a team_joker_uses beszúrását mostantól a csapat kliense
+		// végzi közvetlenül, szinkron módon (docs/features/scoring.md) — ez a
+		// broadcast itt már csak a host UI-visszajelzésére szolgál, nem
+		// adatírásra (a korábbi host-oldali insert versenyhelyzetet vitt be
+		// a pontszámítás elé).
+		channel.on('broadcast', { event: 'joker_activate' }, () => {
+			statusMessage = `Joker aktiválva egy csapat által.`;
+			playJokerActivate();
 		});
 
 		channel.subscribe((status) => {

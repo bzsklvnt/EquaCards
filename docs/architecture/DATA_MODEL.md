@@ -354,10 +354,13 @@ Vagyis ha egy admin által dupla pontosra állított kérdésen a csapat még a 
   a Fázis 3 `teams` RLS-ben is előfordult, csak ott Fázis 4-ig
   észrevétlen maradt — javítva:
   `supabase/migrations/20260808113233_fix_anon_rls_gaps.sql`.
-- **`team_joker_uses`:** `anon` csak olvashat (hogy a saját kliense el
-  tudja dönteni, elhasználta-e már a jokerét), a beszúrást a host végzi a
-  `joker_activate` broadcast fogadásakor — részletek:
-  `docs/features/jokers.md`.
+- **`team_joker_uses`:** `anon` olvashat (hogy a saját kliense el tudja
+  dönteni, elhasználta-e már a jokerét) ÉS — Fázis O4 óta, lásd
+  `docs/features/scoring.md` "Fázis O4" szakasza — közvetlenül be is
+  szúrhat, a saját estéjéhez/aktuális kérdéséhez kötve. (Eredetileg a
+  beszúrást a host végezte a `joker_activate` broadcast fogadásakor, de
+  ez élesben egy versenyhelyzetet okozott a pontszámítás előtt — javítva.)
+  Részletek: `docs/features/jokers.md`.
 - **Fázis 2 hiba javítva:** a host (`role_id = 3`) eddig egyáltalán nem
   fért hozzá a kérdésbankhoz (`questions`/opció-táblák/`round_questions`/
   `themes`/`question_types`), pedig a DATA_MODEL.md 1. szakasza szerint
@@ -539,18 +542,18 @@ execute ... from public` **önmagában nem** veszi el az `anon`/
 
 **Feszültségkeltés miatt (jellemzően 3 kör egy estén) az összesített pontszám NEM látszik folyamatosan.** Kérdésenként csak a saját csapat pontja jelenik meg (`question_reveal`), a rangsor csak **kör végén, csak a top 3-mal**, a teljes, mindenkit tartalmazó végeredmény pedig csak az **utolsó kör top 3-a után**, a játék legvégén.
 
-| Esemény                    | Küldő       | Payload                                                                                           | Kliens teendő                                                                          |
-| -------------------------- | ----------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `team_joined`              | csapat      | `{team_id, name}`                                                                                 | host: lobby lista frissítése                                                           |
-| `game_started`             | host        | `{}`                                                                                              | csapatok: lobby → várakozó képernyő                                                    |
-| `question_show`            | host        | `{question_id, question_type, round_title, prompt, options/config, order_index, total_questions}` | csapatok: típus-specifikus válaszfelület renderelése                                   |
-| `timer_start`              | host        | `{question_id, duration, server_start_time}`                                                      | csapatok: lokális visszaszámlálás                                                      |
-| `joker_activate`           | csapat      | `{team_id, question_id, joker_type}`                                                              | host: rögzíti `team_joker_uses`-be, visszajelzés a csapatnak (siker/már felhasznált)   |
-| `answer_locked`            | host / auto | `{question_id}`                                                                                   | csapatok: input letiltása                                                              |
-| `question_reveal`          | host        | `{question_id, correct_answer, points_awarded}`                                                   | csapatok: helyes válasz + **csak a saját** kapott pontszám — nincs benne rangsor       |
-| `round_leaderboard_reveal` | host        | `{round_id, round_title, top3: [{team_id, name, round_score, rank}]}`                             | mindenki (TV is): a **kör végén** csak a kör-specifikus top 3, nem az össz-pontszám    |
-| `final_leaderboard_reveal` | host        | `{standings: [{team_id, name, total_score, rank}]}`                                               | mindenki: a **teljes, végleges** rangsor, mindenkivel, csak az utolsó kör top 3-a után |
-| `game_finished`            | host        | `{}`                                                                                              | csapatok: végeredmény képernyőn marad, játék lezárva                                   |
+| Esemény                    | Küldő       | Payload                                                                                           | Kliens teendő                                                                                                    |
+| -------------------------- | ----------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `team_joined`              | csapat      | `{team_id, name}`                                                                                 | host: lobby lista frissítése                                                                                     |
+| `game_started`             | host        | `{}`                                                                                              | csapatok: lobby → várakozó képernyő                                                                              |
+| `question_show`            | host        | `{question_id, question_type, round_title, prompt, options/config, order_index, total_questions}` | csapatok: típus-specifikus válaszfelület renderelése                                                             |
+| `timer_start`              | host        | `{question_id, duration, server_start_time}`                                                      | csapatok: lokális visszaszámlálás                                                                                |
+| `joker_activate`           | csapat      | `{team_id, question_id, joker_type}`                                                              | csapat: közvetlenül beszúrja a `team_joker_uses`-be (Fázis O4); a broadcast csak a host UI-visszajelzésének szól |
+| `answer_locked`            | host / auto | `{question_id}`                                                                                   | csapatok: input letiltása                                                                                        |
+| `question_reveal`          | host        | `{question_id, correct_answer, points_awarded}`                                                   | csapatok: helyes válasz + **csak a saját** kapott pontszám — nincs benne rangsor                                 |
+| `round_leaderboard_reveal` | host        | `{round_id, round_title, top3: [{team_id, name, round_score, rank}]}`                             | mindenki (TV is): a **kör végén** csak a kör-specifikus top 3, nem az össz-pontszám                              |
+| `final_leaderboard_reveal` | host        | `{standings: [{team_id, name, total_score, rank}]}`                                               | mindenki: a **teljes, végleges** rangsor, mindenkivel, csak az utolsó kör top 3-a után                           |
+| `game_finished`            | host        | `{}`                                                                                              | csapatok: végeredmény képernyőn marad, játék lezárva                                                             |
 
 **Kör-specifikus top 3 lekérdezése** (nem igényel új oszlopot, a meglévő `round_questions` kapcsolatból számolható):
 
