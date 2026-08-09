@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { untrack } from 'svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -10,12 +11,37 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let newRoundTitle = $state('');
-	let drawThemeId = $state('');
-	let drawCount = $state('8');
+
+	// Fázis O6 — a téma-választás este-szintű (egyszer választod ki, minden
+	// kör ugyanabból húz), a darabszám marad körönkénti — lásd a
+	// ?/drawAll action jegyzetét a +page.server.ts-ben.
+	let globalThemeId = $state('');
+	let roundCounts = $state<Record<string, string>>(
+		untrack(() => Object.fromEntries(data.rounds.map((r) => [r.id, '8'])))
+	);
+	// Új kör felvételekor (?/addRound) a data.rounds bővül, de a roundCounts
+	// csak a komponens indulásakor lett feltöltve — ez pótolja az azóta
+	// felvett körök hiányzó alapértékét.
+	$effect(() => {
+		for (const round of data.rounds) {
+			if (!(round.id in roundCounts)) {
+				roundCounts[round.id] = '8';
+			}
+		}
+	});
+	const roundsJson = $derived(
+		JSON.stringify(
+			data.rounds.map((r) => ({
+				round_id: r.id,
+				title: r.title,
+				count: Number(roundCounts[r.id] ?? 8)
+			}))
+		)
+	);
 
 	let addingRound = $state(false);
 	let deletingRoundId = $state<string | null>(null);
-	let drawingRoundId = $state<string | null>(null);
+	let drawingAll = $state(false);
 	let removingKey = $state<string | null>(null);
 </script>
 
@@ -43,6 +69,27 @@
 	<Button type="submit" loading={addingRound}>+ Kör hozzáadása</Button>
 </form>
 
+{#if data.rounds.length > 0}
+	<form
+		method="POST"
+		action="?/drawAll"
+		use:enhance={withToast({
+			successMessage: 'Kérdések betöltve minden körbe.',
+			setSubmitting: (v) => (drawingAll = v)
+		})}
+		class="draw-all-form"
+	>
+		<Select label="Téma (minden körhöz)" name="theme_id" bind:value={globalThemeId} required>
+			<option value="">— válassz témát —</option>
+			{#each data.themes as theme (theme.id)}
+				<option value={theme.id}>{theme.title}</option>
+			{/each}
+		</Select>
+		<input type="hidden" name="rounds_json" value={roundsJson} />
+		<Button type="submit" loading={drawingAll}>Kérdések betöltése minden körbe</Button>
+	</form>
+{/if}
+
 {#each data.rounds as round (round.id)}
 	<section class="round">
 		<div class="round-header">
@@ -62,25 +109,9 @@
 			</form>
 		</div>
 
-		<form
-			method="POST"
-			action="?/draw"
-			use:enhance={withToast({
-				successMessage: 'Kérdések kihúzva.',
-				setSubmitting: (v) => (drawingRoundId = v ? round.id : null)
-			})}
-			class="draw-form"
-		>
-			<input type="hidden" name="round_id" value={round.id} />
-			<Select label="Téma" name="theme_id" bind:value={drawThemeId} required>
-				<option value="">— válassz témát —</option>
-				{#each data.themes as theme (theme.id)}
-					<option value={theme.id}>{theme.title}</option>
-				{/each}
-			</Select>
-			<Input label="Darabszám" type="number" name="count" bind:value={drawCount} min="1" max="20" />
-			<Button type="submit" loading={drawingRoundId === round.id}>Random húzás</Button>
-		</form>
+		<div class="round-count">
+			<Input label="Darabszám" type="number" bind:value={roundCounts[round.id]} min="1" max="20" />
+		</div>
 
 		<ol>
 			{#each data.roundQuestions[round.id] ?? [] as rq (rq.question_id)}
@@ -149,12 +180,21 @@
 		align-items: center;
 	}
 
-	.draw-form {
+	.draw-all-form {
 		display: flex;
 		gap: 1rem;
 		align-items: flex-end;
 		flex-wrap: wrap;
-		margin: 1rem 0;
+		background: var(--cabinet-2);
+		border: 2px solid var(--violet);
+		border-radius: 0.75rem;
+		padding: 1rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.round-count {
+		max-width: 10rem;
+		margin: 0.75rem 0;
 	}
 
 	ol {

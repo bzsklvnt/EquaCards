@@ -80,31 +80,44 @@ export const actions: Actions = {
 		}
 	},
 
-	draw: async ({ request, locals: { supabase } }) => {
+	// Fázis O6 — a korábbi, körönkénti "válassz témát + Random húzás"
+	// munkafolyamatot egyetlen, este-szintű téma-választó + egy összesített
+	// gomb váltja fel; ez az action egy hívásban megy végig minden érintett
+	// körön (a random húzás/cooldown lekérdezés maga változatlan, csak a
+	// UI-triggerelés lett körönkéntiből egyetlen gombra vonva).
+	drawAll: async ({ request, locals: { supabase } }) => {
 		const formData = await request.formData();
-		const roundId = formData.get('round_id') as string;
 		const themeId = formData.get('theme_id') as string;
-		const count = Number(formData.get('count')) || 8;
+		const roundsJson = formData.get('rounds_json') as string;
 
 		if (!themeId) {
 			return fail(400, { error: 'Válassz témát a húzáshoz.' });
 		}
 
-		const { data, error } = await supabase.rpc('draw_random_questions_for_round', {
-			p_theme_id: themeId,
-			p_round_id: roundId,
-			p_count: count
-		});
-
-		if (error) {
-			return fail(400, { error: error.message });
+		let roundsPayload: { round_id: string; title: string; count: number }[];
+		try {
+			roundsPayload = JSON.parse(roundsJson);
+		} catch {
+			return fail(400, { error: 'Hibás kör-adat, próbáld újra.' });
 		}
 
-		if (!data || data.length === 0) {
-			return fail(400, {
-				error:
-					'Nincs elérhető kérdés ebben a témában — lehet, hogy mindegyik cooldown alatt van, vagy már mind szerepel ebben a körben.'
+		const errors: string[] = [];
+		for (const { round_id, title, count } of roundsPayload) {
+			const { data, error } = await supabase.rpc('draw_random_questions_for_round', {
+				p_theme_id: themeId,
+				p_round_id: round_id,
+				p_count: count
 			});
+
+			if (error) {
+				errors.push(`"${title}" kör: ${error.message}`);
+			} else if (!data || data.length === 0) {
+				errors.push(`"${title}" kör: nincs elérhető kérdés ebben a témában.`);
+			}
+		}
+
+		if (errors.length > 0) {
+			return fail(400, { error: errors.join(' ') });
 		}
 	},
 

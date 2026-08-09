@@ -39,9 +39,43 @@ belül `current_user_role_id() in (1,2)`-re ellenőrizve), ami:
    meglévő `order_index`-e után folytatva a sorszámozást.
 5. Visszaadja a beszúrt `questions` sorokat.
 
-Az admin felület (`/admin/games/[id]`) körönként hívja ezt egy téma- és
-darabszám-választóval; a visszatérő kérdések azonnal megjelennek a kör
-listájában, eltávolítás gombbal.
+A függvény maga változatlan, csak a UI-triggerelés változott (Fázis O6,
+lásd lent) — körönkéntiből egy este-szintű, összesített gombra.
+
+## UI munkafolyamat (Fázis O6 — este-szintű téma-választó)
+
+Élő tesztelés jelezte, hogy a korábbi, körönkénti "válassz témát ÉS
+darabszámot, majd nyomd meg a Random húzást" munkafolyamat lassú volt
+egy több körös este összeállításánál (minden kör ugyanabból a témából
+húz jellemzően). Az `/admin/games/[id]` mostantól:
+
+1. **Egyetlen, este-szintű téma-választó** az oldal tetején (nem
+   körönként) — `?/drawAll` action `theme_id` mezője.
+2. **Minden kör megtartja a saját "Darabszám" mezőjét** (kliens-oldali
+   `roundCounts` state, körönként, nem küldődik önállóan formán
+   keresztül — a "Kérdések betöltése minden körbe" gomb formájába egy
+   rejtett `rounds_json` mezőben (`[{round_id, title, count}, ...]`)
+   szerializálódik beküldéskor, mert a Darabszám mezők a DOM-ban NEM a
+   `<form>` leszármazottai — a kör-kártyák és a fejlécben lévő form
+   vizuálisan/logikailag szét vannak választva).
+3. **Egyetlen "Kérdések betöltése minden körbe" gomb** — a `?/drawAll`
+   action egy hívásban végigmegy a `rounds_json`-ból kapott összes
+   körön, mindegyikre külön meghívja a fenti
+   `draw_random_questions_for_round`-ot a globális témával és a kör
+   saját darabszámával. Ha egy adott körhöz nincs elérhető kérdés
+   (cooldown/kimerült pool), a hibaüzenet megnevezi, melyik kör("ök")
+   érintett(ek), nem csak egy generikus hibát ad.
+4. A körönkénti, egyedi témájú húzás lehetősége ezzel **megszűnt** — ha
+   egy este különböző témájú köröket igényelne, az admin egymás után,
+   más-más témával is futtathatja a "betöltés minden körbe" gombot.
+   **Fontos:** egy már megtöltött körre újra futtatva a gombot a
+   `draw_random_questions_for_round` NEM cseréli/tölti fel a meglévő
+   `count`-ra, hanem **további** `count` darab, még be nem szúrt
+   kérdést ad hozzá a meglévők mellé (a 2. pont "ismétlődő húzásnál nem
+   duplikál" logikája csak az egyedi kérdés-ismétlődést zárja ki, nem a
+   végösszeget korlátozza) — ha egy adott kör véglegesen csak a
+   megadott darabszámot tartalmazza, azt az admin a felesleges
+   kérdések "Eltávolítás" gombjával tudja kézzel véglegesíteni.
 
 ## Admin felület
 

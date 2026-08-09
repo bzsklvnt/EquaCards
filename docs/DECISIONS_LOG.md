@@ -1352,3 +1352,32 @@ Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` — komponens-táblázat
 átírva (a `/admin` + `/reports` közös leírással és a route-group
 alternatíva elvetésének indoklásával), új bekezdés a `box-sizing`
 javításról.
+
+---
+
+## 2026-08-08 — Fázis O6: Kvízeste-összeállítás — este-szintű téma-választó
+
+Az `/admin/games/[id]` korábbi munkafolyamata körönként külön téma- ÉS
+darabszám-választót, majd külön "Random húzás" gombot igényelt — élő
+tesztelés jelezte, hogy ez lassú egy több körös este összeállításánál,
+ahol jellemzően minden kör ugyanabból a témából húz.
+
+Átalakítva: egy este-szintű téma-választó az oldal tetején, minden kör
+megtartja a saját "Darabszám" mezőjét, és egyetlen "Kérdések betöltése
+minden körbe" gomb (`?/drawAll` action) egy hívásban megy végig az
+összes körön. A kliens-oldali `roundCounts` state körönként tárolja a
+darabszámot; mivel a Darabszám mezők a DOM-ban nem az összesítő
+`<form>` leszármazottai (a kör-kártyák külön blokkban vannak), a
+beküldéskor egy rejtett `rounds_json` mezőben JSON-ként szerializálódik
+az összes `{round_id, title, count}` — a szerver ezen iterál, körönként
+meghívva a változatlan `draw_random_questions_for_round` RPC-t. Hiba
+esetén a válasz megnevezi, melyik kör(ök) érintett(ek).
+
+**Dokumentált mellékhatás:** egy már megtöltött körre újra futtatva a
+gombot a random húzás **hozzáad**, nem cserél/tölt fel a megadott
+darabszámra (a "nem duplikál" logika csak az egyedi kérdés-ismétlődést
+zárja ki) — ha ez nem kívánt, az admin a meglévő "Eltávolítás" gombbal
+tudja kézzel véglegesíteni egy kör tartalmát.
+
+Dokumentáció: `docs/features/random-draw.md` új "UI munkafolyamat
+(Fázis O6)" szakasz.
