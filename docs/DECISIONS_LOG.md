@@ -1180,3 +1180,36 @@ aszinkron műveletre kötelező elvárás, a fenti minták szerint.
 
 **Ezzel a `PROJECT_REVIEW.md` élő teszteléséből eredő mind az öt N-fázis
 (N1–N5) lezárva.**
+
+---
+
+## 2026-08-08 — Fázis O1: Timer — automatikus indítás, láthatóság, lezárás
+
+Élő játékmenet tesztelésből három konkrét timer-hiba, mindhárom javítva:
+
+1. **A `/host/[game_id]` felület soha nem jelenítette meg a `TimerRing`-et**
+   — a host csak _küldte_ a `timer_start`/`answer_locked` eseményeket,
+   sosem figyelt rájuk saját magán, és nem is volt hozzá helyi
+   `timerInfo`/`secondsLeft` state. Pótolva: pontosan ugyanaz a
+   `$effect`-alapú helyi számolási minta, mint `/play`/`/tv`-n.
+2. **Külön "Timer indítása" gomb megszűnt.** A `showNextQuestion()` és a
+   korábbi, önálló `startTimer()` egyetlen függvénybe olvadt — a
+   `question_show` broadcast után **ugyanabban a hívásban** azonnal
+   elindul a timer is (`games.current_question_started_at`/
+   `duration_seconds` írás + `timer_start` broadcast), nincs köztes
+   állapot. A `uiStep` állapotgép `'shown'` értéke ezzel megszűnt (soha
+   nem állt volna meg ott). Melléktermékként egy felesleges DB-lekérdezés
+   is eltűnt: a régi `startTimer()` újra lekérdezte a
+   `time_limit_seconds`-ot, holott a `showNextQuestion()` már betöltötte
+   ugyanazt a kérdés-sort.
+3. **`answer_locked` után a timer vizuálisan a képernyőn ragadt** (a
+   lejáráskori, jellemzően pulzáló piros "low" állapotban) mindhárom
+   felületen — kiderült, hogy a **TV soha nem is figyelt** az
+   `answer_locked` eseményre (nem volt hozzá kézlő). Mindhárom felület
+   (`/host` a meglévő `uiStep === 'locked'`-del, `/play` és `/tv` egy új
+   `locked` boolean-nel) most egy explicit "Lezárva" feliratra cseréli a
+   `TimerRing`-et lezáráskor, ahelyett hogy a régi számláló-állapot
+   látszódna tovább.
+
+Dokumentáció: `docs/features/timer.md` új "Fázis O1" alszakasz (5.
+pont, a korábbi "Vizuális szinkron ellenőrzése" szakasz 6.-ra tolva).

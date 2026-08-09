@@ -6,6 +6,7 @@
 	import type {
 		PresenceTeam,
 		QuestionShowPayload,
+		TimerStartPayload,
 		QuestionRevealPayload,
 		JokerActivatePayload,
 		RoundLeaderboardRevealPayload,
@@ -18,6 +19,7 @@
 	import PinDisplay from '$lib/components/PinDisplay.svelte';
 	import TeamChip from '$lib/components/TeamChip.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
+	import TimerRing from '$lib/components/TimerRing.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
@@ -43,8 +45,10 @@
 	let questionTypes = $state<{ id: number; code: string }[]>([]);
 	let roundQuestions = $state<RoundQuestionRow[]>([]);
 	let uiStep = $state<
-		'idle' | 'shown' | 'timing' | 'locked' | 'revealed' | 'round_summary' | 'final_summary'
+		'idle' | 'timing' | 'locked' | 'revealed' | 'round_summary' | 'final_summary'
 	>('idle');
+	let timerInfo = $state<TimerStartPayload | null>(null);
+	let secondsLeft = $state(0);
 	let statusMessage = $state('');
 	let submissionCount = $state(0);
 	let roundTop3 = $state<RoundLeaderboardRevealPayload['top3']>([]);
@@ -66,6 +70,24 @@
 			progress.current = null;
 			progress.total = null;
 		}
+	});
+
+	// Fázis O1 — a host korábban egyáltalán nem jelenítette meg a
+	// visszaszámlálót; ugyanaz a helyi-óra minta, mint a /play és /tv
+	// felületeken (docs/architecture/DATA_MODEL.md 5. szakasz).
+	$effect(() => {
+		if (!timerInfo) {
+			secondsLeft = 0;
+			return;
+		}
+		const endTime = new Date(timerInfo.server_start_time).getTime() + timerInfo.duration * 1000;
+
+		const tick = () => {
+			secondsLeft = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+		};
+		tick();
+		const interval = setInterval(tick, 250);
+		return () => clearInterval(interval);
 	});
 
 	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — a games.design_theme_id
@@ -311,20 +333,13 @@
 		};
 
 		await channel?.send({ type: 'broadcast', event: 'question_show', payload });
-		uiStep = 'shown';
 		statusMessage = '';
-	}
 
-	async function startTimer() {
-		const current = roundQuestions[currentIndex];
-		if (!current) return;
-		const { data: question } = await data.supabase
-			.from('questions')
-			.select('time_limit_seconds')
-			.eq('id', current.question_id)
-			.single();
-
-		const duration = question?.time_limit_seconds ?? 30;
+		// Fázis O1 — a timer korábban egy külön "Timer indítása" gombra várt;
+		// mostantól a kérdés megjelenítésével egy menetben, azonnal indul.
+		// A duration-t a fenti kérdés-lekérdezésből újrahasznosítjuk, nem kell
+		// külön DB kör-utazás érte.
+		const duration = question.time_limit_seconds ?? 30;
 		const serverStartTime = new Date().toISOString();
 
 		// A games sorba is beírjuk (nem csak broadcast-oljuk) a timer
@@ -332,15 +347,15 @@
 		// (answer_within_timer, Fázis L) ezt olvassa a szerver-oldali
 		// "a válasz a duration-on belül érkezett-e" ellenőrzéshez — egy
 		// kliens-oldali óra-manipuláció így nem tud extra időt "lopni".
-		const { error } = await data.supabase
+		const { error: timerError } = await data.supabase
 			.from('games')
 			.update({
 				current_question_started_at: serverStartTime,
 				current_question_duration_seconds: duration
 			})
 			.eq('id', game.id);
-		if (error) {
-			statusMessage = error.message;
+		if (timerError) {
+			statusMessage = timerError.message;
 			return;
 		}
 
@@ -348,11 +363,12 @@
 			type: 'broadcast',
 			event: 'timer_start',
 			payload: {
-				question_id: current.question_id,
+				question_id: next.question_id,
 				duration,
 				server_start_time: serverStartTime
 			}
 		});
+		timerInfo = { question_id: next.question_id, duration, server_start_time: serverStartTime };
 		uiStep = 'timing';
 	}
 
@@ -414,6 +430,7 @@
 		};
 		await channel?.send({ type: 'broadcast', event: 'question_reveal', payload });
 		uiStep = 'revealed';
+		timerInfo = null;
 		playReveal();
 	}
 
@@ -568,6 +585,16 @@
 			</ArcadePanel>
 		{/if}
 
+		{#if uiStep === 'timing' || uiStep === 'locked'}
+			<div class="timer-wrap">
+				{#if uiStep === 'locked'}
+					<p class="locked-label">Lezárva</p>
+				{:else}
+					<TimerRing {secondsLeft} duration={timerInfo?.duration ?? 0} />
+				{/if}
+			</div>
+		{/if}
+
 		<p class="submissions">Beérkezett válaszok: {submissionCount} / {teams.length}</p>
 
 		<div class="controls">
@@ -575,8 +602,6 @@
 				{#if currentIndex + 1 < roundQuestions.length}
 					<Button onclick={showNextQuestion}>Következő kérdés</Button>
 				{/if}
-			{:else if uiStep === 'shown'}
-				<Button onclick={startTimer}>Timer indítása</Button>
 			{:else if uiStep === 'timing'}
 				<Button onclick={lockAnswers}>Zárás most</Button>
 			{:else if uiStep === 'locked'}
@@ -676,6 +701,18 @@
 	.submissions {
 		color: var(--marquee-dim);
 		font-size: 0.875rem;
+	}
+
+	.timer-wrap {
+		display: flex;
+		justify-content: center;
+		margin-top: 1rem;
+	}
+
+	.locked-label {
+		font-family: var(--font-display);
+		font-size: 0.9rem;
+		color: var(--danger);
 	}
 
 	.controls {

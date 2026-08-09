@@ -33,6 +33,7 @@
 	let currentQuestion = $state<QuestionShowPayload | null>(null);
 	let timerInfo = $state<TimerStartPayload | null>(null);
 	let secondsLeft = $state(0);
+	let locked = $state(false);
 	let revealInfo = $state<QuestionRevealPayload | null>(null);
 	let roundLeaderboard = $state<RoundLeaderboardRevealPayload | null>(null);
 	let finalLeaderboard = $state<FinalLeaderboardRevealPayload | null>(null);
@@ -67,12 +68,17 @@
 		channel.on('broadcast', { event: 'question_show' }, ({ payload }) => {
 			currentQuestion = payload as QuestionShowPayload;
 			timerInfo = null;
+			locked = false;
 			revealInfo = null;
 			roundLeaderboard = null;
 		});
 
 		channel.on('broadcast', { event: 'timer_start' }, ({ payload }) => {
 			timerInfo = payload as TimerStartPayload;
+		});
+
+		channel.on('broadcast', { event: 'answer_locked' }, () => {
+			locked = true;
 		});
 
 		channel.on('broadcast', { event: 'question_reveal' }, ({ payload }) => {
@@ -184,7 +190,11 @@
 		{/key}
 		{#if timerInfo}
 			<div class="timer-wrap">
-				<TimerRing {secondsLeft} duration={timerInfo.duration} size={200} />
+				{#if locked}
+					<p class="locked-label">Lezárva</p>
+				{:else}
+					<TimerRing {secondsLeft} duration={timerInfo.duration} size={200} />
+				{/if}
 			</div>
 		{/if}
 	{:else if gameStatus === 'lobby'}
@@ -263,6 +273,12 @@
 		display: flex;
 		justify-content: center;
 		margin-top: 1rem;
+	}
+
+	.locked-label {
+		font-family: var(--font-display);
+		font-size: clamp(1rem, 2.5vw, 1.5rem);
+		color: var(--danger);
 	}
 
 	.lobby :global(.pin-panel) {

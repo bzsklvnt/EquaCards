@@ -416,7 +416,11 @@
 			{/key}
 			{#if timerInfo}
 				<div class="timer-wrap">
-					<TimerRing {secondsLeft} duration={timerInfo.duration} />
+					{#if locked}
+						<p class="locked-label">Lezárva</p>
+					{:else}
+						<TimerRing {secondsLeft} duration={timerInfo.duration} />
+					{/if}
 				</div>
 			{/if}
 
@@ -568,6 +572,12 @@
 		display: flex;
 		justify-content: center;
 		margin: 1rem 0;
+	}
+
+	.locked-label {
+		font-family: var(--font-display);
+		font-size: 0.9rem;
+		color: var(--danger);
 	}
 
 	.options {

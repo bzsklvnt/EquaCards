@@ -112,7 +112,35 @@ nem biztonsági rés — javítása (pl. a `games` sor közvetlen lekérdezése
 csatlakozáskor a `current_question_started_at`/`duration` visszanyeréséhez)
 egy jövőbeli finomítás, nem MVP-blokkoló.
 
-## 5. Vizuális szinkron ellenőrzése három böngészőfülön
+## 5. Fázis O1 — élő tesztelésből: hiányzó host-timer, automatikus indítás, "lezárva" állapot
+
+Élő böngészős teszt három konkrét hibát talált a fenti mechanizmusban:
+
+1. **A `/host/[game_id]` felület egyáltalán nem jelenítette meg a
+   `TimerRing`-et**, és nem is figyelt a `timer_start`/`answer_locked`
+   eseményekre saját magán — csak elküldte őket. A host most a `/play`/`/tv`
+   felületekkel megegyező mintát követi: saját `timerInfo`/`secondsLeft`
+   state, ugyanaz a helyi `$effect`-alapú számolás, `TimerRing` renderelve
+   a kérdés-kártya alatt.
+2. **Külön "Timer indítása" gomb volt** a "Következő kérdés" és a timer
+   tényleges elindítása között — ez felesleges, hibalehetőséget adó extra
+   lépés volt (a host elfelejtheti megnyomni). A `showNextQuestion()` és a
+   korábbi `startTimer()` egy függvénybe olvadt: a `question_show`
+   broadcast elküldése után **azonnal**, ugyanabban a hívásban indul a
+   timer (a `games.current_question_started_at`/`duration_seconds` írása +
+   a `timer_start` broadcast) — nincs köztes UI-állapot, amiben a kérdés
+   már látszik, de a timer még nem fut. Ezzel a `uiStep` állapotgép
+   `'shown'` értéke is megszűnt (soha nem állt volna meg ott).
+3. **`answer_locked` után a `TimerRing` hibásan a képernyőn maradt**,
+   lefagyva a lejáráskori (jellemzően "low", pulzáló piros) állapotban —
+   mindhárom felületen (`/host`, `/play/[pin]`, `/tv`) most egy explicit
+   `locked` állapot (host-on a meglévő `uiStep === 'locked'`, play/tv-n új
+   `locked` boolean, ami a TV-n korábban egyáltalán nem is létezett — a TV
+   sosem figyelt az `answer_locked` eseményre) egy egyértelmű "Lezárva"
+   feliratra cseréli a gyűrűt, ahelyett hogy a régi számláló-állapot
+   látszódna tovább.
+
+## 6. Vizuális szinkron ellenőrzése három böngészőfülön
 
 A sandbox HTTPS-blokkolása miatt (lásd `docs/DECISIONS_LOG.md` korábbi
 fázisai) ez a session nem tud három egyidejű böngészőfület nyitni a
