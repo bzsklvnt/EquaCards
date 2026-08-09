@@ -1615,3 +1615,61 @@ Csak host/TV — a csapatok (`/play`) saját telefonján változatlan maradt
 az egyszerű saját-eredmény visszajelzés.
 
 Dokumentáció: `docs/features/reveal-animations.md` (új fájl).
+
+---
+
+## 2026-08-09 — Fázis P7: TV kérdés-megjelenítés egységesítése a játékos-nézettel
+
+A `/tv/[game_id]` a kérdés élő fázisában (`timing`/`locked`) eddig
+kizárólag a promptot mutatta — az opciókat/csúszkát/sorrendező listát
+egyáltalán nem, miközben a csapatok `/play` oldala ugyanerre a kérdésre
+már a teljes, típus szerinti válasz-UI-t mutatta.
+
+Új `src/lib/components/QuestionAnswerDisplay.svelte` — NEM interaktív
+komponens, a `/play` `.options`/`.slider`/`.ordering` blokkjaival azonos
+vizuális elrendezéssel (a megosztott `ChoiceButton`-t is felhasználva),
+csak nagy kijelzőre méretezve és `disabled` állapotban. Egyszerű
+choice-grid (`ChoiceButton`, kijelölés/helyesség nélkül), csúszka
+(letiltott range input, min/max feliratokkal a végein), sorrendező lista
+(egyszerű számozott lista, drag nélkül).
+
+Ez egy KÜLÖN komponens marad a Fázis P6-ban épült
+`QuestionRevealVisual`-tól — eltérő céllal (élő, döntetlen állapot vs.
+feltárás utáni, helyesség-jelölt + animált állapot), de ugyanazt a
+`ChoiceButton` alapkomponenst használva mindkettő.
+
+Szándékosan csak a TV kapta meg ezt — a host UI-ja vezérlő-központú
+marad, az opciók a host oldalon csak a feltáráskor jelennek meg (Fázis
+P6).
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "TV kérdés-
+megjelenítés egységesítése a játékos-nézettel (Fázis P7)" szakasz.
+
+---
+
+## 2026-08-09 — "Sürgősségi javítások — 3. kör" (P1–P7) lezárva
+
+Mind a 7 fázis (P1–P7) elkészült, ellenőrizve (`npm run check`/`lint`/
+`build`), commitolva és pusholva a `claude/pub-kviz-app-setup-q9uje2`
+branch-re. Rövid összefoglaló:
+
+- **P1**: admin sidebar belső görgetés (`position: sticky` + `100dvh`) +
+  reszponzív re-audit (nem talált új hibát a sidebaron kívül).
+- **P2**: timer szinkron-csúszás — a host `broadcast: { self: true }`-t
+  kapott, a saját `timer_start`-jának vételekor állítja be az óráját, nem
+  a `send()` visszatérésekor (ugyanazt a kézbesítési késleltetést kapja,
+  mint a `/play`/`/tv`).
+- **P3**: automatikus lezárás + feltárás (idő lejártakor VAGY minden
+  csapat beküldésekor) — a kézi gombok megmaradtak tartaléknak.
+- **P4**: csapat újracsatlakozás — új `current_question_state` RPC adja
+  vissza a szerver-oldali, hiteles állapotot (a device_token/localStorage
+  csak azonosít, sosem forrás).
+- **P5**: globális design téma választó a Beállításokban + minden
+  felület reaktívan, reload nélkül alkalmazza a téma-váltást.
+- **P6**: megoldás-feltárás vizuális feldúsítása host/TV-n (helyes
+  opció kiemelés, csúszka-animáció, FLIP sorrendezés).
+- **P7**: TV kérdés-megjelenítés egységesítve a játékos-nézettel az élő
+  fázisban is.
+
+Nincs a P1–P7 listából szándékosan kihagyott elem, a P4-es opcionális
+localStorage-gyorsítás kivételével (indoklás: `docs/features/team-reconnect.md`).

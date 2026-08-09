@@ -20,6 +20,7 @@
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import QuestionRevealVisual from '$lib/components/QuestionRevealVisual.svelte';
+	import QuestionAnswerDisplay from '$lib/components/QuestionAnswerDisplay.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -231,6 +232,15 @@
 					</p>
 					<p class="prompt">{currentQuestion.prompt}</p>
 				</ArcadePanel>
+				<!-- Fázis P7 — a kérdés-prompt ÉS az opciók/csúszka/sorrendező
+				     lista is ugyanabban a formátumban jelenik meg, mint a
+				     csapatok /play oldalán (docs/features/tv-mode.md). -->
+				<QuestionAnswerDisplay
+					questionType={currentQuestion.question_type}
+					options={currentQuestion.options}
+					slider={currentQuestion.slider}
+					orderingItems={currentQuestion.ordering_items}
+				/>
 			</div>
 		{/key}
 		{#if timerInfo}

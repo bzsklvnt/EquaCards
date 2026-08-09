@@ -458,3 +458,47 @@ felületet érint, ahol `Button`-t használnak. A csúszka thumb-ja
 
 Dokumentáció-frissítés minden érintett helyen: `docs/design/STYLE_GUIDE.html`
 (`.btn.primary` háttér + `min-height`/`min-width` a mirror CSS-ben is).
+
+## TV kérdés-megjelenítés egységesítése a játékos-nézettel (Fázis P7)
+
+**A probléma:** a `/tv/[game_id]` a kérdés élő fázisában (`timing`/`locked`)
+eddig KIZÁRÓLAG a promptot mutatta (`ArcadePanel` + `<p class="prompt">`)
+— az opciókat, a csúszkát, a sorrendező listát egyáltalán nem jelenítette
+meg, miközben a csapatok `/play` oldala ugyanerre a kérdésre már a
+kérdés-típusnak megfelelő teljes válasz-UI-t mutatta. A TV nézőknek
+(akik a saját telefonjukon válaszoló csapatokat nézik) nem volt vizuális
+támpontjuk arról, MILYEN opciók/tartomány/elemek közül választanak a
+csapatok.
+
+**A megoldás — `QuestionAnswerDisplay.svelte`** (`src/lib/components/`):
+egy új, NEM interaktív komponens, ami a `/play/[pin]` `.options`/`.slider`/
+`.ordering` blokkjaival azonos vizuális elrendezést ad, csak nagy
+kijelzőre méretezve (`clamp()`-alapú fluid tipográfia, nagyobb padding) és
+letiltott (`disabled`) állapotban — a TV-n nincs érintés/kattintás, a
+csapatok a saját telefonjukon válaszolnak, ez a nézet tisztán
+demonstratív. Konkrétan:
+
+- **`single_choice`/`multi_choice`/`true_false`**: a megosztott
+  `ChoiceButton`-nal (ugyanaz a komponens, mint a `/play`-en), `disabled`
+  állapotban, kijelölés/helyesség-jelzés nélkül (az még nem dőlt el —
+  ez a `timing`/`locked` fázis, nem a feltárás).
+- **`slider`**: egy letiltott `<input type="range">`, a tartomány
+  közepén álló thumb-bal, a `min_value`/`max_value` felirattal a két
+  végén (nincs "aktuális érték" felirat, mert még senki nem választott
+  konkrét számot ezen a nézeten).
+- **`ordering`**: egyszerű, számozott `<ol>` a kevert kiinduló
+  sorrenddel (nincs drag-and-drop, csak megjelenítés).
+
+**Tudatos scope-határ**: a TV megoldás-feltárás vizuálja
+(`QuestionRevealVisual.svelte`, Fázis P6) egy KÜLÖN, saját komponens marad
+— nem lett összevonva a `QuestionAnswerDisplay`-jel, mert eltérő a
+céljuk: az utóbbi a KÉRDÉS ideje alatti, semleges/döntetlen állapotot
+mutatja (senki válasza nem ismert még), az előbbi a FELTÁRÁS utáni,
+helyesség-jelölt + animált állapotot. A két komponens közösen fedi le a
+kérdés teljes életciklusát a TV-n, ugyanazzal a `ChoiceButton`
+alapkomponenssel, csak eltérő `correct`/`disabled` állapotokkal.
+
+A host felület a kérdés ÉLŐ fázisában szándékosan **nem** kapta meg
+ugyanezt (a P7 terv kifejezetten csak a TV-t célozza) — a host UI-ja
+vezérlő-központú marad, az opciók/csúszka/sorrend a host oldalon
+egyelőre csak a megoldás-feltáráskor jelenik meg (Fázis P6).
