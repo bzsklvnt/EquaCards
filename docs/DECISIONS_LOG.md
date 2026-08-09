@@ -1483,3 +1483,36 @@ az (elkerülhetetlen) kézbesítési késleltetést kapja, tehát relatív
 szinkronban indul.
 
 Dokumentáció: `docs/features/timer.md` új "7. Fázis P2" szakasz.
+
+---
+
+## 2026-08-09 — Fázis P3: automatikus lezárás + megoldás-feltárás
+
+Eddig a host-nak kézzel kellett megnyomnia a "Zárás most" majd a
+"Megoldás feltárása" gombot minden kérdésnél. Két automatikus trigger
+került be a `/host/[game_id]/+page.svelte`-be, mindkettő a `lockAnswers()`
+
+- `revealAnswer()` egymás utáni, egy menetben történő lefuttatásával
+  (nincs külön, látható "csak lezárva" köztes állapot):
+
+1. **Lejár az idő** — a host saját `secondsLeft`-je (a P2-ben javított
+   számítás) 0-t ér el `'timing'` állapotban.
+2. **Minden csapat beküldött, mielőtt lejárt volna az idő** — a
+   `submissionCount` (Fázis O2 élő számláló) eléri a `teams.length`-et
+   `'timing'` állapotban.
+
+Egyetlen `$effect` figyeli mindkét feltételt, egy `autoAdvanceTriggered`
+flag-gel védve az egyszeri lefutást kérdésenként. A host kézi "Zárás
+most"/"Megoldás feltárása" gombjai változatlanul elérhetők maradnak
+technikai problémák esetére.
+
+**Mellékesen javított korrektség-hiba:** a `submissionCount`-ot számláló
+`$effect` eddig csak az async lekérdezés megérkezésekor nullázott —
+enélkül az előző kérdés végleges értéke egy pillanatra átcsúszhatott
+volna az újra, és tévesen kiválthatta volna az automatikus lezárást.
+Mostantól szinkron nullázás történik kérdésváltáskor, az async
+lekérdezés elindítása előtt.
+
+Dokumentáció: `docs/architecture/REALTIME_PROTOCOL.md` új "Automatikus
+lezárás és feltárás (Fázis P3)" szakasz az `answer_locked`/
+`question_reveal` események alatt.

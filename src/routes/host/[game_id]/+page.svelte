@@ -89,6 +89,38 @@
 		return () => clearInterval(interval);
 	});
 
+	// Fázis P3 — a kör két esetben záruljon és táruljon fel automatikusan,
+	// host-interakció nélkül: (1) lejár az idő, (2) minden csapat beküldte
+	// a választ, mielőtt az idő lejárt volna. A `triggered` flag
+	// biztosítja, hogy csak egyszer fusson le kérdésenként — az effect a
+	// `secondsLeft` 250ms-os ketyegése és a `submissionCount` élő
+	// frissülése miatt is újra és újra lefut, amíg 'timing' állapotban
+	// vagyunk, de a flag miatt a lock+reveal csak az első teljesülő
+	// feltételnél indul el. A host kézi "Zárás most"/"Megoldás feltárása"
+	// gombjai változatlanul elérhetők maradnak (pl. technikai probléma
+	// esetére) — ez az automatika csak egy plusz, alapértelmezett út.
+	let autoAdvanceTriggered = $state(false);
+
+	$effect(() => {
+		if (uiStep !== 'timing') {
+			autoAdvanceTriggered = false;
+			return;
+		}
+		if (autoAdvanceTriggered) return;
+
+		const timeUp = timerInfo !== null && secondsLeft <= 0;
+		const allAnswered = teams.length > 0 && submissionCount >= teams.length;
+		if (!timeUp && !allAnswered) return;
+
+		autoAdvanceTriggered = true;
+		autoLockAndReveal();
+	});
+
+	async function autoLockAndReveal() {
+		await lockAnswers();
+		await revealAnswer();
+	}
+
 	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — a games.design_theme_id
 	// alapján feloldott token-készlet a gyökér elemre kerül inline style-ként.
 	$effect(() => {
@@ -130,6 +162,12 @@
 			submissionCount = 0;
 			return;
 		}
+
+		// Fázis P3 — szinkron nullázás, mielőtt az új darabszám lekérdezése
+		// (alant) megérkezne: az előző kérdés végleges (esetleg
+		// "mindenki válaszolt") értéke enélkül egy pillanatra átcsúszna az
+		// új kérdésre, és tévesen kiválthatná az automatikus lezárást.
+		submissionCount = 0;
 
 		data.supabase
 			.from('answers')

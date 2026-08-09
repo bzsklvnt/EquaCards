@@ -102,16 +102,18 @@ duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
 - **Kliens teendő:** host — beírja a `team_joker_uses`-be. Részletek:
   `docs/features/jokers.md`.
 
-### `answer_locked` (Fázis 4)
+### `answer_locked` (Fázis 4, automatikus trigger: Fázis P3)
 
-- **Küldő:** host, "Zárás most" gomb (korai, a timer lejárta előtti zárás).
+- **Küldő:** host, "Zárás most" gomb (kézi, korai zárás), VAGY
+  automatikusan (lásd "Automatikus lezárás és feltárás" lent).
 - **Payload:** `{question_id}`
 - **Kliens teendő:** csapat — input letiltása (ha még nem tiltotta le a
   saját helyi visszaszámlálása).
 
-### `question_reveal` (Fázis 4)
+### `question_reveal` (Fázis 4, automatikus trigger: Fázis P3)
 
-- **Küldő:** host, "Megoldás feltárása" gomb.
+- **Küldő:** host, "Megoldás feltárása" gomb (kézi), VAGY automatikusan
+  (lásd "Automatikus lezárás és feltárás" lent).
 - **Payload** (`QuestionRevealPayload`):
   ```ts
   {
@@ -134,6 +136,41 @@ duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
 - **Kliens teendő:** csapat — helyes válasz megjelenítése, majd a
   `team_answer_result` válasza alapján saját helyes/helytelen + pontszám
   kiírása.
+
+#### Automatikus lezárás és feltárás (Fázis P3)
+
+Korábban a host-nak kézzel kellett megnyomnia a "Zárás most" majd a
+"Megoldás feltárása" gombot minden kérdésnél. `/host/[game_id]/+page.svelte`
+mostantól két esetben automatikusan, host-interakció nélkül végigviszi
+mindkét lépést (`lockAnswers()` majd rögtön `revealAnswer()`, tehát nincs
+külön, látható "csak lezárva" köztes állapot):
+
+1. **Lejár az idő** — a host saját `secondsLeft`-je (a P2-ben javított,
+   `timer_start` broadcast-ra feliratkozó számítás) eléri a 0-t, amíg
+   `uiStep === 'timing'`.
+2. **Minden csapat beküldött, mielőtt lejárt volna az idő** — a
+   `submissionCount` (élő számláló, Fázis O2, `postgres_changes` az
+   `answers` táblán) eléri a `teams.length`-et (presence-alapú, élő
+   csapatlista), amíg `uiStep === 'timing'`.
+
+Mindkét feltételt egyetlen `$effect` figyeli, egy `autoAdvanceTriggered`
+flag-gel védve, hogy csak egyszer induljon el kérdésenként (az effect a
+`secondsLeft` 250ms-os ketyegése és a `submissionCount` élő frissülése
+miatt gyakran újrafut, amíg `'timing'` állapotban vagyunk). A flag minden
+`uiStep !== 'timing'` állapotban (tehát minden új kérdés kezdetekor)
+visszaáll `false`-ra.
+
+**A host kézi "Zárás most"/"Megoldás feltárása" gombjai változatlanul
+elérhetők maradnak** — ha a host korábban, kézzel zár/tár fel (pl.
+technikai probléma miatt), az normálisan kilép a `'timing'` állapotból, az
+automatika nem fut le másodszor.
+
+**Fontos korrektség-részlet:** a `submissionCount`-ot számláló `$effect`
+mostantól szinkron módon 0-ra állítja a számlálót minden kérdésváltáskor,
+mielőtt az új darabszám async lekérdezése megérkezne — enélkül az előző
+kérdés végleges (esetleg "mindenki válaszolt") értéke egy pillanatra
+átcsúszhatott volna az új kérdésre, és tévesen kiválthatta volna az
+automatikus lezárást, mielőtt bárki válaszolt volna az újra.
 
 ### `round_leaderboard_reveal` (Fázis 5)
 
