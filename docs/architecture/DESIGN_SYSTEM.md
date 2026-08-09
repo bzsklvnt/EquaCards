@@ -245,8 +245,9 @@ class="admin-content">`-ba — duplikált landmark. Mind a 10 érintett
 - `/play/[pin]`: `TimerRing` a szöveges visszaszámláló helyett,
   `ChoiceButton` az egy-/több-választós opciógomboknál, `PodiumCard` mindkét
   ranglista-nézetnél (kör és végeredmény), `Input`/`Button` a csatlakozási
-  űrlapnál. A csúszka (`<input type="range">`) és a sorrendező lista
-  (drag-and-drop `<li>`-k) szándékosan natív maradt — lásd fent.
+  űrlapnál. A csúszka (`<input type="range">`) szándékosan natív maradt.
+  A sorrendező lista drag-and-drop-ja Fázis O3-ban `svelte-dnd-action`-re
+  cserélve — lásd "Új függőség (Fázis O3)" alább.
 - `/tv/[game_id]`: `PinDisplay` a lobby PIN/QR/join-URL blokknál,
   `TeamChip` a csatlakozott csapatok listájánál, `PodiumCard` mindkét
   ranglista-nézetnél, `TimerRing` a nagy kijelzős visszaszámlálónál
@@ -260,15 +261,30 @@ class="admin-content">`-ba — duplikált landmark. Mind a 10 érintett
   eddig az egyetlen oldal volt, ami nem ezt a mintát követte.
 - `/`: `Button` a kijelentkezés gombnál.
 
-A joker-gomb (`/play/[pin]`) megtartotta a saját, `--coin`/`--danger`
-színkombinációját — ezt egy `.joker-wrap :global(.btn)` CSS felülírás adja
-a megosztott `Button` primary variánsára, mert ez egyetlen, kifejezetten
-figyelemfelkeltő elem, nem ér meg egy önálló `Button`-variánst.
+A joker-gomb (`/play/[pin]`) megtartotta a saját színkombinációját — ezt egy
+`.joker-wrap :global(.btn)` CSS felülírás adja a megosztott `Button` primary
+variánsára, mert ez egyetlen, kifejezetten figyelemfelkeltő elem, nem ér
+meg egy önálló `Button`-variánst. (A tényleges színpár — `--coin`/`--danger`
+→ `--magenta`/`--violet` gradiens — Fázis N3-ban frissült, lásd a
+Szín-szerepek táblázat "Fázis N3" jegyzetét.)
 
 Minden fájl `npm run check` (0 hiba/figyelmeztetés) és `npm run lint` +
 `npm run build` ellenőrzéssel lezárva. Élő böngészős vizuális
 ellenőrzés — a sandbox HTTPS-blokkolása miatt — továbbra sem történt itt;
 ez a felhasználó feladata.
+
+### Új függőség (Fázis O3)
+
+`svelte-dnd-action` — a sorrendbe állítás (`ordering`) kérdéstípus
+drag-and-drop-ja korábban natív HTML5 `draggable`/`dragstart`/`drop`
+eseményekkel volt megoldva, ami **kizárólag desktop egérrel működik** —
+touch-eszközön (a csapatok kivétel nélkül telefonon játszanak) a
+`dragstart` esemény sosem tüzelt el, tehát élesben a sorrendezés
+gyakorlatilag használhatatlan volt mobilon. A `svelte-dnd-action`
+pointer-eseményeket használ belül, ami touch-on is helyesen viselkedik,
+és a Svelte 5 peer dependency-t is támogatja (`^5.0.0-next.0`). A
+billentyűzetes nyíl fel/le sorrendezés (akadálymentességi okból, a
+könyvtár ezt nem adja natívan) megmaradt kiegészítő útvonalként.
 
 ## Kontraszt és fókusz-konvenciók (Fázis J)
 

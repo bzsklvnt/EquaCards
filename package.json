@@ -44,6 +44,7 @@
 		"canvas-confetti": "^1.9.4",
 		"chart.js": "^4.5.1",
 		"qrcode": "^1.5.4",
+		"svelte-dnd-action": "^0.9.78",
 		"svelte-sonner": "^1.1.1"
 	},
 	"lint-staged": {

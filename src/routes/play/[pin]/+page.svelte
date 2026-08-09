@@ -21,6 +21,8 @@
 		playLeaderboard
 	} from '$lib/audio/sfx';
 	import { fireWinnerConfetti } from '$lib/effects/confetti';
+	import { dndzone } from 'svelte-dnd-action';
+	import type { DndEvent } from 'svelte-dnd-action';
 	import ChoiceButton from '$lib/components/ChoiceButton.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
@@ -58,7 +60,6 @@
 	let selectedOptionIds = $state<string[]>([]);
 	let sliderValue = $state(0);
 	let orderedItems = $state<{ id: string; item_text: string }[]>([]);
-	let dragIndex = $state<number | null>(null);
 	let joinName = $state('');
 	let joining = $state(false);
 	let connectionStatus = $state<'connected' | 'reconnecting' | 'disconnected'>('connected');
@@ -262,13 +263,27 @@
 		}
 	}
 
-	function reorder(from: number | null, to: number) {
-		if (from === null || from === to) return;
+	// Nyíl fel/le billentyűs sorrendezés — a svelte-dnd-action nem ad
+	// beépített billentyűzet-támogatást, ez a kiegészítő útvonal marad
+	// akadálymentességi okból (docs/architecture/DESIGN_SYSTEM.md
+	// "Fókusz és akadálymentesség" szakasza).
+	function reorder(from: number, to: number) {
+		if (from === to) return;
 		const copy = [...orderedItems];
 		const [moved] = copy.splice(from, 1);
 		copy.splice(to, 0, moved);
 		orderedItems = copy;
-		dragIndex = null;
+	}
+
+	// Fázis O3 — a korábbi natív HTML5 drag-and-drop (draggable/dragstart/
+	// drop) desktop egérrel működött, de touch-eszközön (minden csapat
+	// telefonon játszik) egyáltalán nem tüzelt. A svelte-dnd-action pointer
+	// eseményeket használ, ami touch-on is helyesen viselkedik.
+	function handleDndConsider(e: CustomEvent<DndEvent<{ id: string; item_text: string }>>) {
+		orderedItems = e.detail.items;
+	}
+	function handleDndFinalize(e: CustomEvent<DndEvent<{ id: string; item_text: string }>>) {
+		orderedItems = e.detail.items;
 	}
 
 	async function submitAnswer() {
@@ -461,18 +476,21 @@
 						<p class="slider-value">{sliderValue}</p>
 					</div>
 				{:else if currentQuestion.question_type === 'ordering'}
-					<ol class="ordering" role="listbox" aria-label="Sorrendezés">
+					<ol
+						class="ordering"
+						role="listbox"
+						aria-label="Sorrendezés"
+						use:dndzone={{ items: orderedItems, flipDurationMs: 200 }}
+						onconsider={handleDndConsider}
+						onfinalize={handleDndFinalize}
+					>
 						{#each orderedItems as item, i (item.id)}
 							<li
 								role="option"
 								aria-selected="false"
-								draggable="true"
 								tabindex="0"
 								aria-label="{item.item_text} — {i +
-									1}. / {orderedItems.length}. Nyíl fel/le a mozgatáshoz."
-								ondragstart={() => (dragIndex = i)}
-								ondragover={(e) => e.preventDefault()}
-								ondrop={() => reorder(dragIndex, i)}
+									1}. / {orderedItems.length}. Húzd át a sorrend módosításához, vagy nyíl fel/le billentyűkkel."
 								onkeydown={(e) => {
 									if (e.key === 'ArrowUp' && i > 0) {
 										e.preventDefault();
@@ -635,6 +653,10 @@
 		background: var(--cabinet-2);
 		color: var(--marquee);
 		cursor: grab;
+		/* Fázis O3 — touch-action: none nélkül a böngésző alapértelmezett
+		   görgetés-gesztusa versenyez a svelte-dnd-action pointer-alapú
+		   drag-figyelésével mobilon, és a húzás megszakadhat. */
+		touch-action: none;
 	}
 
 	.ordering li:focus-visible {

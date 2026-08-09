@@ -1240,3 +1240,27 @@ sem a kód, sem az RLS nem jelez előre — érdemes minden jövőbeli
 
 Dokumentáció: `docs/architecture/REALTIME_PROTOCOL.md` "Postgres Changes"
 szakasz kiegészítve a gyökérokkal és a módszertani tanulsággal.
+
+---
+
+## 2026-08-08 — Fázis O3: Sorrendbe állítás — drag-and-drop touch-eszközön
+
+A "Sorrendbe állítás" kérdéstípus sorrendezője natív HTML5 drag-and-drop
+API-t használt (`draggable`, `ondragstart`, `ondragover`, `ondrop`) — ez
+**kizárólag desktop egérrel működik**, touch-eszközön a `dragstart`
+esemény sosem tüzel el. Mivel a `/play/[pin]` felület kizárólag telefonon
+használatos, ez élesben ténylegesen "nincs drag-and-drop"-nak tűnt, még
+ha a kód szintjén létezett is egy (nem működő) implementáció.
+
+Csere `svelte-dnd-action`-re (a task saját ajánlása is ez volt) — pointer
+eseményeket használ belül, touch-kompatibilis, Svelte 5 peer dependency
+támogatással. A billentyűzetes nyíl fel/le sorrendezés megmaradt
+kiegészítő útvonalként (a könyvtár ezt nem adja natívan, akadálymentességi
+okból fontos megtartani). CSS-oldalon `touch-action: none` került a
+sorrendező elemekre, hogy a böngésző alapértelmezett görgetés-gesztusa ne
+versenyezzen a pointer-alapú húzással mobilon.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Új függőség (Fázis
+O3)" alszakasz, két stale hivatkozás javítva ugyanitt (a sorrendező lista
+korábbi "natív maradt" jegyzete, és a joker-gomb elavult `--coin`/
+`--danger` színpár-hivatkozása, ami Fázis N3 óta `--magenta`/`--violet`).
