@@ -344,6 +344,19 @@
 		submitted = true;
 	}
 
+	// Fázis O7 — single_choice/true_false-nál nincs külön "Beküldés" lépés:
+	// koppintás = azonnali beküldés. A rövid késleltetés kizárólag a
+	// ChoiceButton `pulse` animációjának ad időt lefutni, mielőtt a UI a
+	// "submitted" nézetre vált — a submitAnswer() maga a selectedOptionId-t
+	// a hívás pillanatában olvassa ki, tehát a késleltetés nélkül is helyes
+	// adatot küldene, ez tisztán vizuális visszajelzés.
+	async function selectAndSubmit(optionId: string) {
+		if (!currentQuestion || submitted || locked) return;
+		selectedOptionId = optionId;
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		await submitAnswer();
+	}
+
 	async function activateJoker() {
 		if (!joined || !currentQuestion || jokerUsed || locked) return;
 
@@ -476,7 +489,8 @@
 							<ChoiceButton
 								text={option.option_text}
 								selected={selectedOptionId === option.id}
-								onclick={() => (selectedOptionId = option.id)}
+								pulse={selectedOptionId === option.id}
+								onclick={() => selectAndSubmit(option.id)}
 							/>
 						{/each}
 					</div>
@@ -537,7 +551,9 @@
 					<p class="error">{submitError}</p>
 				{/if}
 
-				<Button onclick={submitAnswer}>Válasz elküldése</Button>
+				{#if currentQuestion.question_type !== 'single_choice' && currentQuestion.question_type !== 'true_false'}
+					<Button onclick={submitAnswer}>Válasz elküldése</Button>
+				{/if}
 
 				{#if !jokerUsed}
 					<div class="joker-wrap">

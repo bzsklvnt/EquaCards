@@ -104,6 +104,31 @@ Két konkrét "villanás" (flash of unstyled content) esetet azonosítottunk
   ható szöveg villant fel. Új ág: amíg `roundQuestions.length === 0` és
   `game.status === 'active'`, "Kérdések betöltése…" jelenik meg helyette.
 
+## 6. Válaszbeküldés típusonként (Fázis O7)
+
+Élő tesztelés jelezte, hogy a "koppints, majd nyomj egy külön Beküldés
+gombot" kétlépéses folyamat feleslegesen lassítja a leggyakoribb,
+legegyszerűbb kérdéstípusokat. A beküldési viselkedés mostantól
+kérdéstípusonként eltér:
+
+- **`single_choice` / `true_false`**: **azonnali beküldés** koppintáskor
+  — nincs külön "Válasz elküldése" gomb, a `ChoiceButton` `onclick`-ja
+  közvetlenül `selectAndSubmit(optionId)`-t hív. A csapat egy rövid
+  (`0.3s`) kiemelés/pulzálás animációt lát a megkoppintott gombon
+  (`ChoiceButton` új `pulse` prop-ja — `prefers-reduced-motion: reduce`
+  esetén kikapcsolva), majd `200ms` múlva a UI a "Válasz elküldve, várj
+  a többiekre…" nézetre vált. A `200ms` késleltetés **tisztán vizuális**
+  — a `submitAnswer()` a `selectedOptionId`-t a hívás pillanatában
+  olvassa ki, tehát a válasz adattartalma a késleltetés nélkül is
+  helyes lenne, ez csak időt ad a pulzálásnak láthatóvá válni, mielőtt
+  a nézet átvált.
+- **`multi_choice` / `slider` / `ordering`**: **változatlanul explicit
+  beküldés** marad (a "Válasz elküldése" gomb csak ezeknél a
+  típusoknál jelenik meg) — itt több lépés/finomítás történik a
+  végleges válasz előtt (több opció kiválasztása, csúszka pontosítása,
+  sorrend véglegesítése), egy koppintásra/módosításra való azonnali
+  beküldés itt véletlen, korai válaszbeküldéshez vezetne.
+
 ## Módszertani megjegyzés
 
 A sandbox HTTPS-blokkolása miatt (lásd `docs/DECISIONS_LOG.md` korábbi

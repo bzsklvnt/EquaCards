@@ -1381,3 +1381,30 @@ tudja kézzel véglegesíteni egy kör tartalmát.
 
 Dokumentáció: `docs/features/random-draw.md` új "UI munkafolyamat
 (Fázis O6)" szakasz.
+
+---
+
+## 2026-08-09 — Fázis O7: Azonnali válaszbeküldés single_choice/true_false-nál
+
+Élő tesztelés jelezte, hogy a "koppints, majd nyomj egy külön Beküldés
+gombot" kétlépéses folyamat feleslegesen lassítja a leggyakoribb,
+legegyszerűbb kérdéstípusokat. A `/play/[pin]` beküldési viselkedése
+mostantól kérdéstípusonként eltér:
+
+- **`single_choice` / `true_false`**: azonnali beküldés koppintáskor —
+  a `ChoiceButton onclick`-ja közvetlenül `selectAndSubmit(optionId)`-t
+  hív, a "Válasz elküldése" gomb ezeknél a típusoknál el van rejtve. A
+  `ChoiceButton` új `pulse` propja egy rövid (`0.3s`) kiemelés/
+  pulzálás animációt ad a megkoppintott gombra
+  (`prefers-reduced-motion: reduce` esetén kikapcsolva), majd `200ms`
+  múlva a UI a "Válasz elküldve" nézetre vált. A `200ms` késleltetés
+  tisztán vizuális — a `submitAnswer()` a `selectedOptionId`-t a hívás
+  pillanatában olvassa ki, a válasz adattartalma a késleltetés nélkül
+  is helyes lenne, ez csak időt ad a pulzálásnak láthatóvá válni.
+- **`multi_choice` / `slider` / `ordering`**: változatlanul explicit
+  beküldés marad — itt több lépés/finomítás történik a végleges válasz
+  előtt, egy koppintásra/módosításra való azonnali beküldés véletlen,
+  korai válaszbeküldéshez vezetne.
+
+Dokumentáció: `docs/features/game-experience-polish.md` új "6.
+Válaszbeküldés típusonként (Fázis O7)" szakasz.
