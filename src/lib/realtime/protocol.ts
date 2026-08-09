@@ -47,6 +47,14 @@ export type QuestionRevealPayload = {
 	// kérdezi le a saját pontját ugyanerre a question_id-ra, a reveal
 	// beérkezésekor. Lásd docs/architecture/REALTIME_PROTOCOL.md.
 	correct_answer: string;
+	// Fázis P6 — a host/TV megoldás-feltárás vizuális feldúsításához
+	// (a csapatok saját telefonján marad az egyszerű, szöveges
+	// correct_answer visszajelzés, ezeket a mezőket a /play NEM használja).
+	// Reveal-kor (nem előtte) már biztonságosan nyilvános adat — pontosan
+	// egy mező töltött ki a kérdés típusától függően:
+	correct_option_ids?: string[]; // single_choice | multi_choice | true_false
+	correct_value?: number; // slider
+	correct_order?: { id: string; item_text: string }[]; // ordering
 };
 
 export type RoundLeaderboardRevealPayload = {

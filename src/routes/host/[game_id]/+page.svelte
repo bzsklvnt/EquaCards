@@ -22,6 +22,7 @@
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
+	import QuestionRevealVisual from '$lib/components/QuestionRevealVisual.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -52,6 +53,12 @@
 	let submissionCount = $state(0);
 	let roundTop3 = $state<RoundLeaderboardRevealPayload['top3']>([]);
 	let finalStandings = $state<FinalLeaderboardRevealPayload['standings']>([]);
+	// Fázis P6 — a host is megtartja a saját maga által elküldött
+	// question_show payload-ot, hogy a megoldás-feltáráskor meg tudja
+	// jeleníteni az opciókat/csúszkát/sorrendező listát (korábban a host
+	// felület egyáltalán nem jelenítette meg ezeket, csak a promptot).
+	let currentQuestion = $state<QuestionShowPayload | null>(null);
+	let revealInfo = $state<QuestionRevealPayload | null>(null);
 
 	let currentIndex = $derived(
 		roundQuestions.findIndex((q) => q.question_id === game.current_question_id)
@@ -382,6 +389,8 @@
 
 		await channel?.send({ type: 'broadcast', event: 'question_show', payload });
 		statusMessage = '';
+		currentQuestion = payload;
+		revealInfo = null;
 
 		// Fázis O1 — a timer korábban egy külön "Timer indítása" gombra várt;
 		// mostantól a kérdés megjelenítésével egy menetben, azonnal indul.
@@ -447,17 +456,22 @@
 
 		const code = typeCode(current.question_type_id);
 		let correctAnswer = '';
+		let correctOptionIds: string[] | undefined;
+		let correctValue: number | undefined;
+		let correctOrder: { id: string; item_text: string }[] | undefined;
 
 		if (code === 'single_choice' || code === 'multi_choice' || code === 'true_false') {
 			const { data: options } = await data.supabase
 				.from('question_choice_options')
-				.select('option_text, is_correct')
+				.select('id, option_text, is_correct')
 				.eq('question_id', current.question_id)
 				.order('order_index');
-			correctAnswer = (options ?? [])
-				.filter((o) => o.is_correct)
-				.map((o) => o.option_text)
-				.join(', ');
+			const correctOptions = (options ?? []).filter((o) => o.is_correct);
+			correctAnswer = correctOptions.map((o) => o.option_text).join(', ');
+			// Fázis P6 — csak reveal-kor kerül ki, melyik opció(k) helyesek
+			// (a currentQuestion.options-ban, amit a csapatok is látnak,
+			// szándékosan nincs is_correct — lásd protocol.ts).
+			correctOptionIds = correctOptions.map((o) => o.id);
 		} else if (code === 'slider') {
 			const { data: config } = await data.supabase
 				.from('question_slider_config')
@@ -465,22 +479,28 @@
 				.eq('question_id', current.question_id)
 				.single();
 			correctAnswer = String(config?.correct_value ?? '');
+			correctValue = config?.correct_value ?? undefined;
 		} else if (code === 'ordering') {
 			const { data: items } = await data.supabase
 				.from('question_ordering_items')
-				.select('item_text, correct_position')
+				.select('id, item_text, correct_position')
 				.eq('question_id', current.question_id)
 				.order('correct_position');
 			correctAnswer = (items ?? []).map((i) => i.item_text).join(' → ');
+			correctOrder = (items ?? []).map((i) => ({ id: i.id, item_text: i.item_text }));
 		}
 
 		const payload: QuestionRevealPayload = {
 			question_id: current.question_id,
-			correct_answer: correctAnswer
+			correct_answer: correctAnswer,
+			correct_option_ids: correctOptionIds,
+			correct_value: correctValue,
+			correct_order: correctOrder
 		};
 		await channel?.send({ type: 'broadcast', event: 'question_reveal', payload });
 		uiStep = 'revealed';
 		timerInfo = null;
+		revealInfo = payload;
 		playReveal();
 	}
 
@@ -643,6 +663,20 @@
 					<TimerRing {secondsLeft} duration={timerInfo?.duration ?? 0} />
 				{/if}
 			</div>
+		{/if}
+
+		{#if uiStep === 'revealed' && currentQuestion && revealInfo}
+			{#key revealInfo.question_id}
+				<QuestionRevealVisual
+					questionType={currentQuestion.question_type}
+					options={currentQuestion.options}
+					slider={currentQuestion.slider}
+					orderingItems={currentQuestion.ordering_items}
+					correctOptionIds={revealInfo.correct_option_ids}
+					correctValue={revealInfo.correct_value}
+					correctOrder={revealInfo.correct_order}
+				/>
+			{/key}
 		{/if}
 
 		<p class="submissions">Beérkezett válaszok: {submissionCount} / {teams.length}</p>

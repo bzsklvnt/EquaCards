@@ -19,6 +19,7 @@
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
+	import QuestionRevealVisual from '$lib/components/QuestionRevealVisual.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -205,7 +206,21 @@
 	{:else if revealInfo}
 		<div class="screen" in:fade={{ duration: 250 }}>
 			<h2>Helyes válasz</h2>
-			<p class="answer">{revealInfo.correct_answer}</p>
+			{#if currentQuestion}
+				{#key revealInfo.question_id}
+					<QuestionRevealVisual
+						questionType={currentQuestion.question_type}
+						options={currentQuestion.options}
+						slider={currentQuestion.slider}
+						orderingItems={currentQuestion.ordering_items}
+						correctOptionIds={revealInfo.correct_option_ids}
+						correctValue={revealInfo.correct_value}
+						correctOrder={revealInfo.correct_order}
+					/>
+				{/key}
+			{:else}
+				<p class="answer">{revealInfo.correct_answer}</p>
+			{/if}
 		</div>
 	{:else if currentQuestion}
 		{#key currentQuestion.question_id}

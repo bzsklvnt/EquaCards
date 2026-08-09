@@ -1589,3 +1589,29 @@ pg_publication_tables where pubname = 'supabase_realtime'`), migráció
 Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Reaktív design
 téma alkalmazás (Fázis P5)" szakasz, `docs/features/app-settings.md`
 kiegészítve.
+
+---
+
+## 2026-08-09 — Fázis P6: megoldás-feltárás vizuális feldúsítása (host/TV)
+
+A `question_reveal` host/TV megjelenítése eddig csak a formázott
+`correct_answer` szöveget mutatta. A `QuestionRevealPayload`
+(`src/lib/realtime/protocol.ts`) három új, típus szerint pontosan egy
+kitöltött mezőt kapott (`correct_option_ids`/`correct_value`/
+`correct_order`) — a host `revealAnswer()`-je ezeket eddig is
+lekérdezte a `correct_answer` string összeállításához, csak nem küldte
+tovább strukturáltan.
+
+Új közös komponens (`src/lib/components/QuestionRevealVisual.svelte`):
+`ChoiceButton` egy új `correct` variánssal (`var(--power)` zöld
+keret/háttér + pulzáló animáció + ✓), a csúszkánál egy Svelte `Tween`
+(`svelte/motion`) animálja a natív range input thumb-ját a tartomány
+közepéről a helyes értékre, a sorrendezésnél a Svelte beépített FLIP-je
+(`animate:flip`) rendezi át a kezdeti (kevert) listát a helyes sorrendre.
+A host mostantól saját magának is megtartja a `question_show` payload-ot
+(korábban egyáltalán nem jelenítette meg az opciókat/csúszkát/sorrendet).
+
+Csak host/TV — a csapatok (`/play`) saját telefonján változatlan maradt
+az egyszerű saját-eredmény visszajelzés.
+
+Dokumentáció: `docs/features/reveal-animations.md` (új fájl).
