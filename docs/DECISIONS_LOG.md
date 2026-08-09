@@ -1516,3 +1516,41 @@ lekérdezés elindítása előtt.
 Dokumentáció: `docs/architecture/REALTIME_PROTOCOL.md` új "Automatikus
 lezárás és feltárás (Fázis P3)" szakasz az `answer_locked`/
 `question_reveal` események alatt.
+
+---
+
+## 2026-08-09 — Fázis P4: csapat újracsatlakozás és állapot-mentés
+
+A `/play/[pin]` eddig kizárólag a broadcast-eseményekből építette fel az
+állapotát — egy oldal-újratöltés után a kliens nem tudta ezt visszaolvasni,
+mert az `anon` szerepkörnek szándékosan nincs SELECT policy-ja sem a
+kérdésbank táblákon, sem az `answers` táblán. Két új migráció
+(`supabase/migrations/20260809150000_current_question_state_rpc.sql`,
+`20260809150500_current_question_state_reveal.sql`) egy új
+`current_question_state(p_game_id)` security-definer RPC-t vezet be —
+ugyanazt a (nem-szivárogtató) adatot adja vissza, mint a `question_show`
+broadcast, kiegészítve a timer-infóval és egy `revealed`/`correct_answer`
+párral (az `evaluate_question()` egy menetben tölti ki az összes
+`answers.is_correct`-ot egy kérdésre, tehát "van-e legalább egy kiértékelt
+sor" megbízható "már feltárult" jelzés).
+
+A `/play/[pin]/+page.svelte` `restoreLiveState()`-je (a csapat-azonosító
+`$effect`-jében, a csatorna-feliratkozás előtt hívva) ebből + a meglévő
+`team_answer_result` RPC-ből (saját válasz állapota) építi fel a
+`currentQuestion`/`timerInfo`/`submitted`/`locked`/`revealInfo`/
+`myResult`-ot — a device_token/localStorage továbbra is kizárólag
+azonosításra szolgál, a játékállapot mindig a szerverről töltődik vissza.
+Érvénytelen/törölt `gameId` esetén a kliens törli a localStorage-t és
+visszairányítja a csapatot a PIN-képernyőre. A kapcsolat-vesztés vizuális
+jelzése (`ReconnectOverlay`) már korábban (Fázis I) elkészült, változatlan.
+
+Élőben ellenőrizve, `rollback`-kal lezárt SQL-szimulációval: feltárás
+előtt `revealed: false`/`correct_answer: null`, `evaluate_question()`
+lefuttatása után `revealed: true` + helyes `correct_answer` ugyanarra a
+kérdésre; anon szerepkörből is sikeresen hívható.
+
+A tervdokumentum opcionális, localStorage-alapú "gyors előrender" pontját
+(4.) szándékosan nem építettük be — indoklás: `docs/features/team-reconnect.md`
+"Szándékosan kihagyott elem" szakasza.
+
+Dokumentáció: `docs/features/team-reconnect.md` (új fájl).

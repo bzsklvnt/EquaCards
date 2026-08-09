@@ -39,6 +39,7 @@
 	let storageKey = $derived(`equacards:team:${data.pin}`);
 
 	let joined = $state<JoinedInfo | null>(null);
+	let restoreError = $state('');
 	let deviceToken = $state('');
 	let gameTitle = $state(untrack(() => data.game?.title ?? ''));
 	let gameDesignThemeId = $state<string | null>(untrack(() => data.game?.design_theme_id ?? null));
@@ -108,6 +109,11 @@
 	// nem 'finished' állapotra újra le kell tudnia kérdezni az este címét,
 	// különben egy oldal-újratöltés (pl. háttérbe került mobil böngészőlap)
 	// után "nem található" hibát látna, holott már csatlakozott.
+	//
+	// Fázis P4 — ha ez a lekérdezés NEM talál games sort (törölt/nem
+	// létező game_id egy elavult localStorage bejegyzésből), a
+	// csatlakozás érvénytelen: töröljük a localStorage-t, és a csapatot
+	// vissza kell irányítani a PIN-csatlakozási képernyőre.
 	$effect(() => {
 		if (data.game || !joined) return;
 		data.supabase
@@ -119,9 +125,116 @@
 				if (g) {
 					gameTitle = g.title;
 					gameDesignThemeId = g.design_theme_id;
+				} else {
+					localStorage.removeItem(storageKey);
+					joined = null;
+					restoreError = 'A csatlakozásod lejárt, csatlakozz újra.';
 				}
 			});
 	});
+
+	// Fázis P4 — csapat újracsatlakozás: a kliens SOSem a localStorage-ból
+	// rekonstruálja a játékállapotot (aktuális kérdés, beküldött-e már
+	// választ) — mindig a szerverről, élőben tölti vissza, mert a szerver
+	// időközben továbbléphetett (host új kérdést indított / lezárt /
+	// feltárt), amíg a csapat le volt szakadva. A `current_question_state`
+	// és `team_answer_result` RPC-k (docs/architecture/DATA_MODEL.md 5.
+	// szakasz) adják vissza a jelenlegi, hiteles állapotot — a
+	// device_token/localStorage KIZÁRÓLAG a csapat-azonosításra szolgál
+	// (melyik teamId ez), sosem a kérdés/válasz állapot forrására.
+	function shuffleOrderingItems<T>(items: T[]): T[] {
+		const copy = [...items];
+		for (let i = copy.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[copy[i], copy[j]] = [copy[j], copy[i]];
+		}
+		return copy;
+	}
+
+	async function restoreLiveState(info: JoinedInfo) {
+		const { data: state, error } = await data.supabase.rpc('current_question_state', {
+			p_game_id: info.gameId
+		});
+		if (error) return;
+
+		const s = state as {
+			question_id: string | null;
+			question_type?: string;
+			round_title?: string;
+			prompt?: string;
+			image_url?: string | null;
+			time_limit_seconds?: number;
+			order_index?: number;
+			total_questions?: number;
+			options?: { id: string; option_text: string }[] | null;
+			slider?: { min_value: number; max_value: number; step: number } | null;
+			ordering_items?: { id: string; item_text: string }[] | null;
+			server_start_time?: string | null;
+			duration?: number | null;
+			revealed?: boolean;
+			correct_answer?: string | null;
+		};
+
+		if (!s.question_id) {
+			currentQuestion = null;
+			timerInfo = null;
+			return;
+		}
+
+		const payload: QuestionShowPayload = {
+			question_id: s.question_id,
+			question_type: s.question_type ?? '',
+			round_title: s.round_title ?? '',
+			prompt: s.prompt ?? '',
+			image_url: s.image_url ?? null,
+			time_limit_seconds: s.time_limit_seconds ?? 30,
+			order_index: s.order_index ?? 1,
+			total_questions: s.total_questions ?? 1,
+			options: s.options ?? undefined,
+			slider: s.slider ?? undefined,
+			ordering_items: s.ordering_items ? shuffleOrderingItems(s.ordering_items) : undefined
+		};
+
+		currentQuestion = payload;
+		selectedOptionId = null;
+		selectedOptionIds = [];
+		sliderValue = payload.slider
+			? Math.round((payload.slider.min_value + payload.slider.max_value) / 2)
+			: 0;
+		orderedItems = payload.ordering_items ? [...payload.ordering_items] : [];
+		submitError = '';
+		jokerError = '';
+		roundLeaderboard = null;
+
+		timerInfo = s.server_start_time
+			? {
+					question_id: s.question_id,
+					duration: s.duration ?? 30,
+					server_start_time: s.server_start_time
+				}
+			: null;
+
+		const { data: ownRows } = await data.supabase.rpc('team_answer_result', {
+			p_team_id: info.teamId,
+			p_question_id: s.question_id
+		});
+		const own = ownRows?.[0] ?? null;
+		submitted = !!own;
+
+		if (s.revealed) {
+			// s.revealed csak akkor igaz, ha az evaluate_question (Fázis 5) már
+			// lefutott erre a kérdésre — egy menetben tölti ki AZ ÖSSZES
+			// answers sor is_correct-ját, tehát ha `own` létezik, az
+			// is_correct-ja itt garantáltan nem null.
+			revealInfo = { question_id: s.question_id, correct_answer: s.correct_answer ?? '' };
+			locked = true;
+			myResult = own;
+		} else {
+			revealInfo = null;
+			myResult = null;
+			locked = false;
+		}
+	}
 
 	function resetAnswerState(payload: QuestionShowPayload) {
 		selectedOptionId = null;
@@ -158,6 +271,12 @@
 		if (!info) return;
 
 		checkJokerUsed(info.teamId);
+		// Fázis P4 — a channel subscribe alább csak a JÖVŐBELI eseményeket
+		// fogja el; ez a hívás a JELENLEGI, már folyamatban lévő állapotot
+		// (aktuális kérdés + saját válasz) tölti vissza a szerverről, hogy
+		// egy (újra)betöltés ne üres/hibás képernyőt mutasson, ha a host
+		// időközben már elindított/lezárt/feltárt egy kérdést.
+		restoreLiveState(info);
 
 		channel = data.supabase.channel(`game:${info.gameId}`, {
 			config: { presence: { key: info.teamId } }
@@ -570,6 +689,9 @@
 		{/if}
 	{:else if data.game}
 		<h1>{data.game.title}</h1>
+		{#if restoreError}
+			<p class="error">{restoreError}</p>
+		{/if}
 		<form
 			method="POST"
 			action="?/join"
@@ -590,7 +712,11 @@
 		</form>
 	{:else}
 		<h1>Nem található</h1>
-		<p>A PIN nem található, vagy a játék már elindult.</p>
+		{#if restoreError}
+			<p class="error">{restoreError}</p>
+		{:else}
+			<p>A PIN nem található, vagy a játék már elindult.</p>
+		{/if}
 		<Button variant="ghost" href={resolve('/play')}>Vissza</Button>
 	{/if}
 </main>
