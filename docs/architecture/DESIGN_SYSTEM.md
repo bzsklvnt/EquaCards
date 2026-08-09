@@ -250,6 +250,31 @@ grid-je (`repeat(auto-fill, minmax(18rem, 1fr))`), ami natívan egyetlen
 oszlopra esik keskeny nézetben — nem igényelt külön mobil-specifikus
 szabályt.
 
+### Sidebar belső görgetés (Fázis P1)
+
+Élő tesztelésből jelzett konkrét hiba: az admin sidebar (`DashboardShell.svelte`)
+`display: flex` flex-elemként viselkedett a `.admin-shell` konténerben, saját
+magasság-korlát és görgetés nélkül — ha a tartalma (nav linkek + felhasználó
+neve + "Kijelentkezés") magasabb volt a viewportnál, a sidebar alsó része
+lecsúszott a látható területről, és csak a TELJES OLDAL görgetésével volt
+elérhető (a `.admin-content` és a sidebar együtt görgetett). Javítás: a
+`.sidebar` desktop-nézetben (`>768px`) `position: sticky; top: 0; height:
+100dvh; overflow-y: auto;`-t kap — így a sidebar mindig a viewport-hoz
+rögzítve marad, saját belső görgetéssel, függetlenül attól, hogy a
+`.admin-content` mennyire hosszú, és a nav mindig elérhető marad görgetés
+közben is. (A `≤768px`-es mobil hamburger-nézet ettől függetlenül, saját
+`position: fixed` + `overflow-y: auto` szabályával változatlanul működött
+már korábban is — csak a desktop sidebar hiányzott ez a védelem.)
+
+Az ezzel egy menetben elvégzett ismételt reszponzív átvizsgálás (360/640/
+1024/1920px, mind a négy felület) a fenti G/N3 fázisokban lefektetett
+mintákat (fluid `clamp()` tipográfia, 44px érintési célpontok, `flex-wrap`
+header, kártyás mobil-táblázatok) továbbra is helyesnek találta — nem
+került elő újabb konkrét hiba a sidebaron kívül. Ugyanaz a módszertani
+megkötés érvényes, mint Fázis G-ben: ez kód-szintű átolvasás, nem élő
+böngészős mérés (lásd fent) — a tényleges vizuális megerősítés a
+felhasználó böngészős smoke-tesztjének feladata.
+
 ## Komponens-konzisztencia audit (Fázis H)
 
 Végigfutva minden felületen (`/admin/*`, `/host/[game_id]`, `/play`,

@@ -1436,3 +1436,29 @@ alkalmazva élőben (`mcp__Supabase__apply_migration`), ellenőrizve
 SQL-lel, hogy az `is_default` egyik új sornál sem állt be és a Retro
 Arcade maradt az egyetlen alapértelmezett. Dokumentáció:
 `docs/features/design-themes.md` új "Seedelt témák" szakasz.
+
+---
+
+## 2026-08-09 — Fázis P1: admin sidebar belső görgetés + reszponzivitás re-audit
+
+Konkrét élő tesztelésből jelzett hiba: a `DashboardShell.svelte` sidebar-ja
+(admin + riportok közös héja) nem volt magasság-korlátozva/görgethető
+önmagában — magas tartalomnál (sok nav-elem + felhasználónév +
+"Kijelentkezés") az alsó rész lecsúszott a viewportról, csak a teljes
+oldal görgetésével volt elérhető. Javítás: `.sidebar` desktop-nézetben
+(`>768px`) `position: sticky; top: 0; height: 100dvh; overflow-y: auto;`
+— a sidebar mindig a viewporthoz rögzítve marad, saját belső
+görgetéssel, a fő tartalom görgetésétől függetlenül.
+
+Ezzel egy menetben elvégzett teljes reszponzív re-audit mind a négy
+felületen (360/640/1024/1920px) a korábbi Fázis G/N3 mintákat (fluid
+`clamp()` tipográfia, 44px érintési célpontok, `flex-wrap` header,
+kártyás mobil-táblázatok) továbbra is helyesnek találta — nem került
+elő újabb konkrét hiba a sidebaron kívül.
+
+**Melléktermék:** az audit közben egy második, dokumentált hiba is
+előkerült és javításra került a host `timer_start` broadcast
+kezelésében — lásd a következő, "Fázis P2" bejegyzést.
+
+Dokumentáció: `docs/architecture/DESIGN_SYSTEM.md` új "Sidebar belső
+görgetés (Fázis P1)" szakasz.

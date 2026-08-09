@@ -141,6 +141,13 @@
 		border-right: 2px solid var(--cabinet-3, #2c1d54);
 		padding: 1.25rem 1rem;
 		gap: 1.5rem;
+		/* P1 — a sidebar saját magasságában (100dvh) rögzítve marad és
+		   belül görget, ha a nav+footer magasabb a viewportnál, így a fő
+		   tartalom görgetésétől függetlenül mindig elérhető marad. */
+		position: sticky;
+		top: 0;
+		height: 100dvh;
+		overflow-y: auto;
 	}
 
 	.brand {
