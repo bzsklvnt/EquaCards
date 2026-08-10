@@ -1755,3 +1755,35 @@ tudott élő böngészőben interaktívan reprodukálni. Ha a leírt tünet a
 fenti javítások után is fennáll, az egy, ennél az audit-nál nem talált,
 konkrétabb hibára utalna — érdemes lenne pontos lépéseket (pl. böngésző-
 konzol hibaüzenet) gyűjteni hozzá.
+
+---
+
+## 2026-08-10 — Fázis Q2: részletes eredmény-bontás kizárólag a kezelőfelületen
+
+Új `/admin/games/[id]/results` route (link az `/admin/games/[id]`
+oldalról) — körönként/kérdésenként megmutatja, melyik csapat mit
+válaszolt, helyes volt-e, mennyi pontot kapott, mennyi idő alatt. Tömeges
+(nem N+1) lekérdezésekkel épül fel: rounds/teams/round_questions egy-egy
+hívással, aztán az összes érintett `question_id`/`answer_id`-ra egy-egy
+tömeges lekérdezés a kérdésbank- és `answer_*` táblákra, JS-oldali
+csoportosítással.
+
+Biztonsági audit, mind élőben ellenőrizve:
+
+1. A route az `/admin` fa alatt van (`role_id in (1,2)` guard) —
+   szándékosan szűkebb, mint a nyitó leírás "staff: super_admin/admin/host"
+   megfogalmazása, mert a host jelenleg sehol máshol sem éri el az
+   `/admin/games/*` fát (indoklás: `docs/features/staff-results.md`).
+2. `RoundLeaderboardRevealPayload`/`FinalLeaderboardRevealPayload`
+   (broadcast) — átvizsgálva, változatlanul csak top3/összesített
+   rangsort tartalmaz, nincs per-kérdés per-csapat bontás bennük.
+3. `set local role anon` + rollback-kal lezárt SQL-teszt: `select
+count(*) from answers` és `... from question_choice_options` egyaránt
+   `0` sort ad anon-ként, még ha a táblákban ténylegesen vannak is sorok —
+   a meglévő `answers_staff_all`/`questions_select_staff` RLS policy-k
+   (role_id in (1,2,3)) már eleve helyesen zárták ki az anon olvasást,
+   nem kellett új policy.
+4. Nincs paraméter nélküli/anon-elérhető RPC ehhez a nézethez — közvetlen,
+   RLS-védett táblalekérdezések, nem egy külön "admin RPC" felület.
+
+Dokumentáció: `docs/features/staff-results.md` (új fájl).

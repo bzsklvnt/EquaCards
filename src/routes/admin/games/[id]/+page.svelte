@@ -63,9 +63,14 @@
 
 <h1>{data.game.title}</h1>
 <p class="status">Állapot: {data.game.status}</p>
-<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
-	>Élő lebonyolítás megnyitása →</Button
->
+<div class="actions">
+	<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
+		>Élő lebonyolítás megnyitása →</Button
+	>
+	<Button variant="ghost" href={resolve('/admin/games/[id]/results', { id: data.game.id })}
+		>Részletes eredmények →</Button
+	>
+</div>
 
 {#if form?.error}
 	<p class="error">{form.error}</p>
@@ -173,6 +178,13 @@
 
 	.status {
 		color: var(--marquee-dim);
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin: 0.75rem 0 1.5rem;
 	}
 
 	.add-round {
