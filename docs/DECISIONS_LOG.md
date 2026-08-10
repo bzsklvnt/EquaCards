@@ -1866,3 +1866,69 @@ hibátlanul lefut. Egy magyarázó megjegyzés került a
 `+page.server.ts`-be, hogy egy jövőbeli módosítás ne vezessen be
 véletlenül egy ilyen korlátozást. Kódváltoztatás egyébként nem történt,
 mert nem volt mit megváltoztatni — a funkció már a kért módon működött.
+
+---
+
+## 2026-08-10 — Fázis Q5: válasz-beküldési hiba vizsgálata — a valódi gyökérok már javítva volt
+
+Élő tesztelésnél 2 csapattal az egyik csapat nem tudott választ
+beküldeni, a Vercel logban ismétlődő `getSession()`-figyelmeztetéssel. A
+tervdokumentum saját, tentatív gyanúja szerint ez a figyelmeztetés
+valószínűleg zaj — ezt az audit **megerősítette**:
+
+1. **A `/play` route-lánc egyetlen pontja sem támaszkodik Supabase Auth
+   session-re/getSession()-re/getUser()-re** — sem `hooks.server.ts`, sem
+   a `/play/[pin]/+page.server.ts`, sem semelyik guard. A figyelmeztetés
+   forrása a GYÖKÉR `/routes/+layout.server.ts` (`safeGetSession()`
+   hívása) és a `/routes/+layout.ts` (universal load, getSession()+
+   getUser()) — ezek **minden** route-on, így minden `/play` betöltésen
+   is lefutnak, kizárólag a kliens-oldali auth-state-szinkronizáláshoz
+   (`session.expires_at` metaadat), nem valamiféle /play-specifikus
+   guard-hoz. Nem talált ez az audit egyetlen olyan feltételt sem, ami a
+   /play-en Auth session-re hivatkozva engedne/tiltana egy kérést.
+2. **`hooks.server.ts` `safeGetSession()`-je megkeményítve**: a sorrend
+   megfordítva — mostantól `getUser()` fut le ELŐSZÖR, mint tényleges
+   tekintély, és a `session`-t (ami csak az `expires_at` metaadatért kell
+   a gyökér layout kliens-oldali listenerének) csak EZUTÁN kérdezi le,
+   nem "gyors kizárás" céljából előtte. A `/routes/+layout.ts` saját,
+   szintén getSession()+getUser()-t hívó kódját **szándékosan
+   változatlanul hagytuk** — ott a `session` kizárólag metaadat-olvasásra
+   szolgál (nem auth-döntésre), ami a terv saját megfogalmazása szerint
+   is elfogadott ("nem csak a session objektum metaadatainak olvasására").
+   **A figyelmeztetés a logban emiatt valószínűleg továbbra is
+   megjelenhet** — ez a supabase-js egy ismert, a hivatalos SSR-mintát
+   követő kódban is gyakran jelentkező, ártalmatlan naplózási sajátossága,
+   nem ennek a kódbázisnak a hibája.
+3. **A VALÓDI gyökérok: kliens-óra csúszás, már javítva.** Az
+   `answer_within_timer()` RLS-ellenőrzés a `games.current_question_started_at`-hoz
+   képest számol — ez a **jelen session korábbi, sürgősségi timer-javítása
+   ELŐTT** a HOST kliens saját, helyi órájából származott. Élőben,
+   rollback-kal lezárt SQL-szimulációval megerősítve: ha a host órája
+   csak 5 másodperccel lassabb volt a valóságnál a kérdés indításakor, egy
+   csapat, aki a NOMINÁLIS duration-en belül, pontosan a lejáratkor küld
+   be választ, `answer_within_timer() = false`-t kap — elutasított
+   beküldés, annak ellenére, hogy a csapat a valóságban időben válaszolt.
+   Ez pontosan illeszkedik "két csapatból az egyik nem tudott beküldeni"
+   tünetre (a másik csapat feltehetően korábban válaszolt, a szűk
+   határidő-ablakon belül maradva). Ez a hibaosztály már megszűnt: a
+   `start_question_timer()` RPC (lásd a korábbi "timer eszköz-óra
+   szinkronizáció" bejegyzést) a Postgres-szerver `now()`-ját írja be,
+   nem a host kliensét.
+4. **`answers` RLS INSERT policy** — átvizsgálva, nem szigorodott a Fázis
+   Q2 munkája során (Q2 csak OLVASOTT RLS policy-kat egy új, staff-only
+   nézethez, nem módosított semmit az `answers` táblán).
+5. **Valódi, önálló hiba is előkerült**: a `submitAnswer()`-ben a
+   `submitted` flag csak a hívás LEGVÉGÉN állt be — egy gyors dupla
+   koppintás/kattintás (mobilon türelmetlen második érintés) mindkét
+   hívást átengedte az elején lévő ellenőrzésen, a MÁSODIK insert az
+   `answers` tábla `unique (question_id, team_id)` kényszerén hasalt
+   volna el. A hibaüzenet ilyenkor csak akkor maradt volna látható, ha a
+   sikeres hívás NEM futott le utána (különben a `submitted=true`
+   elrejtette a hibaágat). Javítva: új `submitting` flag zárja ki a
+   versenyhelyzetet MÁR a kliensen — a második koppintás/kattintás
+   egyszerűen nem indít új beküldést, a "Válasz elküldése" gomb pedig
+   `loading` állapotot kap submit közben.
+
+Dokumentáció: ez a bejegyzés; a `docs/features/timer.md` "8. Sürgősségi
+javítás" szakasza már tartalmazza az `answer_within_timer()`-t érintő
+gyökérok részleteit.

@@ -54,6 +54,7 @@
 	let roundLeaderboard = $state<RoundLeaderboardRevealPayload | null>(null);
 	let finalLeaderboard = $state<FinalLeaderboardRevealPayload | null>(null);
 	let submitted = $state(false);
+	let submitting = $state(false);
 	let submitError = $state('');
 	let jokerUsed = $state(false);
 	let jokerError = $state('');
@@ -236,6 +237,7 @@
 			: 0;
 		orderedItems = payload.ordering_items ? [...payload.ordering_items] : [];
 		submitError = '';
+		submitting = false;
 		jokerError = '';
 		roundLeaderboard = null;
 
@@ -282,6 +284,7 @@
 		roundLeaderboard = null;
 		submitted = false;
 		submitError = '';
+		submitting = false;
 		jokerError = '';
 		timerInfo = null;
 	}
@@ -441,59 +444,78 @@
 	}
 
 	async function submitAnswer() {
-		if (!currentQuestion || !joined || submitted) return;
+		// Fázis Q5 — élő tesztelésből: a `submitted` flag csak a hívás
+		// LEGVÉGÉN áll be, tehát egy gyors dupla koppintás/kattintás (pl.
+		// mobilon egy türelmetlen második érintés, mielőtt az első
+		// beküldés vizuálisan visszajelezne) versenyhelyzetbe hozhatta a
+		// submitAnswer()-t saját magával — mindkét hívás átjutott ezen az
+		// első ellenőrzésen, a MÁSODIK insert pedig az answers tábla
+		// `unique (question_id, team_id)` kényszerén hasalt el (23505),
+		// amit korábban a generikus "Nem sikerült elküldeni" hibaüzenet
+		// takart, DE csak akkor volt látható, ha a SIKERES hívás nem
+		// futott le előbb (ekkor submitted=true felülírta/eltüntette a
+		// hibaágat). A `submitting` flag ezt eleve kizárja: a második
+		// koppintás egyszerűen nem indít új beküldést.
+		if (!currentQuestion || !joined || submitted || submitting) return;
+		submitting = true;
 
-		const answerId = crypto.randomUUID();
-		const { error: answerError } = await data.supabase.from('answers').insert({
-			id: answerId,
-			game_id: joined.gameId,
-			question_id: currentQuestion.question_id,
-			team_id: joined.teamId,
-			answer_time_ms: timerInfo
-				? serverNow() - new Date(timerInfo.server_start_time).getTime()
-				: null
-		});
+		try {
+			const answerId = crypto.randomUUID();
+			const { error: answerError } = await data.supabase.from('answers').insert({
+				id: answerId,
+				game_id: joined.gameId,
+				question_id: currentQuestion.question_id,
+				team_id: joined.teamId,
+				answer_time_ms: timerInfo
+					? serverNow() - new Date(timerInfo.server_start_time).getTime()
+					: null
+			});
 
-		if (answerError) {
-			// A 42501 (RLS-policy megsértése) itt szinte mindig azt jelenti,
-			// hogy az answer_within_timer() szerver-oldali ellenőrzés (Fázis L)
-			// elutasította a beszúrást — a duration (+ pár mp türelmi idő)
-			// már lejárt, mire a kérés megérkezett.
-			submitError =
-				answerError.code === '42501'
-					? 'Lejárt az idő, mielőtt a válaszod megérkezett volna.'
-					: 'Nem sikerült elküldeni a választ, próbáld újra.';
-			return;
-		}
-
-		if (
-			currentQuestion.question_type === 'single_choice' ||
-			currentQuestion.question_type === 'true_false'
-		) {
-			if (selectedOptionId) {
-				await data.supabase
-					.from('answer_choice')
-					.insert({ answer_id: answerId, option_id: selectedOptionId });
+			if (answerError) {
+				// A 42501 (RLS-policy megsértése) itt szinte mindig azt jelenti,
+				// hogy az answer_within_timer() szerver-oldali ellenőrzés (Fázis L)
+				// elutasította a beszúrást — a duration (+ pár mp türelmi idő)
+				// már lejárt, mire a kérés megérkezett.
+				submitError =
+					answerError.code === '42501'
+						? 'Lejárt az idő, mielőtt a válaszod megérkezett volna.'
+						: 'Nem sikerült elküldeni a választ, próbáld újra.';
+				return;
 			}
-		} else if (currentQuestion.question_type === 'multi_choice') {
-			if (selectedOptionIds.length) {
-				await data.supabase
-					.from('answer_choice_multi')
-					.insert(selectedOptionIds.map((option_id) => ({ answer_id: answerId, option_id })));
-			}
-		} else if (currentQuestion.question_type === 'slider') {
-			await data.supabase.from('answer_slider').insert({ answer_id: answerId, value: sliderValue });
-		} else if (currentQuestion.question_type === 'ordering') {
-			await data.supabase.from('answer_ordering').insert(
-				orderedItems.map((item, i) => ({
-					answer_id: answerId,
-					item_id: item.id,
-					position: i + 1
-				}))
-			);
-		}
 
-		submitted = true;
+			if (
+				currentQuestion.question_type === 'single_choice' ||
+				currentQuestion.question_type === 'true_false'
+			) {
+				if (selectedOptionId) {
+					await data.supabase
+						.from('answer_choice')
+						.insert({ answer_id: answerId, option_id: selectedOptionId });
+				}
+			} else if (currentQuestion.question_type === 'multi_choice') {
+				if (selectedOptionIds.length) {
+					await data.supabase
+						.from('answer_choice_multi')
+						.insert(selectedOptionIds.map((option_id) => ({ answer_id: answerId, option_id })));
+				}
+			} else if (currentQuestion.question_type === 'slider') {
+				await data.supabase
+					.from('answer_slider')
+					.insert({ answer_id: answerId, value: sliderValue });
+			} else if (currentQuestion.question_type === 'ordering') {
+				await data.supabase.from('answer_ordering').insert(
+					orderedItems.map((item, i) => ({
+						answer_id: answerId,
+						item_id: item.id,
+						position: i + 1
+					}))
+				);
+			}
+
+			submitted = true;
+		} finally {
+			submitting = false;
+		}
 	}
 
 	// Fázis O7 — single_choice/true_false-nál nincs külön "Beküldés" lépés:
@@ -503,7 +525,7 @@
 	// a hívás pillanatában olvassa ki, tehát a késleltetés nélkül is helyes
 	// adatot küldene, ez tisztán vizuális visszajelzés.
 	async function selectAndSubmit(optionId: string) {
-		if (!currentQuestion || submitted || locked) return;
+		if (!currentQuestion || submitted || locked || submitting) return;
 		selectedOptionId = optionId;
 		await new Promise((resolve) => setTimeout(resolve, 200));
 		await submitAnswer();
@@ -704,7 +726,7 @@
 				{/if}
 
 				{#if currentQuestion.question_type !== 'single_choice' && currentQuestion.question_type !== 'true_false'}
-					<Button onclick={submitAnswer}>Válasz elküldése</Button>
+					<Button onclick={submitAnswer} loading={submitting}>Válasz elküldése</Button>
 				{/if}
 
 				{#if !jokerUsed}

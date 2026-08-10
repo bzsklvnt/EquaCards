@@ -129,6 +129,20 @@ kérdéstípusonként eltér:
   sorrend véglegesítése), egy koppintásra/módosításra való azonnali
   beküldés itt véletlen, korai válaszbeküldéshez vezetne.
 
+### Dupla beküldés elleni védelem (Fázis Q5)
+
+Élő tesztelésből előkerült egy versenyhelyzet: a `submitted` flag csak a
+`submitAnswer()` hívás legvégén állt be, tehát egy gyors dupla
+koppintás/kattintás (mobilon türelmetlen második érintés) mindkét hívást
+átengedte a függvény eleji ellenőrzésen — a második `answers` insert az
+`unique (question_id, team_id)` kényszeren hasalt volna el, és a
+hibaüzenet csak akkor maradt volna láthatóvá, ha a sikeres hívás nem
+futott le utána (a `submitted=true` elrejti a hibaágat). Új `submitting`
+flag zárja ki a versenyhelyzetet már a kliensen: `submitAnswer()` és
+`selectAndSubmit()` egyaránt no-op-ol, amíg egy korábbi beküldés
+folyamatban van, a "Válasz elküldése" gomb pedig `loading` állapotot kap
+submit közben (`Button`-nak ez már eleve `disabled`-ként is viselkedik).
+
 ## Módszertani megjegyzés
 
 A sandbox HTTPS-blokkolása miatt (lásd `docs/DECISIONS_LOG.md` korábbi
