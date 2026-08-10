@@ -1714,3 +1714,44 @@ alkalmazva élőben, `rollback`-kal lezárt SQL-szimulációval ellenőrizve.
 
 Dokumentáció: `docs/features/timer.md` új "8. Sürgősségi javítás"
 szakasz, `docs/architecture/REALTIME_PROTOCOL.md` kiegészítve.
+
+---
+
+## 2026-08-10 — Fázis Q1: kör hozzáadás/téma-választó — gyökérok-audit
+
+Alapos kód-audit (`/admin/games/[id]/+page.svelte` + `+page.server.ts`)
+**nem talált strukturális hibát** a Fázis O6-ban épített flow-ban: az
+`addRound` action tetszőleges számú kört helyesen felvesz (nincs olyan
+egyedi/unique kényszer a `rounds` táblán, ami 2. kör felvételét
+akadályozná), a globális témaválasztó és a `roundCounts`/`roundsJson`
+`$derived` logika helyesen skálázódik N körre, és a `draw_random_questions_for_round`
+RPC-t **élőben, rollback-kal lezárt SQL-szimulációval** 3 körre/eltérő
+darabszámokra tesztelve (2/2/1 kérdés) mindhárom kör helyesen megkapta a
+saját darabszámát ugyanabból a globális témából.
+
+Két valós, a "működésképtelennek tűnik" panaszt hihetően magyarázó
+UX-hiba viszont előkerült és javításra került:
+
+1. **`addRound` sikeres beküldésnél NEM adott toast-visszajelzést**
+   (a `deleteRound`/`drawAll` action-ök igen) — a `withToast()` hívás nem
+   kapott `successMessage`-t. Egy felhasználó, aki nem veszi észre az
+   újonnan megjelenő kör-kártyát (pl. görgetés nélkül), joggal
+   gondolhatta, hogy a gomb nem csinál semmit.
+2. **A globális témaválasztó üres, placeholder ("— válassz témát —")
+   állapotban indult** — vizuálisan passzívnak/inaktívnak tűnhetett,
+   holott funkcionális volt.
+
+Javítás: `withToast()` kapott egy opcionális `onSuccess` callbacket
+(`src/lib/toast-enhance.ts`), amivel az `addRound` form most (a) mutat
+egy "Kör hozzáadva." toast-ot, és (b) törli a "Új kör neve" mezőt sikeres
+beküldés után (korábban a beírt cím a submit után is bent maradt). A
+globális témaválasztó pedig automatikusan az első elérhető témát
+választja ki alapértelmezettként, amíg a felhasználó nem választ sajátot.
+
+**Módszertani megjegyzés:** a sandbox nem ér el közvetlen hálózaton
+keresztül Supabase-t (`CONNECT tunnel failed, response 403`), tehát ez az
+audit — a Supabase MCP-n keresztüli SQL-szimulációk kivételével — nem
+tudott élő böngészőben interaktívan reprodukálni. Ha a leírt tünet a
+fenti javítások után is fennáll, az egy, ennél az audit-nál nem talált,
+konkrétabb hibára utalna — érdemes lenne pontos lépéseket (pl. böngésző-
+konzol hibaüzenet) gyűjteni hozzá.

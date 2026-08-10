@@ -15,7 +15,19 @@
 	// Fázis O6 — a téma-választás este-szintű (egyszer választod ki, minden
 	// kör ugyanabból húz), a darabszám marad körönkénti — lásd a
 	// ?/drawAll action jegyzetét a +page.server.ts-ben.
+	//
+	// Fázis Q1 — élő tesztelésből: a témaválasztó üresen ("— válassz témát —")
+	// indult, ami inaktívnak/működésképtelennek TŰNT, holott funkcionális
+	// volt — csak a placeholder-állapot nem adott vizuális visszajelzést,
+	// hogy tényleg egy élő, kattintható legördülőről van szó. Az első
+	// elérhető témát automatikusan kiválasztjuk alapértelmezettként (csak
+	// egyszer, amíg a felhasználó nem választott sajátot).
 	let globalThemeId = $state('');
+	$effect(() => {
+		if (!globalThemeId && data.themes.length > 0) {
+			globalThemeId = data.themes[0].id;
+		}
+	});
 	let roundCounts = $state<Record<string, string>>(
 		untrack(() => Object.fromEntries(data.rounds.map((r) => [r.id, '8'])))
 	);
@@ -62,7 +74,11 @@
 <form
 	method="POST"
 	action="?/addRound"
-	use:enhance={withToast({ setSubmitting: (v) => (addingRound = v) })}
+	use:enhance={withToast({
+		successMessage: 'Kör hozzáadva.',
+		setSubmitting: (v) => (addingRound = v),
+		onSuccess: () => (newRoundTitle = '')
+	})}
 	class="add-round"
 >
 	<Input name="title" placeholder="Új kör neve" bind:value={newRoundTitle} required />

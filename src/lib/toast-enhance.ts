@@ -10,6 +10,10 @@ import type { SubmitFunction } from '@sveltejs/kit';
 export function withToast(options?: {
 	successMessage?: string;
 	setSubmitting?: (value: boolean) => void;
+	/** Fázis Q1 — pl. egy input-mező visszaállítására sikeres beküldés után
+	 * (a form maga a `use:enhance` miatt nem submittál natívan, tehát a
+	 * mezők a natív form-reset nélkül a beküldött értéken maradnak). */
+	onSuccess?: () => void;
 }): SubmitFunction {
 	return () => {
 		options?.setSubmitting?.(true);
@@ -17,6 +21,7 @@ export function withToast(options?: {
 			options?.setSubmitting?.(false);
 			if (result.type === 'success') {
 				if (options?.successMessage) toast.success(options.successMessage);
+				options?.onSuccess?.();
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Nem sikerült a művelet.');
 			} else if (result.type === 'error') {
