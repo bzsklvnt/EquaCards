@@ -11,6 +11,7 @@
 
 	let newTitle = $state('');
 	let creating = $state(false);
+	let reopeningId = $state<string | null>(null);
 
 	const STATUS_LABELS: Record<string, string> = {
 		lobby: 'Váró',
@@ -63,6 +64,21 @@
 							<span>{new Date(game.finished_at).toLocaleDateString('hu-HU')}</span>
 						{/if}
 					</div>
+					{#if game.status === 'finished'}
+						<form
+							method="POST"
+							action="?/reopen"
+							use:enhance={withToast({
+								successMessage: 'Kvízeste újranyitva — a Váró állapotból indítható újra.',
+								setSubmitting: (v) => (reopeningId = v ? game.id : null)
+							})}
+						>
+							<input type="hidden" name="game_id" value={game.id} />
+							<Button type="submit" variant="ghost" loading={reopeningId === game.id}
+								>Kvízeste újranyitása</Button
+							>
+						</form>
+					{/if}
 				</div>
 			</ArcadePanel>
 		</li>

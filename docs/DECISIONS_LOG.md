@@ -1787,3 +1787,54 @@ count(*) from answers` és `... from question_choice_options` egyaránt
    RLS-védett táblalekérdezések, nem egy külön "admin RPC" felület.
 
 Dokumentáció: `docs/features/staff-results.md` (új fájl).
+
+---
+
+## 2026-08-10 — Fázis Q3: lezárt kvízeste újranyitása — `lobby`, nem `active` vagy `paused`
+
+A tervdokumentum két opciót ajánlott ("active vagy paused, amelyik jobban
+illeszkedik") — egyik sem bizonyult helyesnek kód-átolvasás után, egy
+harmadik, `lobby` volt a helyes választás:
+
+- **`paused` egyáltalán nincs kezelve** a `/host/[game_id]/+page.svelte`
+  állapotgépében (`{#if game.status === 'lobby'} ... {:else if ===
+'active' ...} ... {:else if === 'finished'}` — nincs `paused` ág, és
+  nincs záró `{:else}` sem) — egy `paused` státuszú este a host felületén
+  **teljesen üres tartalmi területet** renderelt volna.
+- **`active`-re állítás megkerülné a csapat-csatlakozást**: a
+  `teams_insert_anon_lobby` RLS policy kifejezetten `game_status(game_id)
+= 'lobby'`-t követel meg ÚJ csapat beszúrásához — ha a reopen `active`-re
+  állítana, az explicit kérés ("hogy... a csapatok újra csatlakozhassanak
+  a PIN-nel") pont nem teljesülne új csapatokra.
+- **`lobby`-ra állítás mindkettőt megoldja, séma-módosítás és host-oldali
+  kódváltoztatás nélkül**: a host a már meglévő, jól tesztelt lobby-nézetet
+  látja (PIN/QR + "Kvízeste indítása" gomb — pontosan ugyanaz, mint egy
+  vadonatúj estén), új csapatok csatlakozhatnak, már csatlakozott csapatok
+  a meglévő (Fázis P4) újracsatlakozási logikával élőben visszatöltik az
+  állapotot. A `startGame()` a `current_question_id`-t nem törli
+  explicit módon, de ez nem hiba: a `currentIndex` az ÚJ kör
+  `roundQuestions`-éhez képest számol, egy más körből származó régi
+  `current_question_id` `findIndex`-e -1-et ad, tehát a kérdés-sorozat
+  helyesen az 1. kérdéstől indul újra.
+
+Az action (`?/reopen`, `/admin/games/+page.server.ts`) `finished_at`-ot
+is nullázza, és csak `status = 'finished'` sorokra enged újranyitást
+(`.eq('status', 'finished')` guard a query-ben) — egy már aktív/lobby
+estét nem lehet véletlenül "újranyitni".
+
+**Audit:** `trg_audit_games` trigger (`supabase/migrations/20260810100000_games_audit_trigger.sql`)
+a meglévő, generikus `log_table_change()` függvényt köti a `games`
+táblára (eddig csak `profiles`/kérdésbank-táblák voltak audit-olva) —
+élőben, rollback-kal lezárt SQL-teszttel ellenőrizve, hogy egy
+`finished → lobby` UPDATE helyesen kerül be az `audit_logs`-ba
+(`before_data`/`after_data` mindkét oldalról a `status` mezővel).
+**Tudatos kompromisszum:** ez a trigger `games` MINDEN UPDATE-jét
+naplózza, nem csak a reopen-t — élő kvízestén ez kérdésenként több sort
+is generál (timer indítás, kérdés-váltás stb.), a tábla önmagában
+felhalmozódhat. Ez a `log_table_change()` már meglévő, blanket
+("minden oszlopváltozás") mintáját követi (`questions` táblán is így
+működik) — ha a jövőben a `games` írási gyakorisága problémát okoz az
+`audit_logs` méretében, érdemes lehet egy szűkebb, csak
+`status`-változásra szűrő trigger-re váltani.
+
+Dokumentáció: ez a bejegyzés.
