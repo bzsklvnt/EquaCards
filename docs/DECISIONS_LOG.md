@@ -1838,3 +1838,31 @@ működik) — ha a jövőben a `games` írási gyakorisága problémát okoz az
 `status`-változásra szűrő trigger-re váltani.
 
 Dokumentáció: ez a bejegyzés.
+
+---
+
+## 2026-08-10 — Fázis Q4: kör/kérdés szerkesztés games.status-tól függetlenül — nem volt mit feloldani
+
+A tervdokumentum "feltehetően"-nel jelezte a bizonytalanságát ("Jelenleg
+(feltehetően) a kör/kérdés összeállítás csak az este elindítása előtt
+szerkeszthető") — alapos audit szerint ez a feltételezés **téves volt**:
+a kör/kérdés szerkesztés SOHA nem volt `games.status`-hoz kötve ebben a
+kódbázisban. Átvizsgálva mind a négy releváns réteg:
+
+1. **`/admin/games/[id]/+page.server.ts` action-jei**
+   (`addRound`/`deleteRound`/`drawAll`/`removeQuestion`) — egyikük sem
+   olvassa vagy ellenőrzi a `game.status`-t.
+2. **RLS**: `rounds_staff_all`/`round_questions_admin_all` (role_id
+   alapú, `games.status`-ra való hivatkozás nélkül).
+3. **`draw_random_questions_for_round` RPC** — csak szerepkör-ellenőrzés
+   (`current_user_role_id() in (1,2)`), nincs `games.status` feltétel.
+4. **UI** — a `/admin/games/[id]/+page.svelte` kör-szerkesztő szekciója
+   feltétel nélkül renderelődik, nincs `{#if data.game.status === ...}`
+   köré tekerve.
+
+Élőben, rollback-kal lezárt SQL-szimulációval megerősítve: egy
+`round_questions` INSERT egy **`finished`** állapotú este körére is
+hibátlanul lefut. Egy magyarázó megjegyzés került a
+`+page.server.ts`-be, hogy egy jövőbeli módosítás ne vezessen be
+véletlenül egy ilyen korlátozást. Kódváltoztatás egyébként nem történt,
+mert nem volt mit megváltoztatni — a funkció már a kért módon működött.

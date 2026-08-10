@@ -43,6 +43,16 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 	return { game, rounds: rounds ?? [], themes: themes ?? [], roundQuestions };
 };
 
+// Fázis Q4 — kör/kérdés szerkesztés games.status-tól függetlenül. Alapos
+// audit (RLS: rounds_staff_all / round_questions_admin_all /
+// draw_random_questions_for_round RPC, ez a fájl) nem talált SEHOL
+// games.status-alapú korlátozást — sem lobby/active/paused/finished
+// bármelyikén nem volt tiltás, tehát nem kellett feloldani semmit
+// kódszinten. Élőben, rollback-kal lezárt SQL-szimulációval megerősítve:
+// egy round_questions insert egy 'finished' állapotú este körére is
+// hibátlanul lefut. Ez a megjegyzés szándékosan itt marad, hogy egy
+// jövőbeli változtatás ne vezessen be véletlenül egy ilyen korlátozást —
+// lásd docs/DECISIONS_LOG.md Fázis Q4 bejegyzését.
 export const actions: Actions = {
 	addRound: async ({ request, params, locals: { supabase } }) => {
 		const formData = await request.formData();
