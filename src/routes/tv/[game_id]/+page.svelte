@@ -234,6 +234,9 @@
 						{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
 					</p>
 					<p class="prompt">{currentQuestion.prompt}</p>
+					{#if currentQuestion.image_url}
+						<img class="question-image" src={currentQuestion.image_url} alt="" />
+					{/if}
 				</ArcadePanel>
 				<!-- Fázis P7 — a kérdés-prompt ÉS az opciók/csúszka/sorrendező
 				     lista is ugyanabban a formátumban jelenik meg, mint a
@@ -319,6 +322,14 @@
 	.prompt {
 		font-size: clamp(1.5rem, 6vw, 4.5rem);
 		margin: 1.5rem 0;
+	}
+
+	.question-image {
+		max-width: 100%;
+		max-height: 28rem;
+		border-radius: 0.75rem;
+		margin: 0 auto 1rem;
+		display: block;
 	}
 
 	.answer {

@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 	) {
 		const { data } = await supabase
 			.from('question_choice_options')
-			.select('option_text, is_correct')
+			.select('option_text, image_url, is_correct')
 			.eq('question_id', question.id)
 			.order('order_index');
 		choiceOptions = data ?? [];

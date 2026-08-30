@@ -16,7 +16,12 @@ export type ParsedQuestionForm = {
 	points_multiplier: number;
 	time_limit_seconds: number;
 	points_decay: boolean;
-	choiceOptions?: { option_text: string; is_correct: boolean; order_index: number }[];
+	choiceOptions?: {
+		option_text: string;
+		image_url: string | null;
+		is_correct: boolean;
+		order_index: number;
+	}[];
 	sliderConfig?: {
 		min_value: number;
 		max_value: number;
@@ -48,11 +53,13 @@ export function parseQuestionForm(
 		questionTypeCode === 'true_false'
 	) {
 		const texts = formData.getAll('option_text') as string[];
+		const images = formData.getAll('option_image_url') as string[];
 		const correctIndexes = new Set(formData.getAll('correct_index').map(Number));
 		return {
 			...base,
 			choiceOptions: texts.map((text, i) => ({
 				option_text: text,
+				image_url: images[i] || null,
 				is_correct: correctIndexes.has(i),
 				order_index: i
 			}))
@@ -139,6 +146,7 @@ export async function insertQuestionTypeData(
 			parsed.choiceOptions.map((o) => ({
 				question_id: questionId,
 				option_text: o.option_text,
+				image_url: o.image_url,
 				is_correct: o.is_correct,
 				order_index: o.order_index
 			}))

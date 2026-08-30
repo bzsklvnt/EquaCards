@@ -36,6 +36,7 @@
 		question_id: string;
 		prompt: string;
 		question_type_id: number;
+		image_url: string | null;
 	};
 
 	const rounds = untrack(() => data.rounds);
@@ -206,7 +207,7 @@
 	async function loadRoundQuestions(roundId: string) {
 		const { data: rows } = await data.supabase
 			.from('round_questions')
-			.select('order_index, question_id, questions(prompt, question_type_id)')
+			.select('order_index, question_id, questions(prompt, question_type_id, image_url)')
 			.eq('round_id', roundId)
 			.order('order_index');
 
@@ -214,7 +215,8 @@
 			order_index: r.order_index,
 			question_id: r.question_id,
 			prompt: r.questions?.prompt ?? '',
-			question_type_id: r.questions?.question_type_id ?? 0
+			question_type_id: r.questions?.question_type_id ?? 0,
+			image_url: r.questions?.image_url ?? null
 		}));
 	}
 
@@ -345,10 +347,14 @@
 		if (code === 'single_choice' || code === 'multi_choice' || code === 'true_false') {
 			const { data: options } = await data.supabase
 				.from('question_choice_options')
-				.select('id, option_text, order_index')
+				.select('id, option_text, image_url, order_index')
 				.eq('question_id', next.question_id)
 				.order('order_index');
-			optionsPayload = (options ?? []).map((o) => ({ id: o.id, option_text: o.option_text }));
+			optionsPayload = (options ?? []).map((o) => ({
+				id: o.id,
+				option_text: o.option_text,
+				image_url: o.image_url
+			}));
 		} else if (code === 'slider') {
 			const { data: config } = await data.supabase
 				.from('question_slider_config')
@@ -654,8 +660,30 @@
 					<p class="prompt" in:fly={{ y: 16, duration: 300 }}>
 						{roundQuestions[currentIndex].prompt}
 					</p>
+					{#if roundQuestions[currentIndex].image_url}
+						<img
+							class="host-image-preview"
+							src={roundQuestions[currentIndex].image_url}
+							alt=""
+							in:fade={{ duration: 200 }}
+						/>
+					{/if}
 				{/key}
 			</ArcadePanel>
+		{/if}
+
+		<!-- Fázis Q6 — a host saját maga tájékozódására: kis előnézet az
+		     opciók képeiről is, ha vannak — currentQuestion (a host saját
+		     broadcast payload-ja) csak akkor van kitöltve, ha a host EBBEN A
+		     munkamenetben már elindította ezt a kérdést. -->
+		{#if currentQuestion?.options?.some((o) => o.image_url)}
+			<div class="host-option-previews">
+				{#each currentQuestion.options ?? [] as option (option.id)}
+					{#if option.image_url}
+						<img class="host-image-preview small" src={option.image_url} alt={option.option_text} />
+					{/if}
+				{/each}
+			</div>
 		{/if}
 
 		{#if uiStep === 'timing' || uiStep === 'locked'}
@@ -783,6 +811,31 @@
 	.prompt {
 		font-size: 1.25rem;
 		margin: 1rem 0;
+	}
+
+	/* Fázis Q6 — kis, kizárólag a host saját tájékozódására szolgáló
+	   kép-előnézet; sosem foglal helyet, ha nincs image_url. */
+	.host-image-preview {
+		max-width: 100%;
+		max-height: 8rem;
+		border-radius: 0.5rem;
+		border: 2px solid var(--marquee-dim);
+		margin: 0 auto;
+		display: block;
+	}
+
+	.host-option-previews {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.5rem;
+		margin: 0.75rem 0;
+	}
+
+	.host-image-preview.small {
+		max-height: 4rem;
+		max-width: 6rem;
+		object-fit: contain;
 	}
 
 	.submissions {

@@ -6,6 +6,7 @@
 	import Select from './Select.svelte';
 	import Checkbox from './Checkbox.svelte';
 	import Button from './Button.svelte';
+	import ImageUpload from './ImageUpload.svelte';
 	import { withToast } from '$lib/toast-enhance';
 
 	type Theme = { id: string; title: string };
@@ -26,7 +27,7 @@
 		points_multiplier: number;
 		time_limit_seconds: number;
 		points_decay: boolean;
-		choiceOptions?: { option_text: string; is_correct: boolean }[];
+		choiceOptions?: { option_text: string; image_url: string | null; is_correct: boolean }[];
 		sliderConfig?: {
 			min_value: number;
 			max_value: number;
@@ -65,12 +66,31 @@
 				Array.from({ length: defaultOptionCount(selectedType) }, () => '')
 		)
 	);
+	// Fázis Q6 — a választható opciók (image_url) párhuzamos tömbje, a
+	// choiceTexts-szel azonos index szerint tartva szinkronban (addChoice/
+	// removeChoice mindkettőt módosítja), hogy a kép-feltöltő mező a
+	// megfelelő opció-sorban maradjon.
+	let choiceImages = $state<(string | null)[]>(
+		untrack(
+			() =>
+				initial?.choiceOptions?.map((o) => o.image_url) ??
+				Array.from({ length: defaultOptionCount(selectedType) }, () => null)
+		)
+	);
 	let correctIndexes = $state<number[]>(
 		untrack(
 			() =>
 				initial?.choiceOptions?.map((o, i) => (o.is_correct ? i : -1)).filter((i) => i !== -1) ?? []
 		)
 	);
+	// Fázis Q6 — true_false-nál fix két opció (Igaz/Hamis), lásd lent.
+	let trueFalseImages = $state<(string | null)[]>(
+		untrack(() => [
+			initial?.choiceOptions?.[0]?.image_url ?? null,
+			initial?.choiceOptions?.[1]?.image_url ?? null
+		])
+	);
+	let questionImageUrl = $state<string | null>(untrack(() => initial?.image_url ?? null));
 
 	let orderingTexts = $state<string[]>(
 		untrack(() => initial?.orderingItems?.map((o) => o.item_text) ?? ['', ''])
@@ -78,9 +98,11 @@
 
 	function addChoice() {
 		choiceTexts.push('');
+		choiceImages.push(null);
 	}
 	function removeChoice(index: number) {
 		choiceTexts.splice(index, 1);
+		choiceImages.splice(index, 1);
 		correctIndexes = correctIndexes.filter((i) => i !== index).map((i) => (i > index ? i - 1 : i));
 	}
 
@@ -131,12 +153,7 @@
 
 	<Textarea label="Kérdés szövege" name="prompt" value={initial?.prompt ?? ''} required />
 
-	<Input
-		label="Kép URL (opcionális)"
-		type="url"
-		name="image_url"
-		value={initial?.image_url ?? ''}
-	/>
+	<ImageUpload label="Kérdés képe (opcionális)" name="image_url" bind:value={questionImageUrl} />
 
 	<div class="row">
 		<Input
@@ -195,6 +212,11 @@
 						<Button variant="ghost" onclick={() => removeChoice(i)}>Törlés</Button>
 					{/if}
 				</div>
+				<ImageUpload
+					label="Kép ehhez az opcióhoz (opcionális)"
+					name="option_image_url"
+					bind:value={choiceImages[i]}
+				/>
 			{/each}
 			{#if choiceTexts.length < (selectedType.max_options ?? choiceTexts.length)}
 				<Button variant="secondary" onclick={addChoice}>+ Opció</Button>
@@ -219,6 +241,11 @@
 				/>
 				Igaz
 			</label>
+			<ImageUpload
+				label="Igaz — kép (opcionális)"
+				name="option_image_url"
+				bind:value={trueFalseImages[0]}
+			/>
 			<label>
 				<input
 					type="radio"
@@ -229,6 +256,11 @@
 				/>
 				Hamis
 			</label>
+			<ImageUpload
+				label="Hamis — kép (opcionális)"
+				name="option_image_url"
+				bind:value={trueFalseImages[1]}
+			/>
 		</fieldset>
 	{:else if selectedType?.code === 'slider'}
 		<fieldset>

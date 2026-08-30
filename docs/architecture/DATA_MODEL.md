@@ -226,12 +226,44 @@ limit 8;
 - `questions.created_by` most már kitöltődik (a kérdést létrehozó admin
   `user.id`-ja) az `/admin/questions/new` action-ben — korábban végig
   `null` maradt, mert az insert nem adta át.
-- `question_choice_options.image_url` a séma óta létezik, de **nincs hozzá
-  admin UI** — a `QuestionForm.svelte` csak `option_text`/`is_correct`
-  mezőket kezel opciónként. Csak a kérdés-szintű `image_url` (117. sor)
-  van bekötve. Szándékosan kihagyva az MVP-ből: külön opció-kép feltöltő
-  mezőt és a host/play/tv renderelést is érintené, ez már egy önálló
-  funkció, nem launch-checklist tétel.
+- ~~`question_choice_options.image_url` a séma óta létezik, de nincs hozzá
+  admin UI~~ — **megoldva Fázis Q6-ban** (lásd lent): a kérdés- ÉS
+  opció-szintű kép feltöltés/megjelenítés is bekötve.
+
+### Kép feltöltés (Fázis Q6, `question-images` Storage bucket)
+
+A `questions.image_url` / `question_choice_options.image_url` oszlopok a
+séma óta léteztek, de admin UI és tényleges tárolóhely nélkül üresek
+maradtak (lásd fenti, most már megoldott MVP-korlát). Fázis Q6 ezt zárja le:
+
+- **Supabase Storage bucket:** `question-images`, **publikus olvasás**
+  (`storage.objects` `select` policy, `bucket_id = 'question-images'`
+  feltétellel, korlátozás nélkül) — a `/play` és `/tv` felület is `anon`
+  kliensként tölti be a képeket, ugyanaz a bizalmi modell, mint a
+  `design_themes`-nél (8. szakasz): tisztán vizuális adat, nincs benne
+  védendő. **Írás (upload/update/delete) csak `role_id in (1,2)`**
+  (super_admin/admin) — ugyanaz a jogosultsági kör, mint a kérdésbank
+  CRUD-nál. Migráció:
+  `supabase/migrations/20260810110000_question_images_storage.sql`.
+- **Feltöltési folyamat** (`src/lib/components/ImageUpload.svelte`): a
+  kliens ellenőrzi a fájltípust (csak jpg/png/webp) és méretet (max 5 MB),
+  a `browser-image-compression` csomaggal tömöríti (max 1 MB, max
+  1920px), majd a Supabase Storage `.upload()` / `.getPublicUrl()`
+  hívásaival tölti fel és kapja meg a nyilvános URL-t — ez kerül a
+  `questions.image_url` / `question_choice_options.image_url` mezőkbe. A
+  `QuestionForm.svelte` egy `ImageUpload` mezőt ad a kérdéshez, és
+  `single_choice`/`multi_choice`/`true_false` típusnál minden egyes
+  opcióhoz is (pl. "melyik logó melyik márkáé" jellegű kérdésekhez).
+- **Megjelenítés:** a `question_show` broadcast payload (lásd
+  `docs/architecture/REALTIME_PROTOCOL.md`) és a `current_question_state()`
+  RPC (Fázis P4, kiegészítve
+  `supabase/migrations/20260810120000_current_question_state_option_images.sql`-ben)
+  is tartalmazza az opciónkénti `image_url`-t, hogy egy
+  újracsatlakozó/reload-olt `/play`/`/tv` kliens is azonnal megkapja, külön
+  API-hívás nélkül. A `ChoiceButton.svelte` opcionális `imageUrl` propja
+  kezeli a renderelést mindhárom felületen (host kis előnézet, `/play` és
+  `/tv` a válasz-gombban) — ha nincs `image_url`, a gomb kinézete
+  változatlan, nincs üres hely/placeholder.
 
 ---
 

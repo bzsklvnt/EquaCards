@@ -17,7 +17,9 @@ export type QuestionShowPayload = {
 	// Szándékosan NINCS bennük helyes-válasz infó (is_correct / correct_value /
 	// correct_position) — csak a question_reveal payload tartalmazza, a
 	// megoldás feltárásakor.
-	options?: { id: string; option_text: string }[]; // single_choice | multi_choice | true_false
+	// Fázis Q6 — image_url opciónként (pl. "melyik logó melyik márkáé"
+	// típusú kérdéseknél); null, ha az opcióhoz nincs kép feltöltve.
+	options?: { id: string; option_text: string; image_url: string | null }[]; // single_choice | multi_choice | true_false
 	slider?: { min_value: number; max_value: number; step: number };
 	ordering_items?: { id: string; item_text: string }[]; // véletlenszerűen összekevert sorrendben
 };

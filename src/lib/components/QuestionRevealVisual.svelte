@@ -21,7 +21,7 @@
 		correctOrder
 	}: {
 		questionType: string;
-		options?: { id: string; option_text: string }[];
+		options?: { id: string; option_text: string; image_url: string | null }[];
 		slider?: { min_value: number; max_value: number; step: number };
 		orderingItems?: { id: string; item_text: string }[];
 		correctOptionIds?: string[];
@@ -67,7 +67,12 @@
 {#if questionType === 'single_choice' || questionType === 'multi_choice' || questionType === 'true_false'}
 	<div class="reveal-options">
 		{#each options ?? [] as option (option.id)}
-			<ChoiceButton text={option.option_text} disabled correct={correctSet.has(option.id)} />
+			<ChoiceButton
+				text={option.option_text}
+				imageUrl={option.image_url}
+				disabled
+				correct={correctSet.has(option.id)}
+			/>
 		{/each}
 	</div>
 {:else if questionType === 'slider' && slider}
@@ -95,6 +100,12 @@
 		display: grid;
 		gap: 0.5rem;
 		margin: 1rem 0;
+	}
+
+	/* Fázis Q6 — host/TV feltárás-képernyőn a kép valamivel nagyobb, mint
+	   a /play alapértelmezett mérete. */
+	.reveal-options :global(.choice-image) {
+		max-height: 10rem;
 	}
 
 	.reveal-slider {

@@ -16,7 +16,7 @@
 		orderingItems
 	}: {
 		questionType: string;
-		options?: { id: string; option_text: string }[];
+		options?: { id: string; option_text: string; image_url: string | null }[];
 		slider?: { min_value: number; max_value: number; step: number };
 		orderingItems?: { id: string; item_text: string }[];
 	} = $props();
@@ -25,7 +25,7 @@
 {#if questionType === 'single_choice' || questionType === 'multi_choice' || questionType === 'true_false'}
 	<div class="answer-options">
 		{#each options ?? [] as option (option.id)}
-			<ChoiceButton text={option.option_text} disabled />
+			<ChoiceButton text={option.option_text} imageUrl={option.image_url} disabled />
 		{/each}
 	</div>
 {:else if questionType === 'slider' && slider}
@@ -61,6 +61,11 @@
 	.answer-options :global(.choice) {
 		padding: 1.25rem;
 		font-size: inherit;
+	}
+
+	/* Fázis Q6 — TV kijelzőn a kép nagyobb, mint a csapatok telefonján. */
+	.answer-options :global(.choice-image) {
+		max-height: 16rem;
 	}
 
 	.answer-slider {

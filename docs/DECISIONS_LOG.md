@@ -1932,3 +1932,65 @@ valószínűleg zaj — ezt az audit **megerősítette**:
 Dokumentáció: ez a bejegyzés; a `docs/features/timer.md` "8. Sürgősségi
 javítás" szakasza már tartalmazza az `answer_within_timer()`-t érintő
 gyökérok részleteit.
+
+## 2026-08-10 — Fázis Q6: kép feltöltés kérdésekhez és válaszlehetőségekhez
+
+**Kiindulási állapot (audit):** a `questions.image_url` /
+`question_choice_options.image_url` oszlopok a séma óta (Fázis 2) léteztek,
+de a `QuestionForm.svelte` a kérdés-szintű mezőt csak egy sima URL-beillesztős
+`<Input type="url">`-ként kezelte (nincs tényleges Storage-feltöltés), az
+opció-szintű mező pedig egyáltalán nem jelent meg a formon. Súlyosabb: a
+`image_url` érték SEHOL nem került renderelésre `<img>`-ként — sem
+host-on, sem `/play`-en, sem `/tv`-n — tehát még ha valaki kézzel be is
+írt egy URL-t, semmi nem jelenítette meg.
+
+**Megvalósítás:**
+
+1. **`question-images` Storage bucket** (`supabase/migrations/
+20260810110000_question_images_storage.sql`) — publikus olvasás,
+   írás csak `role_id in (1,2)`-nek. Részletek:
+   `docs/architecture/DATA_MODEL.md` 2. szakasz.
+2. **`ImageUpload.svelte`** (új, újrahasznosítható komponens) — fájltípus
+   (jpg/png/webp) és méret (max 5 MB) validáció, `browser-image-
+compression` tömörítés feltöltés előtt, majd Supabase Storage
+   `.upload()`/`.getPublicUrl()`. Egy rejtett input tartja a végleges URL-t
+   a form submit-hoz, tehát a szerver-oldali action-ök (`$lib/server/
+questions.ts`) semmit nem tudnak a feltöltésről — ugyanazt a
+   `image_url`/`option_image_url` mezőt kapják, mint korábban egy sima
+   URL-mezőnél.
+3. **`QuestionForm.svelte`** — a kérdés-szintű mező mostantól
+   `ImageUpload`; `single_choice`/`multi_choice`/`true_false` típusnál
+   minden opcióhoz (true_false-nál a fix Igaz/Hamis 2 sorhoz is) saját
+   `ImageUpload` mező jár, `choiceImages`/`trueFalseImages` állapot-tömbök
+   a `choiceTexts`-szel párhuzamosan tartva szinkronban (opció hozzáadás/
+   törlés mindkettőt módosítja).
+4. **`ChoiceButton.svelte`** kapott egy opcionális `imageUrl` propot — ha
+   nincs kép, a gomb kinézete bit-egyenlő a korábbival (nincs feltételes
+   `has-image` class, nincs `<img>` a DOM-ban). Ez az egyetlen hely, ahol
+   a kép ténylegesen renderelődik — host (kis előnézet a kérdés-vezérlő
+   panelen, `currentQuestion.options`-ból), `/play` (válasz-gombban), `/tv`
+   (`QuestionAnswerDisplay`/`QuestionRevealVisual`-on keresztül, nagyobb
+   méretben) mind ugyanazt a komponenst használják.
+5. **`question_show` broadcast payload** és a **`current_question_state()`
+   RPC** (Fázis P4 reconnect-restore) is kiegészült opciónkénti
+   `image_url`-lel (`supabase/migrations/
+20260810120000_current_question_state_option_images.sql`) — egy
+   újracsatlakozó/reload-olt csapat/TV is azonnal megkapja a képeket,
+   külön API-hívás nélkül. Részletek:
+   `docs/architecture/REALTIME_PROTOCOL.md`.
+
+**Módszertani megjegyzés — élő SQL-ellenőrzés NEM történt meg ebben a
+fázisban.** A Supabase MCP eszközök minden hívása (`execute_sql`,
+`apply_migration`, `list_migrations`) `"Connection terminated due to
+connection timeout"` hibával elutasult; a `get_project` hívás kiderítette
+a valódi okot: a projekt (`wnmgilblkdqunhpwoulj`) állapota `INACTIVE`
+(szüneteltetve), és a `restore_project` hívás egy `ForbiddenException`-t
+adott vissza — a szervezet (`bzsklvnt`) elérte az ingyenes csomag aktív
+projekt-limitjét (2 db), ez a felhasználó Supabase dashboard-beli
+beavatkozását igényli (egy másik projekt szüneteltetése/törlése vagy
+csomag-frissítés), amit ez a munkamenet nem tud elvégezni. A két új
+migráció (`20260810110000_question_images_storage.sql`,
+`20260810120000_current_question_state_option_images.sql`) emiatt csak a
+repóban létezik, a projekt-limit feloldása és a következő deploy/`supabase
+db push` UTÁN kerül alkalmazásra az éles adatbázisra. A kód-szintű munka
+(`npm run check`/`lint`/`build`) mindhárom zöld.
