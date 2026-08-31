@@ -1933,63 +1933,6 @@ Dokumentáció: ez a bejegyzés; a `docs/features/timer.md` "8. Sürgősségi
 javítás" szakasza már tartalmazza az `answer_within_timer()`-t érintő
 gyökérok részleteit.
 
-## 2026-08-31 — Válasz-beküldés "teljesen nem működik, Vercel log néma" — architektúra-audit
-
-Új jelzés: a válasz-beküldés **teljesen** nem működött (nem csak egy csapat
-egy alkalommal, mint a korábbi Q5-jelzésnél), és a Vercel Function logban
-**semmi** nem jelent meg a beküldési kísérletről.
-
-**1. Architektúra megerősítve:** a `submitAnswer()`
-(`src/routes/play/[pin]/+page.svelte:464`) **közvetlenül a böngészőből hívja
-a Supabase klienst** (`data.supabase.from('answers').insert(...)`) — NEM egy
-SvelteKit szerver-oldali route-on/form action-ön keresztül. Ez a
-docs/architecture/DATA_MODEL.md 5. szakaszában is dokumentált, szándékos
-minta (ugyanígy megy a csapat-csatlakozás és a `team_joker_uses` insert is).
-**Emiatt a Vercel Function log ÜRESSÉGE ELVÁRT, NORMÁLIS viselkedés ennél a
-funkciónál** — a kérés sosem érinti a Vercel szervert, egyenesen böngésző →
-Supabase REST API megy, tehát a néma Vercel log önmagában NEM bizonyítja,
-hogy a kérés el sem indult.
-
-**2. Valószínű gyökérok — időzítési egybeesés:** a Supabase projekt
-(`wnmgilblkdqunhpwoulj`) ennek a munkamenetnek a nagy részében
-**szüneteltetve (`INACTIVE`) volt** (lásd a Fázis Q6 bejegyzést) — csak
-néhány üzenettel ez előtt lett újraaktiválva, és a két függőben lévő Q6
-migráció is csak azután került alkalmazásra. Ha az élő teszt a
-szüneteltetés alatt (vagy közvetlenül az újraindítás utáni "RESTORING"
-felmelegedési ablakban) történt, **minden** Supabase-hívás — a beküldés is —
-elhasalt/időtúllépést kapott volna, kivétel nélkül minden csapatnál, és ez
-pontosan a "teljesen nem működik, sehol semmi log" tünetet adná (a kérés a
-Vercel-t sosem érinti, a Supabase pedig nem is válaszolt). Ez jól
-magyarázza, hogy ez a jelzés **súlyosabb** (mindenkinél) volt, mint a
-korábbi Q5-ös (csak egy csapatnál) — egy teljes infrastruktúra-kiesés
-minden klienst egyformán érint, egy RLS/időzítés-élű hiba viszont tipikusan
-csak esetenként.
-
-**3. Élőben újra-auditálva** (a projekt mostani `ACTIVE_HEALTHY` állapotában,
-SQL-lel közvetlenül lekérdezve):
-
-- `answers` tábla RLS-je bekapcsolva, az `answers_insert_anon_active_game`
-  policy (`anon`, `INSERT`) változatlan és helyes:
-  `game_status(game_id) = 'active' AND answer_within_timer(game_id, question_id)`.
-- A két segédfüggvény (`game_status()`, `answer_within_timer()`) definíciója
-  ellenőrizve — mindkettő pontosan a várt logikát tartalmazza, egyik sem
-  módosult váratlanul.
-- A Fázis Q2-ben hozzáadott `answers_staff_all` policy `authenticated`
-  szerepkörre és `role_id in (1,2,3)`-ra korlátozott — nem érinti, nem
-  szigorítja az `anon` INSERT útvonalat.
-- `hooks.server.ts` / `/play/[pin]/+page.server.ts` — újra átnézve, nincs
-  bennük Auth session-re támaszkodó guard (megegyezik a Fázis Q5 audit
-  eredményével, azóta nem változott).
-
-**Eredmény: ebben a körben NEM került elő új kódhiba** — sem az RLS, sem a
-route-lánc nem tér el a tervezettől. A legerősebb magyarázat a projekt
-átmeneti szüneteltetése. **Ajánlott következő lépés:** a felhasználó
-tesztelje újra MOST, hogy a projekt megerősítetten `ACTIVE_HEALTHY` és mindkét
-Q6-migráció alkalmazva van — ha a hiba továbbra is fennáll, a következő
-diagnosztikai lépéshez tényleges böngésző DevTools Network/Console kimenet
-kell (a beküldés közben kapott HTTP-válaszkód/hibaüzenet, vagy egy JS
-kivétel), mivel ehhez a munkamenethez nincs élő böngésző-hozzáférés.
-
 ## 2026-08-10 — Fázis Q6: kép feltöltés kérdésekhez és válaszlehetőségekhez
 
 **Kiindulási állapot (audit):** a `questions.image_url` /
@@ -2051,3 +1994,51 @@ migráció (`20260810110000_question_images_storage.sql`,
 repóban létezik, a projekt-limit feloldása és a következő deploy/`supabase
 db push` UTÁN kerül alkalmazásra az éles adatbázisra. A kód-szintű munka
 (`npm run check`/`lint`/`build`) mindhárom zöld.
+
+## 2026-08-31 — Válasz-beküldés "teljesen nem működik" — valódi gyökérok: tört `answer_time_ms`
+
+Élő böngészős teszt (DevTools Network fül screenshot) egyértelműen
+megmutatta a hibát, amit a korábbi, csak-kódból végzett audit (lásd Fázis
+Q5 bejegyzés) nem tudott elkapni: minden `answers` insert
+**22P02 Postgres-hibával** hasalt el —
+`invalid input syntax for type integer: "17638.5"` (és ismétlődően más
+tört értékekkel, pl. `"6898.5"`, `"28943.5"`).
+
+**Gyökérok:** `src/lib/realtime/server-clock.ts` `calibrateServerClock()`-ja
+`offsetMs = serverMs - (t0 + roundTripMs / 2)`-t számolt — a `roundTripMs /
+2` páratlan (ms-ban mért) hálózati kör-utazási idő esetén `.5`-re végződő
+törtszámot ad. Ez az `offsetMs` csak EGYSZER, az oldal `onMount`-jánál
+kalibrálódik, utána a teljes böngésző-munkamenetre rögzül — tehát ha a
+kalibráláskori kör-utazás páratlan volt, a `serverNow()` (`Date.now() +
+offsetMs`) MINDEN további hívása tört számot adott vissza. A `/play`
+`submitAnswer()`-je ezt közvetlenül az `answers.answer_time_ms` (egész
+szám oszlop) insert-jébe írta
+(`serverNow() - new Date(timerInfo.server_start_time).getTime()`), tört
+eredménnyel — a Postgres minden egyes beküldést elutasított ugyanezzel a
+22P02 hibával.
+
+Ez pontosan megmagyarázza a tünetet: **nem alkalmi/időszakos** hiba volt
+(mint egy RLS-élű vagy versenyhelyzet-hiba lenne), hanem az adott
+munkamenet MINDEN beküldését, MINDEN csapatnál elvitte, amíg a kalibrálás
+páratlan kör-utazással történt — ez sokkal súlyosabb és
+determinisztikusabb, mint a korábbi (csak egy csapatot érintő) Q5-jelzés,
+és semmi köze nem volt sem a Supabase projekt szüneteltetéséhez (a
+korábbi, kódból végzett audit ezt tekintette a legerősebb hipotézisnek —
+tévesen), sem az RLS policy-khoz (amiket élőben újra-ellenőriztünk, és
+helyesnek találtunk), sem a `hooks.server.ts` auth-guardjaihoz.
+
+**Javítás:** `calibrateServerClock()`-ban `offsetMs = Math.round(serverMs -
+(t0 + roundTripMs / 2))` — a kerekítés a FORRÁSNÁL történik, tehát minden
+`serverNow()`-fogyasztó (a három visszaszámláló effect ÉS az
+`answer_time_ms` insert egyaránt) garantáltan egész számot kap, nem csak a
+konkrét insert-hívás egy pontpatch-elése. `npm run check`/`lint`/`build`
+mindhárom zöld.
+
+**Módszertani tanulság:** ez a hiba egy kód-olvasásos audittal (mint a
+korábbi Q5/Q6 körökben) nem volt észrevehető — a `roundTripMs / 2`
+törtszám-lehetősége csak futásidőben, valós hálózati kör-utazási idővel
+derült ki, és csak a felhasználó által mellékelt DevTools Network
+screenshot (a konkrét Postgres hibaüzenettel) tette lehetővé a pontos
+diagnózist. A korábbi, kizárólag kódból végzett audit helyes volt abban,
+hogy az RLS/route-lánc nem hibás — de a valódi gyökérokot csak élő
+böngészős reprodukció találta meg.
