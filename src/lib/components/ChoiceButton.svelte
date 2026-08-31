@@ -1,6 +1,7 @@
 <script lang="ts">
 	let {
 		text,
+		imageUrl = null,
 		selected = false,
 		disabled = false,
 		pulse = false,
@@ -8,6 +9,10 @@
 		onclick
 	}: {
 		text: string;
+		/** Fázis Q6 — opcionális kép az opcióhoz (pl. "melyik logó melyik
+		 * márkáé" típusú kérdéseknél). Ha nincs megadva, a gomb kinézete
+		 * pontosan a korábbival egyezik — nincs üres hely/placeholder. */
+		imageUrl?: string | null;
 		selected?: boolean;
 		disabled?: boolean;
 		/** Fázis O7 — rövid kiemelés-animáció koppintáskor, azonnali
@@ -24,8 +29,20 @@
 	} = $props();
 </script>
 
-<button type="button" class="choice" class:selected class:pulse class:correct {disabled} {onclick}>
-	{text}
+<button
+	type="button"
+	class="choice"
+	class:selected
+	class:pulse
+	class:correct
+	class:has-image={!!imageUrl}
+	{disabled}
+	{onclick}
+>
+	{#if imageUrl}
+		<img class="choice-image" src={imageUrl} alt="" />
+	{/if}
+	<span class="choice-text">{text}</span>
 	{#if correct}
 		<span class="check" aria-hidden="true">✓</span>
 	{/if}
@@ -77,6 +94,27 @@
 		color: var(--marquee);
 		opacity: 1;
 		animation: choice-correct-in 0.4s ease;
+	}
+
+	.choice-text {
+		flex: 1;
+	}
+
+	/* Fázis Q6 — ha az opciónak van képe (pl. logó-felismerős kérdés), a
+	   kép a szöveg fölé kerül, a gomb pedig oszlop-elrendezésre vált — a
+	   sima szöveges gomboknál (nincs kép) a viselkedés/kinézet
+	   változatlan marad. */
+	.choice.has-image {
+		flex-direction: column;
+		align-items: stretch;
+		text-align: center;
+	}
+
+	.choice-image {
+		width: 100%;
+		max-height: 8rem;
+		object-fit: contain;
+		border-radius: 0.375rem;
 	}
 
 	.check {

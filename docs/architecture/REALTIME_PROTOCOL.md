@@ -63,7 +63,7 @@ importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
     time_limit_seconds: number;
     order_index: number;
     total_questions: number;
-    options?: { id: string; option_text: string }[]; // single_choice | multi_choice | true_false
+    options?: { id: string; option_text: string; image_url: string | null }[]; // single_choice | multi_choice | true_false
     slider?: { min_value: number; max_value: number; step: number };
     ordering_items?: { id: string; item_text: string }[]; // véletlenszerűen összekevert sorrendben
   }
@@ -73,6 +73,12 @@ importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
   `ordering_items` sorrendjét a host kliense Fisher-Yates-sel megkeveri,
   mielőtt broadcastolja, hogy a `question_ordering_items` beszúrási sorrendje
   (ami történetesen egybeeshetne a helyes sorrenddel) sose szivárogjon ki.
+  **Fázis Q6:** a kérdés `image_url`-je (fent) ÉS minden opció saját
+  `image_url`-je is a payload része (null, ha nincs kép feltöltve) — a
+  `/play` és `/tv` így külön API-hívás nélkül, azonnal megkapja a képeket a
+  broadcast-tal. A `current_question_state()` RPC (Fázis P4, lásd
+  `docs/architecture/DATA_MODEL.md` 2. szakasz) ugyanezt a mezőkészletet
+  adja vissza egy reconnect/reload esetén.
 - **Kliens teendő:** csapat — típusonkénti válasz-UI renderelése
   (`src/routes/play/[pin]/+page.svelte`): gombrács (`single_choice` /
   `multi_choice` / `true_false`), csúszka (`slider`), drag-and-drop lista

@@ -200,7 +200,7 @@
 			time_limit_seconds?: number;
 			order_index?: number;
 			total_questions?: number;
-			options?: { id: string; option_text: string }[] | null;
+			options?: { id: string; option_text: string; image_url: string | null }[] | null;
 			slider?: { min_value: number; max_value: number; step: number } | null;
 			ordering_items?: { id: string; item_text: string }[] | null;
 			server_start_time?: string | null;
@@ -639,6 +639,9 @@
 							{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
 						</p>
 						<p class="prompt">{currentQuestion.prompt}</p>
+						{#if currentQuestion.image_url}
+							<img class="question-image" src={currentQuestion.image_url} alt="" />
+						{/if}
 					</ArcadePanel>
 				</div>
 			{/key}
@@ -662,6 +665,7 @@
 						{#each currentQuestion.options ?? [] as option (option.id)}
 							<ChoiceButton
 								text={option.option_text}
+								imageUrl={option.image_url}
 								selected={selectedOptionId === option.id}
 								pulse={selectedOptionId === option.id}
 								onclick={() => selectAndSubmit(option.id)}
@@ -673,6 +677,7 @@
 						{#each currentQuestion.options ?? [] as option (option.id)}
 							<ChoiceButton
 								text={option.option_text}
+								imageUrl={option.image_url}
 								selected={selectedOptionIds.includes(option.id)}
 								onclick={() => toggleMultiOption(option.id)}
 							/>
@@ -810,6 +815,14 @@
 	.prompt {
 		font-size: clamp(1.1rem, 5vw, 1.5rem);
 		margin: 1rem 0;
+	}
+
+	.question-image {
+		max-width: 100%;
+		max-height: 14rem;
+		border-radius: 0.5rem;
+		margin: 0 auto 0.5rem;
+		display: block;
 	}
 
 	.timer-wrap {
