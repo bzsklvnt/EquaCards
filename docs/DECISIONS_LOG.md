@@ -1994,3 +1994,51 @@ migráció (`20260810110000_question_images_storage.sql`,
 repóban létezik, a projekt-limit feloldása és a következő deploy/`supabase
 db push` UTÁN kerül alkalmazásra az éles adatbázisra. A kód-szintű munka
 (`npm run check`/`lint`/`build`) mindhárom zöld.
+
+## 2026-08-31 — Válasz-beküldés "teljesen nem működik" — valódi gyökérok: tört `answer_time_ms`
+
+Élő böngészős teszt (DevTools Network fül screenshot) egyértelműen
+megmutatta a hibát, amit a korábbi, csak-kódból végzett audit (lásd Fázis
+Q5 bejegyzés) nem tudott elkapni: minden `answers` insert
+**22P02 Postgres-hibával** hasalt el —
+`invalid input syntax for type integer: "17638.5"` (és ismétlődően más
+tört értékekkel, pl. `"6898.5"`, `"28943.5"`).
+
+**Gyökérok:** `src/lib/realtime/server-clock.ts` `calibrateServerClock()`-ja
+`offsetMs = serverMs - (t0 + roundTripMs / 2)`-t számolt — a `roundTripMs /
+2` páratlan (ms-ban mért) hálózati kör-utazási idő esetén `.5`-re végződő
+törtszámot ad. Ez az `offsetMs` csak EGYSZER, az oldal `onMount`-jánál
+kalibrálódik, utána a teljes böngésző-munkamenetre rögzül — tehát ha a
+kalibráláskori kör-utazás páratlan volt, a `serverNow()` (`Date.now() +
+offsetMs`) MINDEN további hívása tört számot adott vissza. A `/play`
+`submitAnswer()`-je ezt közvetlenül az `answers.answer_time_ms` (egész
+szám oszlop) insert-jébe írta
+(`serverNow() - new Date(timerInfo.server_start_time).getTime()`), tört
+eredménnyel — a Postgres minden egyes beküldést elutasított ugyanezzel a
+22P02 hibával.
+
+Ez pontosan megmagyarázza a tünetet: **nem alkalmi/időszakos** hiba volt
+(mint egy RLS-élű vagy versenyhelyzet-hiba lenne), hanem az adott
+munkamenet MINDEN beküldését, MINDEN csapatnál elvitte, amíg a kalibrálás
+páratlan kör-utazással történt — ez sokkal súlyosabb és
+determinisztikusabb, mint a korábbi (csak egy csapatot érintő) Q5-jelzés,
+és semmi köze nem volt sem a Supabase projekt szüneteltetéséhez (a
+korábbi, kódból végzett audit ezt tekintette a legerősebb hipotézisnek —
+tévesen), sem az RLS policy-khoz (amiket élőben újra-ellenőriztünk, és
+helyesnek találtunk), sem a `hooks.server.ts` auth-guardjaihoz.
+
+**Javítás:** `calibrateServerClock()`-ban `offsetMs = Math.round(serverMs -
+(t0 + roundTripMs / 2))` — a kerekítés a FORRÁSNÁL történik, tehát minden
+`serverNow()`-fogyasztó (a három visszaszámláló effect ÉS az
+`answer_time_ms` insert egyaránt) garantáltan egész számot kap, nem csak a
+konkrét insert-hívás egy pontpatch-elése. `npm run check`/`lint`/`build`
+mindhárom zöld.
+
+**Módszertani tanulság:** ez a hiba egy kód-olvasásos audittal (mint a
+korábbi Q5/Q6 körökben) nem volt észrevehető — a `roundTripMs / 2`
+törtszám-lehetősége csak futásidőben, valós hálózati kör-utazási idővel
+derült ki, és csak a felhasználó által mellékelt DevTools Network
+screenshot (a konkrét Postgres hibaüzenettel) tette lehetővé a pontos
+diagnózist. A korábbi, kizárólag kódból végzett audit helyes volt abban,
+hogy az RLS/route-lánc nem hibás — de a valódi gyökérokot csak élő
+böngészős reprodukció találta meg.

@@ -40,7 +40,21 @@ export async function calibrateServerClock(supabase: SupabaseClient<Database>): 
 	// keletkezett — ehhez a pillanathoz viszonyítjuk az akkor mért
 	// szerver-időt, hogy a hálózati késleltetés fele ne torzítsa az
 	// eltolást.
-	offsetMs = serverMs - (t0 + roundTripMs / 2);
+	//
+	// Sürgősségi javítás — élő tesztelésből: a válasz-beküldés MINDEN
+	// alkalommal 22P02 ("invalid input syntax for type integer")
+	// Postgres-hibával hasalt el egy adott munkamenetben. Gyökérok:
+	// `roundTripMs / 2` páratlan kör-utazási idő esetén .5-re végződő
+	// törtszámot ad, ami innentől offsetMs-be, onnan MINDEN serverNow()
+	// hívásba beépül — az `answers.answer_time_ms` (integer oszlop)
+	// insert-je pedig ezt a törtszámot kapta meg. Mivel offsetMs csak
+	// egyszer, onMount-kor kalibrálódik és utána a teljes munkamenetre
+	// rögzül, ez NEM alkalmi/időszakos hiba volt, hanem az adott
+	// munkamenet MINDEN beküldését elvitte, amíg a kör-utazás páratlan
+	// volt kalibráláskor. Math.round() itt, a forrásnál zárja ki a
+	// problémát — minden serverNow()-fogyasztó (visszaszámlálás,
+	// answer_time_ms) garantáltan egész számot kap.
+	offsetMs = Math.round(serverMs - (t0 + roundTripMs / 2));
 }
 
 /** `Date.now()` helyett használandó a visszaszámláláshoz mindenhol, ahol
