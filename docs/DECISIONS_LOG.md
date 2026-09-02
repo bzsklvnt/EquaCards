@@ -2042,3 +2042,39 @@ screenshot (a konkrét Postgres hibaüzenettel) tette lehetővé a pontos
 diagnózist. A korábbi, kizárólag kódból végzett audit helyes volt abban,
 hogy az RLS/route-lánc nem hibás — de a valódi gyökérokot csak élő
 böngészős reprodukció találta meg.
+
+## 2026-08-31 — CI `npm run check` hibázott: hiányzó PUBLIC_ env változók GitHub Actionsben
+
+Felhasználó által beillesztett GitHub Actions log: `svelte-check` 46 hibával
+elhasalt a `.github/workflows/ci.yml` `lint-and-build` jobjában, mind a
+`src/routes/+layout.ts`-ben (`createBrowserClient`/`createServerClient`
+hívások), mind minden olyan fájlban, ami a gyökér `data.supabase`-ből
+származtatott klienst használ (`host`/`play` route-ok) — `"Argument of
+type 'string | undefined' is not assignable to parameter of type
+'string'"`, majd emiatt láncszerűen "This expression is not callable" az
+összes `.from()`/`.rpc()` hívásnál.
+
+**Gyökérok:** a `svelte-kit sync` a `$env/dynamic/public` ambient
+típusdefinícióját (`.svelte-kit/ambient.d.ts`) a ténylegesen jelenlévő
+`PUBLIC_*` környezeti változók alapján generálja — ha egy adott kulcs
+(pl. `PUBLIC_SUPABASE_URL`) megtalálható a `process.env`-ben/`.env`
+fájlban sync-időben, explicit `string` típust kap; ha nem, a generikus
+`[key: \`PUBLIC_\${string}\`]: string | undefined`index-aláírásra esik
+vissza. Lokálisan ez sosem jelentkezett, mert a`.env`(gitignore-olt,
+nincs commitolva) tartalmazza mindkét kulcsot. A`.github/workflows/
+ci.yml`viszont sosem állított be semmilyen`PUBLIC_SUPABASE_URL`/
+`PUBLIC_SUPABASE_ANON_KEY`környezeti változót a job/step szintjén —
+tehát ez a hiba a workflow LÉTREHOZÁSA (Fázis 0) óta lappangott, csak
+eddig soha nem futott le/nem lett észlelve`npm run check`-ként a CI-ban.
+
+**Javítás:** a `lint-and-build` job kapott egy `env:` blokkot a két
+PUBLIC_ kulccsal, konkrét értékkel feltöltve. Ezek **nem titkos
+értékek** — a Supabase anon kulcs + projekt URL kifejezetten arra
+való, hogy kliens-oldali kódba (és most már a CI típusellenőrzésbe is)
+be legyen ágyazva; a tényleges adatvédelem az RLS policy-kon
+(`docs/architecture/DATA_MODEL.md`) múlik, nem ezen az értéken —
+ugyanaz a modell, mint a `.env.example`-ben is dokumentált. Élőben
+ellenőrizve: a `.env` fájl ideiglenes eltávolításával és a két
+változó közvetlen `process.env`-ként való beállításával reprodukáltam
+a CI körülményeit — a hiba előjött, majd a javítással (env vars jelen)
+`npm run check` 0 hibával lezárt.

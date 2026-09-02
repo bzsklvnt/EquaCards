@@ -7,6 +7,18 @@ on:
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
+    # `svelte-kit sync` a $env/dynamic/public ambient típusait a ténylegesen
+    # jelenlévő PUBLIC_* környezeti változók alapján generálja: ha itt
+    # hiányoznak, a két ismert kulcs (PUBLIC_SUPABASE_URL/ANON_KEY) is a
+    # generikus `string | undefined` index-aláírásra esik vissza a szigorú
+    # `string` helyett, ami `svelte-check`-nél tucatnyi "This expression is
+    # not callable" hibát dob mindenhol, ahol a Supabase kliens típusa
+    # ebből származik. Ezek NEM titkos értékek — a publikus anon kulcs +
+    # URL pontosan arra való, hogy a kliens-oldali kódba (és most a CI
+    # típusellenőrzésbe) beágyazva legyen, a tényleges védelmet az RLS adja.
+    env:
+      PUBLIC_SUPABASE_URL: https://wnmgilblkdqunhpwoulj.supabase.co
+      PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndubWdpbGJsa2RxdW5ocHdvdWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ2ODUsImV4cCI6MjEwMTcxMDY4NX0.jO7X67Wx2hYcKCWTbexNsuHM_mEbWHBJrqv8hqN2LPE
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
