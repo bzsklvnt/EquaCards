@@ -12,6 +12,7 @@ export type ParsedQuestionForm = {
 	question_type_id: number;
 	prompt: string;
 	image_url: string | null;
+	image_pixelate: boolean;
 	points: number;
 	points_multiplier: number;
 	time_limit_seconds: number;
@@ -41,6 +42,8 @@ export function parseQuestionForm(
 		question_type_id: Number(formData.get('question_type_id')),
 		prompt: ((formData.get('prompt') as string) ?? '').trim(),
 		image_url: (formData.get('image_url') as string) || null,
+		// Kép nélkül értelmetlen — ilyenkor mindig kikapcsolva mentjük.
+		image_pixelate: formData.get('image_pixelate') === 'true' && !!formData.get('image_url'),
 		points: Number(formData.get('points')),
 		points_multiplier: Number(formData.get('points_multiplier')),
 		time_limit_seconds: Number(formData.get('time_limit_seconds')),

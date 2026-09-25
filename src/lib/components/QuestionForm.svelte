@@ -23,6 +23,7 @@
 		question_type_id: number;
 		prompt: string;
 		image_url: string | null;
+		image_pixelate?: boolean;
 		points: number;
 		points_multiplier: number;
 		time_limit_seconds: number;
@@ -99,6 +100,7 @@
 		])
 	);
 	let questionImageUrl = $state<string | null>(untrack(() => initial?.image_url ?? null));
+	let imagePixelate = $state(untrack(() => initial?.image_pixelate ?? false));
 
 	let orderingTexts = $state<string[]>(
 		untrack(() => initial?.orderingItems?.map((o) => o.item_text) ?? ['', ''])
@@ -165,6 +167,14 @@
 	<Textarea label="Kérdés szövege" name="prompt" value={initial?.prompt ?? ''} required />
 
 	<ImageUpload label="Kérdés képe (opcionális)" name="image_url" bind:value={questionImageUrl} />
+	{#if questionImageUrl}
+		<Checkbox
+			label="Pixeles felfedés — a kép pixelesen indul, és a visszaszámlálás alatt élesedik"
+			name="image_pixelate"
+			value="true"
+			bind:checked={imagePixelate}
+		/>
+	{/if}
 
 	<div class="row">
 		<Input

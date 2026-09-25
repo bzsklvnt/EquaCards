@@ -37,6 +37,7 @@
 		prompt: string;
 		question_type_id: number;
 		image_url: string | null;
+		image_pixelate: boolean;
 	};
 
 	const rounds = untrack(() => data.rounds);
@@ -207,7 +208,9 @@
 	async function loadRoundQuestions(roundId: string) {
 		const { data: rows } = await data.supabase
 			.from('round_questions')
-			.select('order_index, question_id, questions(prompt, question_type_id, image_url)')
+			.select(
+				'order_index, question_id, questions(prompt, question_type_id, image_url, image_pixelate)'
+			)
 			.eq('round_id', roundId)
 			.order('order_index');
 
@@ -216,7 +219,8 @@
 			question_id: r.question_id,
 			prompt: r.questions?.prompt ?? '',
 			question_type_id: r.questions?.question_type_id ?? 0,
-			image_url: r.questions?.image_url ?? null
+			image_url: r.questions?.image_url ?? null,
+			image_pixelate: r.questions?.image_pixelate ?? false
 		}));
 	}
 
@@ -334,7 +338,7 @@
 
 		const { data: question } = await data.supabase
 			.from('questions')
-			.select('id, prompt, image_url, time_limit_seconds')
+			.select('id, prompt, image_url, image_pixelate, time_limit_seconds')
 			.eq('id', next.question_id)
 			.single();
 
@@ -388,6 +392,7 @@
 			round_title: round?.title ?? '',
 			prompt: question.prompt,
 			image_url: question.image_url,
+			image_pixelate: question.image_pixelate,
 			time_limit_seconds: question.time_limit_seconds ?? 30,
 			order_index: nextIndex + 1,
 			total_questions: roundQuestions.length,
@@ -673,6 +678,11 @@
 							alt=""
 							in:fade={{ duration: 200 }}
 						/>
+						{#if roundQuestions[currentIndex].image_pixelate}
+							<p class="pixel-note">
+								A csapatok pixelesen látják, a visszaszámlálás alatt élesedik.
+							</p>
+						{/if}
 					{/if}
 				{/key}
 			</ArcadePanel>
@@ -858,6 +868,12 @@
 		border: 2px solid var(--marquee-dim);
 		margin: 0 auto;
 		display: block;
+	}
+
+	.pixel-note {
+		margin: 0.5rem 0 0;
+		font-size: 0.8rem;
+		color: var(--marquee-dim);
 	}
 
 	.host-option-previews {

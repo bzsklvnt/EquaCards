@@ -31,6 +31,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
+	import PixelatedImage from '$lib/components/PixelatedImage.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -197,6 +198,7 @@
 			round_title?: string;
 			prompt?: string;
 			image_url?: string | null;
+			image_pixelate?: boolean;
 			time_limit_seconds?: number;
 			order_index?: number;
 			total_questions?: number;
@@ -221,6 +223,7 @@
 			round_title: s.round_title ?? '',
 			prompt: s.prompt ?? '',
 			image_url: s.image_url ?? null,
+			image_pixelate: s.image_pixelate ?? false,
 			time_limit_seconds: s.time_limit_seconds ?? 30,
 			order_index: s.order_index ?? 1,
 			total_questions: s.total_questions ?? 1,
@@ -639,7 +642,14 @@
 							{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
 						</p>
 						<p class="prompt">{currentQuestion.prompt}</p>
-						{#if currentQuestion.image_url}
+						{#if currentQuestion.image_url && currentQuestion.image_pixelate}
+							<PixelatedImage
+								src={currentQuestion.image_url}
+								startTime={timerInfo?.server_start_time ?? null}
+								duration={timerInfo?.duration ?? 0}
+								sharp={locked}
+							/>
+						{:else if currentQuestion.image_url}
 							<img class="question-image" src={currentQuestion.image_url} alt="" />
 						{/if}
 					</ArcadePanel>

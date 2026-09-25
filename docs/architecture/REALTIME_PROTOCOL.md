@@ -60,6 +60,7 @@ importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
     round_title: string;
     prompt: string;
     image_url: string | null;
+    image_pixelate?: boolean; // pixeles képfelfedés, lásd docs/features/pixel-reveal.md
     time_limit_seconds: number;
     order_index: number;
     total_questions: number;

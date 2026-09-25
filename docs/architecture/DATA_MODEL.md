@@ -115,6 +115,7 @@ create table questions (
   question_type_id smallint references question_types(id) not null,
   prompt text not null,
   image_url text,
+  image_pixelate boolean not null default false, -- pixeles képfelfedés kapcsoló, lásd docs/features/pixel-reveal.md
   points integer default 1000,
   points_multiplier numeric default 1,   -- admin állítja: 2 = dupla pontos kérdés
   time_limit_seconds integer default 30,
@@ -229,6 +230,15 @@ limit 8;
 - ~~`question_choice_options.image_url` a séma óta létezik, de nincs hozzá
   admin UI~~ — **megoldva Fázis Q6-ban** (lásd lent): a kérdés- ÉS
   opció-szintű kép feltöltés/megjelenítés is bekötve.
+
+### Pixeles képfelfedés (`supabase/migrations/20260925150000_question_image_pixelate.sql`)
+
+`questions.image_pixelate` — kérdésenkénti kapcsoló, **nem külön
+kérdéstípus**: a kép megjelenítését szabályozza (pixelesen indul, a
+visszaszámlálás alatt élesedik), a válaszadás módját továbbra is a
+`question_type_id` adja. Kép nélkül mindig `false`-ként mentődik. A
+`current_question_state()` RPC is visszaadja. Részletek:
+`docs/features/pixel-reveal.md`.
 
 ### Kép feltöltés (Fázis Q6, `question-images` Storage bucket)
 

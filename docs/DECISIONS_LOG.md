@@ -2118,3 +2118,15 @@ komponensekkel, mock adattal, ideiglenes preview-route-on renderelve
 ellenőriztük Playwright-tal (a sandbox nem ér el Supabase Auth-ot) —
 kör-hozzáadás/eltávolítás szimulációja, nézetmagasság-mérés több
 felbontáson, képernyőképek. A preview-route-ok nincsenek commitolva.
+
+## 2026-09-25 — Pixeles képfelfedés kapcsolóként
+
+Interaktív demó után a felhasználó a kapcsoló-alapú megoldást választotta
+(nem külön kérdéstípus): `questions.image_pixelate`, `PixelatedImage.svelte`,
+a `question_show` payload és a `current_question_state()` RPC kiegészítve.
+Indoklás: a pixelezés megjelenítési mód, nem válaszforma — így bármely
+típussal kombinálható, és a meglévő pontcsökkenés magától jutalmazza a
+korai tippet, új pontozási logika nélkül. A migráció élőben alkalmazva, az
+RPC viselkedése rollback-kal lezárt SQL-lel ellenőrizve (be/ki állapot), a
+komponens böngészőben tesztelve (induló, félidős, lezárt állapot). Ismert
+korlát (eredeti URL a payload-ban) és részletek: `docs/features/pixel-reveal.md`.

@@ -516,6 +516,7 @@ export type Database = {
 					created_at: string | null;
 					created_by: string | null;
 					id: string;
+					image_pixelate: boolean;
 					image_url: string | null;
 					last_used_at: string | null;
 					points: number | null;
@@ -530,6 +531,7 @@ export type Database = {
 					created_at?: string | null;
 					created_by?: string | null;
 					id?: string;
+					image_pixelate?: boolean;
 					image_url?: string | null;
 					last_used_at?: string | null;
 					points?: number | null;
@@ -544,6 +546,7 @@ export type Database = {
 					created_at?: string | null;
 					created_by?: string | null;
 					id?: string;
+					image_pixelate?: boolean;
 					image_url?: string | null;
 					last_used_at?: string | null;
 					points?: number | null;
@@ -774,6 +777,7 @@ export type Database = {
 					created_at: string | null;
 					created_by: string | null;
 					id: string;
+					image_pixelate: boolean;
 					image_url: string | null;
 					last_used_at: string | null;
 					points: number | null;

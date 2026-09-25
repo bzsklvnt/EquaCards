@@ -25,6 +25,7 @@
 		question_type_id: data.question.question_type_id,
 		prompt: data.question.prompt,
 		image_url: data.question.image_url,
+		image_pixelate: data.question.image_pixelate,
 		points: data.question.points ?? 1000,
 		points_multiplier: data.question.points_multiplier ?? 1,
 		time_limit_seconds: data.question.time_limit_seconds ?? 30,
