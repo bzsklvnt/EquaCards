@@ -2078,3 +2078,43 @@ ellenőrizve: a `.env` fájl ideiglenes eltávolításával és a két
 változó közvetlen `process.env`-ként való beállításával reprodukáltam
 a CI körülményeit — a hiba előjött, majd a javítással (env vars jelen)
 `npm run check` 0 hibával lezárt.
+
+## 2026-09-25 — Élő házi teszt visszajelzései (7 pont)
+
+1. **Kör hozzáadása után a kör csak újratöltésre jelent meg** — gyökérok
+   élő böngészős reprodukcióval igazolva: a `bind:value={roundCounts[round.id]}`
+   egy frissen érkezett körnél `undefined`-ra kötött (az alapértéket beíró
+   `$effect` csak a render UTÁN futott), a Svelte 5 pedig
+   `props_invalid_value` hibát dob, ha egy fallback-értékes propot
+   `undefined`-ra kötünk. A hiba megszakította a teljes `{#each}`-et
+   (pontosan a screenshot állapota: téma-választó látszik, "Még nincs kör
+   felvéve." marad), és utána az oldal további frissítései — így a
+   **kérdés-eltávolítás** is — elakadtak újratöltésig (4. pont első fele).
+   Javítás: függvény-kötés, ami mindig definiált értéket ad. A lassúságért
+   a load körönkénti, soros N+1 lekérdezése felelt — most minden lekérdezés
+   egyetlen `Promise.all`-ban fut.
+2. **Host és TV lobby görgetett** — hiányzó `body { margin: 0 }` + a TV
+   `min-height: 100vh` + padding `box-sizing` nélkül; javítva globális
+   resettel és magasság-érzékeny lobby-elrendezéssel
+   (`docs/architecture/DESIGN_SYSTEM.md` utolsó szakasza).
+3. **"Kilépés" lassan reagált, töltésjelzés nélkül** — globális
+   `NavigationProgress` csík minden lassú navigációra, a Kilépés link
+   "Kilépés…"-re vált; a cél-oldal (`/admin/games/[id]`) load-ja
+   párhuzamosítva, a `safeGetSession()` kérésenként memoizálva (a gyökér
+   és az admin layout eddig két külön `getUser()` hálózati hívást végzett).
+4. **"Összes kérdés törlése" körönként** — `?/clearRound`.
+5. **Kézi kérdésválasztás és új kérdés helyben** — kérdésbank-választó
+   (téma + keresés) és "+ Új kérdés ehhez a körhöz"
+   (`/admin/questions/new?round_id=…`), közös
+   `appendQuestionsToRound()` helperrel — `docs/features/random-draw.md`.
+6. **Nyers HTML inputok a kérdés-űrlapon** — a típus-választó `Select`,
+   a helyes-válasz jelölők "Helyes" címkét kaptak, igaz/hamis szegmentált
+   kapcsoló, stílusozott fieldset/legend, gombként megjelenő fájl-input,
+   opció-képek kompakt "+ Kép" gombbal a sorban.
+7. **Pixeles képfelfedés** — csak javaslat (chatben), nem implementált.
+
+**Módszertan:** a staff-only oldalakat (admin, host) a valódi
+komponensekkel, mock adattal, ideiglenes preview-route-on renderelve
+ellenőriztük Playwright-tal (a sandbox nem ér el Supabase Auth-ot) —
+kör-hozzáadás/eltávolítás szimulációja, nézetmagasság-mérés több
+felbontáson, képernyőképek. A preview-route-ok nincsenek commitolva.

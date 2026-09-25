@@ -18,21 +18,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// kell a gyökér +layout.svelte kliens-oldali auth-state-figyelőjének)
 	// a getUser()-rel már validált felhasználó UTÁN kérjük le, nem előtte
 	// "gyors kizárás" céljából.
-	event.locals.safeGetSession = async () => {
-		const {
-			data: { user },
-			error
-		} = await event.locals.supabase.auth.getUser();
-		if (error || !user) {
-			return { session: null, user: null };
-		}
+	//
+	// Kérésenként egyszer: a gyökér és az admin/host layout load egyaránt
+	// meghívja, és a getUser() minden alkalommal egy hálózati kör-utazás a
+	// Supabase Auth felé — a memo ezt egyre csökkenti.
+	let sessionPromise: ReturnType<App.Locals['safeGetSession']> | undefined;
+	event.locals.safeGetSession = () =>
+		(sessionPromise ??= (async () => {
+			const {
+				data: { user },
+				error
+			} = await event.locals.supabase.auth.getUser();
+			if (error || !user) {
+				return { session: null, user: null };
+			}
 
-		const {
-			data: { session }
-		} = await event.locals.supabase.auth.getSession();
+			const {
+				data: { session }
+			} = await event.locals.supabase.auth.getSession();
 
-		return { session, user };
-	};
+			return { session, user };
+		})());
 
 	return resolve(event, {
 		filterSerializedResponseHeaders(name) {

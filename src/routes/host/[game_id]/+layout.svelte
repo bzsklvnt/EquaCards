@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { navigating } from '$app/state';
 	import { setConnectionStatusContext } from '$lib/realtime/connection-status.svelte';
 	import { setHostProgressContext } from '$lib/realtime/host-progress.svelte';
 	import type { LayoutData } from './$types';
@@ -12,6 +13,9 @@
 	let currentRoundIndex = $derived(
 		data.rounds.findIndex((r) => r.id === data.game.current_round_id)
 	);
+
+	const exitHref = $derived(resolve('/admin/games/[id]', { id: data.game.id }));
+	const exiting = $derived(navigating.to?.url.pathname === exitHref);
 
 	const statusLabel = {
 		connected: 'Élő kapcsolat',
@@ -42,7 +46,8 @@
 		<div class="status-block">
 			<span class="dot {connectionStatus.status}" aria-hidden="true"></span>
 			<span class="status-label">{statusLabel[connectionStatus.status]}</span>
-			<a class="exit-link" href={resolve('/admin/games/[id]', { id: data.game.id })}>Kilépés</a>
+			<a class="exit-link" href={exitHref} aria-busy={exiting}>{exiting ? 'Kilépés…' : 'Kilépés'}</a
+			>
 		</div>
 	</header>
 

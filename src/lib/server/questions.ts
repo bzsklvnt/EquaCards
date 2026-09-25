@@ -191,3 +191,27 @@ export async function replaceQuestionTypeData(
 
 	return insertQuestionTypeData(supabase, questionId, parsed);
 }
+
+/** A kör végére fűzi a még nem szereplő kérdéseket (kézi válogatás és az
+ * "új kérdés ehhez a körhöz" folyamat közös útja). */
+export async function appendQuestionsToRound(
+	supabase: SupabaseClient<Database>,
+	roundId: string,
+	questionIds: string[]
+): Promise<{ added: number; error: string | null }> {
+	const { data: existing } = await supabase
+		.from('round_questions')
+		.select('question_id, order_index')
+		.eq('round_id', roundId);
+	const existingIds = new Set((existing ?? []).map((r) => r.question_id));
+	const toAdd = questionIds.filter((id) => !existingIds.has(id));
+	if (toAdd.length === 0) return { added: 0, error: null };
+
+	const start = Math.max(0, ...(existing ?? []).map((r) => r.order_index)) + 1;
+	const { error } = await supabase
+		.from('round_questions')
+		.insert(
+			toAdd.map((question_id, i) => ({ round_id: roundId, question_id, order_index: start + i }))
+		);
+	return { added: error ? 0 : toAdd.length, error: error?.message ?? null };
+}

@@ -77,6 +77,35 @@ húz jellemzően). Az `/admin/games/[id]` mostantól:
    megadott darabszámot tartalmazza, azt az admin a felesleges
    kérdések "Eltávolítás" gombjával tudja kézzel véglegesíteni.
 
+## Kézi összeállítás a random húzás mellett (élő teszt utáni kör)
+
+Az `/admin/games/[id]` körkártyáin a random húzás mellett három új út van:
+
+1. **"+ Kérdés a kérdésbankból"** — körönként lenyíló választó
+   (egyszerre egy kör választója lehet nyitva): téma-szűrő (alapból az
+   este globális témája, "összes téma" is választható) + szabadszöveges
+   keresés, a körben már szereplő kérdések kiszűrve, jelölőnégyzetes
+   többes kijelöléssel. `?/addQuestions` action → a közös
+   `appendQuestionsToRound()` (`src/lib/server/questions.ts`) a kör
+   VÉGÉRE fűzi őket (`order_index` = eddigi max + 1…), a már szereplőket
+   kihagyja.
+2. **"+ Új kérdés ehhez a körhöz"** — a `/admin/questions/new?round_id=…
+&theme_id=…` űrlapra visz (a téma előre kiválasztva). Mentéskor a
+   kérdés a kérdésbankba kerül ÉS ugyanazzal az `appendQuestionsToRound()`-
+   dal azonnal a kör végére, majd a felület visszairányít az estére. Ha a
+   körhöz fűzés nem sikerül, a hibaüzenet jelzi, hogy a kérdés a bankban
+   már elmentődött (nem vész el).
+3. **"Összes kérdés törlése"** — `?/clearRound`, a kör összes
+   `round_questions` sorát törli (a kérdések a bankban maradnak). Csak
+   akkor jelenik meg, ha a körben van kérdés. Szándékosan nincs megerősítő
+   dialógus (Fázis Q4 döntés), a kör egy húzással/válogatással újratölthető.
+
+A random húzás gombja "Random kérdések betöltése minden körbe" feliratot
+kapott, hogy egyértelmű legyen a különbség a kézi válogatástól. A húzás
+maga szándékosan továbbra is SOROS körönként (nem párhuzamos): a cooldown
+a `last_used_at`-re támaszkodik, amit a `round_questions` insert-trigger
+frissít — párhuzamos hívásnál két kör ugyanazt a kérdést kaphatná.
+
 ## Admin felület
 
 - `/admin/themes` — témák CRUD.
