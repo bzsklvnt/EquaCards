@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
@@ -8,6 +9,8 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let deletingId = $state<string | null>(null);
+
+	registerPageTour(() => 'design-themes');
 </script>
 
 <svelte:head>
@@ -15,7 +18,7 @@
 </svelte:head>
 
 <h1>Vizuális témák</h1>
-<p class="hint">
+<p class="hint" data-tour="dt-hint">
 	A vizuális köntös (szín/font token-készlet) teljesen független a kérdésbank tartalmi témáitól —
 	bármelyik design téma bármelyik estéhez választható.
 </p>
@@ -24,9 +27,11 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<Button href={resolve('/admin/design-themes/new')}>+ Új design téma</Button>
+<span data-tour="dt-new"
+	><Button href={resolve('/admin/design-themes/new')}>+ Új design téma</Button></span
+>
 
-<ul>
+<ul data-tour="dt-list">
 	{#each data.designThemes as theme (theme.id)}
 		<li>
 			<a href={resolve('/admin/design-themes/[id]', { id: theme.id })}>{theme.title}</a>

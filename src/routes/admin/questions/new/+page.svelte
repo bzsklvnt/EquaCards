@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import QuestionForm from '$lib/components/QuestionForm.svelte';
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	registerPageTour(() => 'question-form');
 </script>
 
 <svelte:head>
@@ -12,7 +15,7 @@
 
 <h1>Új kérdés</h1>
 {#if data.round}
-	<p class="context">
+	<p class="context" data-tour="qf-round-context">
 		A kérdés a kérdésbankba mentődik, és azonnal bekerül ide:
 		<strong>{data.round.game_title} — {data.round.title}</strong>
 	</p>

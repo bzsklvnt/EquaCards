@@ -6,11 +6,14 @@
 	import Button from '$lib/components/Button.svelte';
 	import Checkbox from '$lib/components/Checkbox.svelte';
 	import { withToast } from '$lib/toast-enhance';
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let newRoundTitle = $state('');
+
+	registerPageTour(() => 'game-setup');
 
 	// Fázis O6 — a téma-választás este-szintű (egyszer választod ki, minden
 	// kör ugyanabból húz), a darabszám marad körönkénti — lásd a
@@ -101,12 +104,16 @@
 <h1>{data.game.title}</h1>
 <p class="status">Állapot: {data.game.status}</p>
 <div class="actions">
-	<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
-		>Élő lebonyolítás megnyitása →</Button
-	>
-	<Button variant="ghost" href={resolve('/admin/games/[id]/results', { id: data.game.id })}
-		>Részletes eredmények →</Button
-	>
+	<span data-tour="gs-open-host">
+		<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
+			>Élő lebonyolítás megnyitása →</Button
+		>
+	</span>
+	<span data-tour="gs-results">
+		<Button variant="ghost" href={resolve('/admin/games/[id]/results', { id: data.game.id })}
+			>Részletes eredmények →</Button
+		>
+	</span>
 </div>
 
 {#if form?.error}
@@ -114,6 +121,7 @@
 {/if}
 
 <form
+	data-tour="gs-add-round"
 	method="POST"
 	action="?/addRound"
 	use:enhance={withToast({
@@ -136,6 +144,7 @@
 			setSubmitting: (v) => (drawingAll = v)
 		})}
 		class="draw-all-form"
+		data-tour="gs-draw-all"
 	>
 		<Select label="Téma (minden körhöz)" name="theme_id" bind:value={globalThemeId} required>
 			<option value="">— válassz témát —</option>
@@ -148,7 +157,7 @@
 	</form>
 {/if}
 
-{#each data.rounds as round (round.id)}
+{#each data.rounds as round, ri (round.id)}
 	{@const questions = data.roundQuestions[round.id] ?? []}
 	<section class="round">
 		<div class="round-header">
@@ -156,6 +165,7 @@
 			<div class="round-header-actions">
 				{#if questions.length > 0}
 					<form
+						data-tour={ri === 0 ? 'gs-clear' : undefined}
 						method="POST"
 						action="?/clearRound"
 						use:enhance={withToast({
@@ -170,6 +180,7 @@
 					</form>
 				{/if}
 				<form
+					data-tour={ri === 0 ? 'gs-delete-round' : undefined}
 					method="POST"
 					action="?/deleteRound"
 					use:enhance={withToast({
@@ -185,7 +196,7 @@
 			</div>
 		</div>
 
-		<div class="round-count">
+		<div class="round-count" data-tour={ri === 0 ? 'gs-count' : undefined}>
 			<Input
 				label="Darabszám (random húzáshoz)"
 				type="number"
@@ -195,7 +206,7 @@
 			/>
 		</div>
 
-		<ol>
+		<ol data-tour={ri === 0 ? 'gs-question-list' : undefined}>
 			{#each questions as rq (rq.question_id)}
 				<li>
 					<span class="prompt">{rq.prompt}</span>
@@ -220,7 +231,7 @@
 			{/each}
 		</ol>
 
-		<div class="round-add-actions">
+		<div class="round-add-actions" data-tour={ri === 0 ? 'gs-pick' : undefined}>
 			<Button variant="secondary" onclick={() => openPicker(round.id)}>
 				{pickerRoundId === round.id ? 'Választó bezárása' : '+ Kérdés a kérdésbankból'}
 			</Button>

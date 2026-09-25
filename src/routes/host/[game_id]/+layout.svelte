@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { navigating } from '$app/state';
+	import TourButton from '$lib/components/TourButton.svelte';
 	import { setConnectionStatusContext } from '$lib/realtime/connection-status.svelte';
 	import { setHostProgressContext } from '$lib/realtime/host-progress.svelte';
 	import type { LayoutData } from './$types';
@@ -32,7 +33,7 @@
 		</div>
 
 		{#if data.game.status === 'active' && currentRoundIndex >= 0}
-			<div class="progress-block">
+			<div class="progress-block" data-tour="hlv-progress">
 				<span
 					>{currentRoundIndex + 1}. kör / {data.rounds.length} · {data.rounds[currentRoundIndex]
 						.title}</span
@@ -44,9 +45,13 @@
 		{/if}
 
 		<div class="status-block">
-			<span class="dot {connectionStatus.status}" aria-hidden="true"></span>
-			<span class="status-label">{statusLabel[connectionStatus.status]}</span>
-			<a class="exit-link" href={exitHref} aria-busy={exiting}>{exiting ? 'Kilépés…' : 'Kilépés'}</a
+			<TourButton />
+			<span class="status-indicator" data-tour="host-status">
+				<span class="dot {connectionStatus.status}" aria-hidden="true"></span>
+				<span class="status-label">{statusLabel[connectionStatus.status]}</span>
+			</span>
+			<a class="exit-link" data-tour="host-exit" href={exitHref} aria-busy={exiting}
+				>{exiting ? 'Kilépés…' : 'Kilépés'}</a
 			>
 		</div>
 	</header>
@@ -105,6 +110,12 @@
 		align-items: center;
 		gap: 0.5rem;
 		margin-left: auto;
+	}
+
+	.status-indicator {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.dot {

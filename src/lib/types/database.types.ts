@@ -287,6 +287,7 @@ export type Database = {
 					finished_at: string | null;
 					host_id: string | null;
 					id: string;
+					is_practice: boolean;
 					pin: string;
 					started_at: string | null;
 					status: string;
@@ -302,6 +303,7 @@ export type Database = {
 					finished_at?: string | null;
 					host_id?: string | null;
 					id?: string;
+					is_practice?: boolean;
 					pin: string;
 					started_at?: string | null;
 					status?: string;
@@ -317,6 +319,7 @@ export type Database = {
 					finished_at?: string | null;
 					host_id?: string | null;
 					id?: string;
+					is_practice?: boolean;
 					pin?: string;
 					started_at?: string | null;
 					status?: string;

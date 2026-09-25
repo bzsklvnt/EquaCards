@@ -448,6 +448,7 @@ create table games (
   title text not null,
   status text not null default 'lobby',  -- lobby | active | paused | finished
   design_theme_id uuid references design_themes(id),  -- opcionális, lásd 8. szakasz (migrációs sorrend: design_themes előbb jön létre, lásd supabase_setup.sql)
+  is_practice boolean not null default false,  -- Próbaeste: a reports_* függvények kiszűrik, lásd docs/features/guided-tours.md
   current_round_id uuid references rounds(id),
   current_question_id uuid references questions(id),
   current_question_started_at timestamptz,     -- Fázis L, lásd docs/features/timer.md

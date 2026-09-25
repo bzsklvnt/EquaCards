@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { getActiveTokens, resolveTokens } from '$lib/theme/tokens';
@@ -37,6 +38,8 @@
 				).toFixed(1)
 			: '0'
 	);
+
+	registerPageTour(() => 'reports');
 </script>
 
 <svelte:head>
@@ -49,7 +52,7 @@
 		Szia, {data.profile.display_name}! Lezárult kvízesték eredményei és statisztikái.
 	</p>
 
-	<section class="stats">
+	<section class="stats" data-tour="rp-stats">
 		<h2>Aggregált statisztikák</h2>
 
 		<div class="stat-grid">
@@ -121,7 +124,7 @@
 		{/if}
 	</section>
 
-	<section class="games">
+	<section class="games" data-tour="rp-games">
 		<h2>Lezárult kvízesték</h2>
 		<div class="game-list">
 			{#each data.finishedGames as game (game.id)}

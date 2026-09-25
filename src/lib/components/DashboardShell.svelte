@@ -7,6 +7,8 @@
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { Toaster } from 'svelte-sonner';
 	import Button from './Button.svelte';
+	import TourButton from './TourButton.svelte';
+	import { tourState } from '$lib/tours/state.svelte';
 	import type { Database } from '$lib/types/database.types';
 
 	// Fázis O5 — kiemelve /admin/+layout.svelte-ből, hogy a /reports
@@ -49,16 +51,16 @@
 	const isAdminRole = $derived(profile.role_id === 1 || profile.role_id === 2);
 
 	const navItems = [
-		{ href: resolve('/admin'), label: 'Vezérlőpult' },
-		{ href: resolve('/admin/questions'), label: 'Kérdésbank' },
-		{ href: resolve('/admin/themes'), label: 'Témák' },
-		{ href: resolve('/admin/design-themes'), label: 'Vizuális témák' },
-		{ href: resolve('/admin/games'), label: 'Kvízesték' }
+		{ href: resolve('/admin'), label: 'Vezérlőpult', tour: 'nav-dashboard' },
+		{ href: resolve('/admin/questions'), label: 'Kérdésbank', tour: 'nav-questions' },
+		{ href: resolve('/admin/themes'), label: 'Témák', tour: 'nav-themes' },
+		{ href: resolve('/admin/design-themes'), label: 'Vizuális témák', tour: 'nav-design-themes' },
+		{ href: resolve('/admin/games'), label: 'Kvízesték', tour: 'nav-games' }
 	];
 
 	const superAdminNavItems = [
-		{ href: resolve('/admin/users'), label: 'Felhasználók' },
-		{ href: resolve('/admin/settings'), label: 'Beállítások' }
+		{ href: resolve('/admin/users'), label: 'Felhasználók', tour: 'nav-users' },
+		{ href: resolve('/admin/settings'), label: 'Beállítások', tour: 'nav-settings' }
 	];
 
 	const reportsHref = resolve('/reports');
@@ -98,17 +100,23 @@
 		<nav>
 			{#if isAdminRole}
 				{#each navItems as item (item.href)}
-					<a href={item.href} class:active={page.url.pathname === item.href}>{item.label}</a>
+					<a href={item.href} data-tour={item.tour} class:active={page.url.pathname === item.href}
+						>{item.label}</a
+					>
 				{/each}
 			{/if}
 			{#if profile.role_id === 1}
 				<div class="nav-divider"></div>
 				{#each superAdminNavItems as item (item.href)}
-					<a href={item.href} class:active={page.url.pathname === item.href}>{item.label}</a>
+					<a href={item.href} data-tour={item.tour} class:active={page.url.pathname === item.href}
+						>{item.label}</a
+					>
 				{/each}
 			{/if}
 			<div class="nav-divider"></div>
-			<a href={reportsHref} class:active={page.url.pathname === reportsHref}>Riportok</a>
+			<a href={reportsHref} data-tour="nav-reports" class:active={page.url.pathname === reportsHref}
+				>Riportok</a
+			>
 		</nav>
 
 		<div class="sidebar-footer">
@@ -120,6 +128,9 @@
 	</aside>
 
 	<main class="admin-content">
+		{#if tourState.current}
+			<div class="content-topbar" data-tour="tour-button"><TourButton /></div>
+		{/if}
 		{@render children()}
 	</main>
 </div>
@@ -209,6 +220,12 @@
 		flex: 1;
 		padding: 1.5rem 2rem;
 		min-width: 0;
+	}
+
+	.content-topbar {
+		display: flex;
+		justify-content: flex-end;
+		margin-bottom: -0.5rem;
 	}
 
 	.hamburger {

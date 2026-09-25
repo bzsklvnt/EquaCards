@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { untrack } from 'svelte';
@@ -58,6 +59,8 @@
 			await update();
 		};
 	};
+
+	registerPageTour(() => 'settings');
 </script>
 
 <svelte:head>
@@ -70,7 +73,7 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<section class="setting-row">
+<section class="setting-row" data-tour="st-default-theme">
 	<div class="setting-info">
 		<span class="setting-label">Globális alapértelmezett design téma</span>
 		<p class="setting-description">
@@ -99,11 +102,14 @@
 	{/if}
 </section>
 
-<div class="settings-list">
+<div class="settings-list" data-tour="st-list">
 	{#each data.settings as setting (setting.key)}
 		{@const meta = SETTING_META[setting.key]}
 		{@const type = valueType(setting.value)}
-		<div class="setting-row">
+		<div
+			class="setting-row"
+			data-tour={setting.key === 'question_reuse_cooldown_months' ? 'st-cooldown' : undefined}
+		>
 			<div class="setting-info">
 				<span class="setting-label">{meta?.label ?? setting.key}</span>
 				<code class="setting-key">{setting.key}</code>

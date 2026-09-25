@@ -1,14 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-
-function generatePin(): string {
-	return Math.floor(100000 + Math.random() * 900000).toString();
-}
+import { createPracticeGame, generatePin } from '$lib/server/games';
 
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	const { data: games } = await supabase
 		.from('games')
-		.select('id, title, status, pin, created_at, finished_at, teams(count)')
+		.select('id, title, status, pin, created_at, finished_at, is_practice, teams(count)')
 		.order('created_at', { ascending: false });
 
 	return { games: games ?? [] };
@@ -35,6 +32,16 @@ export const actions: Actions = {
 		}
 
 		redirect(303, `/admin/games/${game.id}`);
+	},
+
+	// Próbaeste: 2 kör mintakérdésekkel a kezelő betanításához (riportokból kiszűrve).
+	createPractice: async ({ locals: { supabase, safeGetSession } }) => {
+		const { user } = await safeGetSession();
+		const result = await createPracticeGame(supabase, user?.id);
+		if ('error' in result) {
+			return fail(400, { error: result.error });
+		}
+		redirect(303, `/admin/games/${result.gameId}`);
 	},
 
 	// Fázis Q3 — a "Kvízeste újranyitása" a games.status-t 'lobby'-ra

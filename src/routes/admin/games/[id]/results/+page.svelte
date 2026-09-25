@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
 	import type { PageData } from './$types';
@@ -9,6 +10,8 @@
 		if (ms === null) return '—';
 		return `${(ms / 1000).toFixed(1)} mp`;
 	}
+
+	registerPageTour(() => 'results');
 </script>
 
 <svelte:head>
@@ -23,16 +26,18 @@
 {#if data.rounds.length === 0}
 	<p class="empty">Ehhez az estéhez még nincs kör/kérdés vagy csapat.</p>
 {:else}
-	{#each data.rounds as round (round.id)}
-		<section class="round">
+	{#each data.rounds as round, ri (round.id)}
+		<section class="round" data-tour={ri === 0 ? 'res-round' : undefined}>
 			<h2>{round.order_index}. {round.title}</h2>
-			{#each round.questions as question (question.question_id)}
+			{#each round.questions as question, qi (question.question_id)}
 				<div class="question">
 					<p class="prompt">
 						{question.order_index}. {question.prompt}
 					</p>
-					<p class="correct-answer">Helyes válasz: <strong>{question.correct_answer}</strong></p>
-					<div class="table-wrap">
+					<p class="correct-answer" data-tour={ri === 0 && qi === 0 ? 'res-correct' : undefined}>
+						Helyes válasz: <strong>{question.correct_answer}</strong>
+					</p>
+					<div class="table-wrap" data-tour={ri === 0 && qi === 0 ? 'res-table' : undefined}>
 						<table>
 							<thead>
 								<tr>

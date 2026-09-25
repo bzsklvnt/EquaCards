@@ -2130,3 +2130,17 @@ korai tippet, új pontozási logika nélkül. A migráció élőben alkalmazva, 
 RPC viselkedése rollback-kal lezárt SQL-lel ellenőrizve (be/ki állapot), a
 komponens böngészőben tesztelve (induló, félidős, lezárt állapot). Ismert
 korlát (eredeti URL a payload-ban) és részletek: `docs/features/pixel-reveal.md`.
+
+## 2026-09-25 — Oldalankénti bemutatók és Próbaeste (átadás előkészítése)
+
+A felhasználó döntései: a bemutatók csak gombra indulnak (semmi nem indul
+magától, bejelentkezést nem követünk), a „megnézte” jelzés böngészőnként
+(`localStorage`) tárolódik, és legyen Próbaeste. 15 bemutató készült
+(`driver.js`), a lépések `data-tour` jelölésekre mutatnak, a futás idején
+nem látható elemek lépései kimaradnak. A Próbaeste mintakérdései egy saját
+témába kerülnek és újrahasznosulnak (a valódi kérdések türelmi idejét nem
+érintik); a `games.is_practice` jelzés miatt a riportok kiszűrik — élőben,
+rollback-kal ellenőrizve (valódi este listázva, próbaeste nem), és a
+Próbaeste összes beszúrása admin jogosultsággal, RLS alatt is lefut. A
+bemutatók böngészőben végigkattintva ellenőrizve (kvízeste összeállítása,
+host várakozás). Részletek: `docs/features/guided-tours.md`.

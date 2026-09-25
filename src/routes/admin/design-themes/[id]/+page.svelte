@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -23,6 +24,8 @@
 			return 'Érvénytelen JSON.';
 		}
 	});
+
+	registerPageTour(() => 'design-theme-editor');
 </script>
 
 <svelte:head>
@@ -40,28 +43,36 @@
 	action="?/update"
 	use:enhance={withToast({ setSubmitting: (v) => (saving = v) })}
 >
-	<Input label="Név" name="title" bind:value={title} required maxlength={60} />
+	<div data-tour="dte-title">
+		<Input label="Név" name="title" bind:value={title} required maxlength={60} />
+	</div>
 
-	<Checkbox
-		label="Legyen ez az alapértelmezett téma"
-		name="is_default"
-		value="true"
-		bind:checked={isDefault}
-	/>
+	<div data-tour="dte-default">
+		<Checkbox
+			label="Legyen ez az alapértelmezett téma"
+			name="is_default"
+			value="true"
+			bind:checked={isDefault}
+		/>
+	</div>
 
-	<Textarea
-		label="Design tokenek (JSON — szín/font kulcs-érték párok)"
-		name="design_tokens"
-		bind:value={tokensText}
-		rows={16}
-		spellcheck={false}
-		monospace
-	/>
+	<div data-tour="dte-tokens">
+		<Textarea
+			label="Design tokenek (JSON — szín/font kulcs-érték párok)"
+			name="design_tokens"
+			bind:value={tokensText}
+			rows={16}
+			spellcheck={false}
+			monospace
+		/>
+	</div>
 	{#if parseError}
 		<p class="error">{parseError}</p>
 	{/if}
 
-	<Button type="submit" disabled={!!parseError} loading={saving}>Mentés</Button>
+	<div data-tour="dte-save">
+		<Button type="submit" disabled={!!parseError} loading={saving}>Mentés</Button>
+	</div>
 </form>
 
 <form

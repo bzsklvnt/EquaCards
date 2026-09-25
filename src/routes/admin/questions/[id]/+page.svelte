@@ -3,11 +3,14 @@
 	import QuestionForm from '$lib/components/QuestionForm.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import { withToast } from '$lib/toast-enhance';
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let deleting = $state(false);
+
+	registerPageTour(() => 'question-form');
 </script>
 
 <svelte:head>

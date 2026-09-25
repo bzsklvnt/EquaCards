@@ -5,6 +5,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import { withToast } from '$lib/toast-enhance';
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -12,6 +13,11 @@
 	let newTitle = $state('');
 	let creating = $state(false);
 	let reopeningId = $state<string | null>(null);
+	let creatingPractice = $state(false);
+
+	registerPageTour(() => 'games');
+
+	const firstFinishedId = $derived(data.games.find((g) => g.status === 'finished')?.id);
 
 	const STATUS_LABELS: Record<string, string> = {
 		lobby: 'Váró',
@@ -35,17 +41,31 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<form
-	method="POST"
-	action="?/create"
-	use:enhance={withToast({ setSubmitting: (v) => (creating = v) })}
->
-	<Input name="title" placeholder="Új kvízeste neve" bind:value={newTitle} required />
-	<Button type="submit" loading={creating}>Létrehozás</Button>
-</form>
+<div class="create-row">
+	<form
+		data-tour="games-create"
+		method="POST"
+		action="?/create"
+		use:enhance={withToast({ setSubmitting: (v) => (creating = v) })}
+	>
+		<Input name="title" placeholder="Új kvízeste neve" bind:value={newTitle} required />
+		<Button type="submit" loading={creating}>Létrehozás</Button>
+	</form>
 
-<ul class="games-grid">
-	{#each data.games as game (game.id)}
+	<form
+		data-tour="games-practice"
+		method="POST"
+		action="?/createPractice"
+		use:enhance={withToast({ setSubmitting: (v) => (creatingPractice = v) })}
+	>
+		<Button type="submit" variant="secondary" loading={creatingPractice}
+			>Próbaeste létrehozása</Button
+		>
+	</form>
+</div>
+
+<ul class="games-grid" data-tour="games-list">
+	{#each data.games as game, i (game.id)}
 		<li>
 			<ArcadePanel>
 				<div class="game-card">
@@ -53,9 +73,12 @@
 						<a href={resolve('/admin/games/[id]', { id: game.id })} class="game-title"
 							>{game.title}</a
 						>
-						<span class="badge status-{game.status}"
+						<span
+							class="badge status-{game.status}"
+							data-tour={i === 0 ? 'games-status' : undefined}
 							>{STATUS_LABELS[game.status] ?? game.status}</span
 						>
+						{#if game.is_practice}<span class="badge practice">Próba</span>{/if}
 					</div>
 					<div class="game-card-meta">
 						<span class="pin">PIN: {game.pin}</span>
@@ -66,6 +89,7 @@
 					</div>
 					{#if game.status === 'finished'}
 						<form
+							data-tour={game.id === firstFinishedId ? 'games-reopen' : undefined}
 							method="POST"
 							action="?/reopen"
 							use:enhance={withToast({
@@ -98,6 +122,14 @@
 		display: inline-flex;
 		align-items: flex-end;
 		gap: 0.5rem;
+	}
+
+	.create-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1rem;
 	}
 
 	.games-grid {
@@ -173,5 +205,10 @@
 
 	.error {
 		color: var(--danger);
+	}
+
+	.badge.practice {
+		color: var(--magenta);
+		border-color: var(--magenta);
 	}
 </style>

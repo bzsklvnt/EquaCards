@@ -145,38 +145,48 @@
 		<input type="hidden" name={fieldName} value={fieldValue} />
 	{/each}
 
-	<Select label="Téma" name="theme_id" bind:value={themeId}>
-		<option value="">— nincs téma —</option>
-		{#each themes as theme (theme.id)}
-			<option value={theme.id}>{theme.title}</option>
-		{/each}
-	</Select>
+	<div data-tour="qf-theme">
+		<Select label="Téma" name="theme_id" bind:value={themeId}>
+			<option value="">— nincs téma —</option>
+			{#each themes as theme (theme.id)}
+				<option value={theme.id}>{theme.title}</option>
+			{/each}
+		</Select>
+	</div>
 
 	<!-- A Select string-alapú; a függvény-kötés végzi a szám ↔ string
 	     konverziót, így nem kell natív, stílus nélküli <select>. -->
-	<Select
-		label="Kérdés típusa"
-		name="question_type_id"
-		bind:value={() => String(questionTypeId), (v) => (questionTypeId = Number(v))}
-	>
-		{#each questionTypes as type (type.id)}
-			<option value={String(type.id)}>{type.label}</option>
-		{/each}
-	</Select>
+	<div data-tour="qf-type">
+		<Select
+			label="Kérdés típusa"
+			name="question_type_id"
+			bind:value={() => String(questionTypeId), (v) => (questionTypeId = Number(v))}
+		>
+			{#each questionTypes as type (type.id)}
+				<option value={String(type.id)}>{type.label}</option>
+			{/each}
+		</Select>
+	</div>
 
-	<Textarea label="Kérdés szövege" name="prompt" value={initial?.prompt ?? ''} required />
+	<div data-tour="qf-prompt">
+		<Textarea label="Kérdés szövege" name="prompt" value={initial?.prompt ?? ''} required />
+	</div>
 
-	<ImageUpload label="Kérdés képe (opcionális)" name="image_url" bind:value={questionImageUrl} />
+	<div data-tour="qf-image">
+		<ImageUpload label="Kérdés képe (opcionális)" name="image_url" bind:value={questionImageUrl} />
+	</div>
 	{#if questionImageUrl}
-		<Checkbox
-			label="Pixeles felfedés — a kép pixelesen indul, és a visszaszámlálás alatt élesedik"
-			name="image_pixelate"
-			value="true"
-			bind:checked={imagePixelate}
-		/>
+		<div data-tour="qf-pixelate">
+			<Checkbox
+				label="Pixeles felfedés — a kép pixelesen indul, és a visszaszámlálás alatt élesedik"
+				name="image_pixelate"
+				value="true"
+				bind:checked={imagePixelate}
+			/>
+		</div>
 	{/if}
 
-	<div class="row">
+	<div class="row" data-tour="qf-scoring">
 		<Input
 			label="Pontszám"
 			type="number"
@@ -214,7 +224,7 @@
 	</div>
 
 	{#if selectedType?.code === 'single_choice' || selectedType?.code === 'multi_choice'}
-		<fieldset>
+		<fieldset data-tour="qf-answers">
 			<legend>
 				Válaszopciók ({selectedType.min_options}–{selectedType.max_options} db, jelöld a helyese(ke)t,
 				opcionálisan képpel)
@@ -241,7 +251,7 @@
 			{/if}
 		</fieldset>
 	{:else if selectedType?.code === 'true_false'}
-		<fieldset>
+		<fieldset data-tour="qf-answers">
 			<legend>Helyes válasz</legend>
 			<input type="hidden" name="option_text" value="Igaz" />
 			<input type="hidden" name="option_text" value="Hamis" />
@@ -271,7 +281,7 @@
 			/>
 		</fieldset>
 	{:else if selectedType?.code === 'slider'}
-		<fieldset>
+		<fieldset data-tour="qf-answers">
 			<legend>Csúszka beállítások</legend>
 			<div class="row">
 				<Input
@@ -317,7 +327,7 @@
 			</div>
 		</fieldset>
 	{:else if selectedType?.code === 'ordering'}
-		<fieldset>
+		<fieldset data-tour="qf-answers">
 			<legend>Elemek helyes sorrendben (fentről lefelé)</legend>
 			<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
 			{#each orderingTexts as _orderingText, i (i)}
@@ -333,7 +343,7 @@
 		</fieldset>
 	{/if}
 
-	<div class="form-actions">
+	<div class="form-actions" data-tour="qf-save">
 		<Button type="submit" loading={saving}>Mentés</Button>
 		{#if cancelHref}
 			<Button variant="ghost" href={cancelHref}>Mégse</Button>
