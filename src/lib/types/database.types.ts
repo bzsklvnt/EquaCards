@@ -288,10 +288,15 @@ export type Database = {
 					host_id: string | null;
 					id: string;
 					is_practice: boolean;
+					max_teams: number | null;
 					pin: string;
+					public_note: string | null;
+					registration_open: boolean;
+					scheduled_at: string | null;
 					started_at: string | null;
 					status: string;
 					title: string;
+					venue_id: string | null;
 				};
 				Insert: {
 					created_at?: string | null;
@@ -304,10 +309,15 @@ export type Database = {
 					host_id?: string | null;
 					id?: string;
 					is_practice?: boolean;
+					max_teams?: number | null;
 					pin: string;
+					public_note?: string | null;
+					registration_open?: boolean;
+					scheduled_at?: string | null;
 					started_at?: string | null;
 					status?: string;
 					title: string;
+					venue_id?: string | null;
 				};
 				Update: {
 					created_at?: string | null;
@@ -320,10 +330,15 @@ export type Database = {
 					host_id?: string | null;
 					id?: string;
 					is_practice?: boolean;
+					max_teams?: number | null;
 					pin?: string;
+					public_note?: string | null;
+					registration_open?: boolean;
+					scheduled_at?: string | null;
 					started_at?: string | null;
 					status?: string;
 					title?: string;
+					venue_id?: string | null;
 				};
 				Relationships: [
 					{
@@ -352,6 +367,13 @@ export type Database = {
 						columns: ['host_id'];
 						isOneToOne: false;
 						referencedRelation: 'profiles';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'games_venue_id_fkey';
+						columns: ['venue_id'];
+						isOneToOne: false;
+						referencedRelation: 'venues';
 						referencedColumns: ['id'];
 					}
 				];
@@ -706,6 +728,53 @@ export type Database = {
 					}
 				];
 			};
+			team_registrations: {
+				Row: {
+					consent_at: string;
+					contact_email: string;
+					contact_name: string;
+					contact_phone: string | null;
+					created_at: string;
+					game_id: string;
+					headcount: number;
+					id: string;
+					note: string | null;
+					team_name: string;
+				};
+				Insert: {
+					consent_at: string;
+					contact_email: string;
+					contact_name: string;
+					contact_phone?: string | null;
+					created_at?: string;
+					game_id: string;
+					headcount: number;
+					id?: string;
+					note?: string | null;
+					team_name: string;
+				};
+				Update: {
+					consent_at?: string;
+					contact_email?: string;
+					contact_name?: string;
+					contact_phone?: string | null;
+					created_at?: string;
+					game_id?: string;
+					headcount?: number;
+					id?: string;
+					note?: string | null;
+					team_name?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'team_registrations_game_id_fkey';
+						columns: ['game_id'];
+						isOneToOne: false;
+						referencedRelation: 'games';
+						referencedColumns: ['id'];
+					}
+				];
+			};
 			teams: {
 				Row: {
 					color: string | null;
@@ -759,6 +828,33 @@ export type Database = {
 				};
 				Relationships: [];
 			};
+			venues: {
+				Row: {
+					address: string | null;
+					city: string | null;
+					created_at: string;
+					id: string;
+					maps_url: string | null;
+					name: string;
+				};
+				Insert: {
+					address?: string | null;
+					city?: string | null;
+					created_at?: string;
+					id?: string;
+					maps_url?: string | null;
+					name: string;
+				};
+				Update: {
+					address?: string | null;
+					city?: string | null;
+					created_at?: string;
+					id?: string;
+					maps_url?: string | null;
+					name?: string;
+				};
+				Relationships: [];
+			};
 		};
 		Views: {
 			[_ in never]: never;
@@ -800,6 +896,48 @@ export type Database = {
 			};
 			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
 			game_status: { Args: { p_game_id: string }; Returns: string };
+			public_recent_winners: {
+				Args: { p_limit?: number };
+				Returns: {
+					finished_at: string;
+					game_title: string;
+					team_name: string;
+					total_score: number;
+				}[];
+			};
+			public_upcoming_events: {
+				Args: never;
+				Returns: {
+					id: string;
+					max_teams: number;
+					public_note: string;
+					registered_teams: number;
+					scheduled_at: string;
+					title: string;
+					venue_address: string;
+					venue_city: string;
+					venue_maps_url: string;
+					venue_name: string;
+				}[];
+			};
+			register_team: {
+				Args: {
+					p_contact_email: string;
+					p_contact_name: string;
+					p_contact_phone?: string;
+					p_game_id: string;
+					p_headcount: number;
+					p_note?: string;
+					p_team_name: string;
+				};
+				Returns: string;
+			};
+			registered_team_names: {
+				Args: { p_game_id: string };
+				Returns: {
+					team_name: string;
+				}[];
+			};
 			reports_avg_response_time_by_type: {
 				Args: never;
 				Returns: {
