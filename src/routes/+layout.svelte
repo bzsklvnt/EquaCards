@@ -2,6 +2,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
+	import NavigationProgress from '$lib/components/NavigationProgress.svelte';
 
 	let { data, children } = $props();
 	let { session, supabase } = $derived(data);
@@ -20,5 +21,7 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
+
+<NavigationProgress />
 
 {@render children()}

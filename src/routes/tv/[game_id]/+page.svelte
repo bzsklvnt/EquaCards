@@ -292,7 +292,7 @@
 		color: var(--marquee);
 		font-family: var(--font-body);
 		text-align: center;
-		padding: 3rem 2rem;
+		padding: clamp(1rem, 4vh, 3rem) 2rem;
 	}
 
 	.screen {
@@ -350,15 +350,24 @@
 		color: var(--danger);
 	}
 
+	/* Élő tesztből: a lobby-képernyőnek görgetés nélkül, egy nézetben kell
+	   elférnie (TV/projektor) — a címsor és a térközök a magassághoz is
+	   igazodnak, nem csak a szélességhez. */
+	.lobby h1 {
+		font-size: clamp(1.5rem, min(5vw, 7vh), 4rem);
+		margin: 0 0 clamp(0.5rem, 2vh, 1.5rem);
+	}
+
 	.lobby :global(.pin-panel) {
-		margin: 1rem auto 0;
+		margin: 0 auto;
+		width: fit-content;
 	}
 
 	.team-count {
 		font-family: var(--font-display);
 		font-size: 1rem;
 		color: var(--magenta);
-		margin-top: 2rem;
+		margin: clamp(0.75rem, 2.5vh, 2rem) 0 0;
 	}
 
 	.team-list {

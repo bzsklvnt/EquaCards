@@ -33,6 +33,17 @@
 				background: #150e2c;
 				min-height: 100%;
 			}
+			/* Élő tesztből: a böngésző alapértelmezett 8px-es body margója miatt
+			   minden min-height: 100vh gyökerű felület (host, TV, play)
+			   görgethetővé vált, akkor is, ha a tartalom elfért volna. */
+			body {
+				margin: 0;
+			}
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+			}
 		</style>
 		%sveltekit.head%
 	</head>

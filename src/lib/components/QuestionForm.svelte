@@ -43,17 +43,25 @@
 		questionTypes,
 		action,
 		initial,
-		error
+		error,
+		defaultThemeId,
+		hiddenFields = {},
+		cancelHref
 	}: {
 		themes: Theme[];
 		questionTypes: QuestionType[];
 		action: string;
 		initial?: Initial;
 		error?: string;
+		/** Új kérdésnél előre kiválasztott téma (pl. a kvízeste globális témája). */
+		defaultThemeId?: string;
+		/** Extra rejtett mezők a formhoz (pl. round_id a "kérdés ehhez a körhöz" folyamatnál). */
+		hiddenFields?: Record<string, string>;
+		cancelHref?: string;
 	} = $props();
 
 	let saving = $state(false);
-	let themeId = $state(untrack(() => initial?.theme_id ?? ''));
+	let themeId = $state(untrack(() => initial?.theme_id ?? defaultThemeId ?? ''));
 	let questionTypeId = $state(untrack(() => initial?.question_type_id ?? questionTypes[0]?.id));
 	let selectedType = $derived(questionTypes.find((t) => t.id === questionTypeId));
 
@@ -131,6 +139,10 @@
 		<p class="error">{error}</p>
 	{/if}
 
+	{#each Object.entries(hiddenFields) as [fieldName, fieldValue] (fieldName)}
+		<input type="hidden" name={fieldName} value={fieldValue} />
+	{/each}
+
 	<Select label="Téma" name="theme_id" bind:value={themeId}>
 		<option value="">— nincs téma —</option>
 		{#each themes as theme (theme.id)}
@@ -138,18 +150,17 @@
 		{/each}
 	</Select>
 
-	<!-- Marad natív <select>: a bind:value numerikus koercióját (a
-	     questionTypeId szám, nem string) csak egy közvetlenül fordított
-	     <select> elem tudja — egy generikus Select wrapper (string-alapú
-	     value) ezt eltörné, és a selectedType keresés típushibássá válna. -->
-	<label>
-		Kérdés típusa
-		<select name="question_type_id" bind:value={questionTypeId}>
-			{#each questionTypes as type (type.id)}
-				<option value={type.id}>{type.label}</option>
-			{/each}
-		</select>
-	</label>
+	<!-- A Select string-alapú; a függvény-kötés végzi a szám ↔ string
+	     konverziót, így nem kell natív, stílus nélküli <select>. -->
+	<Select
+		label="Kérdés típusa"
+		name="question_type_id"
+		bind:value={() => String(questionTypeId), (v) => (questionTypeId = Number(v))}
+	>
+		{#each questionTypes as type (type.id)}
+			<option value={String(type.id)}>{type.label}</option>
+		{/each}
+	</Select>
 
 	<Textarea label="Kérdés szövege" name="prompt" value={initial?.prompt ?? ''} required />
 
@@ -195,67 +206,54 @@
 	{#if selectedType?.code === 'single_choice' || selectedType?.code === 'multi_choice'}
 		<fieldset>
 			<legend>
-				Válaszopciók ({selectedType.min_options}–{selectedType.max_options} db, jelöld a helyese(ke)t)
+				Válaszopciók ({selectedType.min_options}–{selectedType.max_options} db, jelöld a helyese(ke)t,
+				opcionálisan képpel)
 			</legend>
 			<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
 			{#each choiceTexts as _choiceText, i (i)}
 				<div class="option-row">
 					<Checkbox
-						label=""
+						label="Helyes"
 						name="correct_index"
 						value={String(i)}
 						checked={correctIndexes.includes(i)}
 						onchange={() => toggleCorrect(i, selectedType?.code === 'multi_choice')}
 					/>
 					<Input name="option_text" bind:value={choiceTexts[i]} required />
+					<ImageUpload compact name="option_image_url" bind:value={choiceImages[i]} />
 					{#if choiceTexts.length > (selectedType.min_options ?? 2)}
 						<Button variant="ghost" onclick={() => removeChoice(i)}>Törlés</Button>
 					{/if}
 				</div>
-				<ImageUpload
-					label="Kép ehhez az opcióhoz (opcionális)"
-					name="option_image_url"
-					bind:value={choiceImages[i]}
-				/>
 			{/each}
 			{#if choiceTexts.length < (selectedType.max_options ?? choiceTexts.length)}
 				<Button variant="secondary" onclick={addChoice}>+ Opció</Button>
 			{/if}
 		</fieldset>
 	{:else if selectedType?.code === 'true_false'}
-		<!-- Marad natív <input type="radio">: ez az egyetlen rádiógomb a teljes
-		     alkalmazásban, nem éri meg érte önálló Radio komponenst bevezetni a
-		     könyvtárba (Fázis H — csak akkor bővítjük a könyvtárat, ha egy minta
-		     ténylegesen több helyen ismétlődik). -->
 		<fieldset>
 			<legend>Helyes válasz</legend>
 			<input type="hidden" name="option_text" value="Igaz" />
 			<input type="hidden" name="option_text" value="Hamis" />
-			<label>
-				<input
-					type="radio"
-					name="correct_index"
-					value="0"
-					checked={correctIndexes[0] === 0 || correctIndexes.length === 0}
-					onchange={() => (correctIndexes = [0])}
-				/>
-				Igaz
-			</label>
+			<div class="segmented" role="radiogroup" aria-label="Helyes válasz">
+				{#each ['Igaz', 'Hamis'] as tfLabel, tfIndex (tfLabel)}
+					<label class="segment" class:active={(correctIndexes[0] ?? 0) === tfIndex}>
+						<input
+							type="radio"
+							name="correct_index"
+							value={String(tfIndex)}
+							checked={(correctIndexes[0] ?? 0) === tfIndex}
+							onchange={() => (correctIndexes = [tfIndex])}
+						/>
+						{tfLabel}
+					</label>
+				{/each}
+			</div>
 			<ImageUpload
 				label="Igaz — kép (opcionális)"
 				name="option_image_url"
 				bind:value={trueFalseImages[0]}
 			/>
-			<label>
-				<input
-					type="radio"
-					name="correct_index"
-					value="1"
-					checked={correctIndexes[0] === 1}
-					onchange={() => (correctIndexes = [1])}
-				/>
-				Hamis
-			</label>
 			<ImageUpload
 				label="Hamis — kép (opcionális)"
 				name="option_image_url"
@@ -325,7 +323,12 @@
 		</fieldset>
 	{/if}
 
-	<Button type="submit" loading={saving}>Mentés</Button>
+	<div class="form-actions">
+		<Button type="submit" loading={saving}>Mentés</Button>
+		{#if cancelHref}
+			<Button variant="ghost" href={cancelHref}>Mégse</Button>
+		{/if}
+	</div>
 </form>
 
 <style>
@@ -334,12 +337,6 @@
 		flex-direction: column;
 		gap: 1rem;
 		max-width: 40rem;
-	}
-
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
 	}
 
 	.row {
@@ -354,10 +351,26 @@
 		min-width: 8rem;
 	}
 
+	/* Élő tesztből: a fieldset/legend a böngésző alapértelmezett (szürke,
+	   dupla vonalas) keretével jelent meg — a design-rendszer kártyáihoz
+	   igazítva. */
 	fieldset {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.75rem;
+		margin: 0;
+		padding: 1rem;
+		border: 2px solid var(--cabinet-3);
+		border-radius: 0.75rem;
+		background: var(--cabinet-2);
+	}
+
+	legend {
+		padding: 0 0.5rem;
+		font-family: var(--font-body);
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--cyan);
 	}
 
 	.option-row {
@@ -370,17 +383,57 @@
 		flex: 1;
 	}
 
-	.error {
-		color: var(--danger);
+	.segmented {
+		display: inline-flex;
+		align-self: flex-start;
+		border: 2px solid var(--marquee-dim);
+		border-radius: 0.5rem;
+		overflow: hidden;
 	}
 
-	/* Fázis J — a natív <select>/<input type="radio"> szándékosan nem
-	   Select/Checkbox-wrapped (lásd fenti indoklás), de látható,
-	   --cyan-alapú fókusz-állapotot kapniuk kell, mint a könyvtár többi
-	   interaktív elemének. */
-	select:focus-visible,
-	input[type='radio']:focus-visible {
-		outline: 3px solid var(--cyan, #35e7ff);
-		outline-offset: 2px;
+	.segment {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 6rem;
+		min-height: 44px;
+		padding: 0 1rem;
+		font-family: var(--font-body);
+		font-weight: 600;
+		color: var(--marquee-dim);
+		background: var(--cabinet);
+		cursor: pointer;
+	}
+
+	.segment + .segment {
+		border-left: 2px solid var(--marquee-dim);
+	}
+
+	.segment.active {
+		color: var(--marquee);
+		background: color-mix(in srgb, var(--cyan) 25%, var(--cabinet-2));
+	}
+
+	.segment input {
+		position: absolute;
+		opacity: 0;
+		inset: 0;
+		margin: 0;
+		cursor: pointer;
+	}
+
+	.segment:focus-within {
+		outline: 3px solid var(--cyan);
+		outline-offset: -3px;
+	}
+
+	.form-actions {
+		display: flex;
+		gap: 0.75rem;
+	}
+
+	.error {
+		color: var(--danger);
 	}
 </style>

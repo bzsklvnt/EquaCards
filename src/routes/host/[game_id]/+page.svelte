@@ -603,50 +603,56 @@
 	<title>{game.title} — Host</title>
 </svelte:head>
 
-<main class="cabinet" style={theme.css}>
+<main class="cabinet" class:lobby={game.status === 'lobby'} style={theme.css}>
 	{#if statusMessage}
 		<p class="status-message">{statusMessage}</p>
 	{/if}
 
 	{#if game.status === 'lobby'}
-		<PinDisplay pin={game.pin} {qrDataUrl} {joinUrl} />
+		<!-- Élő tesztből: a lobby görgetést igényelt — széles kijelzőn két
+		     oszlop (PIN/QR | vezérlők + csapatok), hogy egy nézetben elférjen. -->
+		<div class="lobby-grid">
+			<PinDisplay pin={game.pin} {qrDataUrl} {joinUrl} />
 
-		<div class="theme-picker">
-			<Select
-				label="Vizuális köntös"
-				value={game.design_theme_id ?? ''}
-				onchange={(e) => selectDesignTheme((e.currentTarget as HTMLSelectElement).value)}
-			>
-				<option value="">Alapértelmezett</option>
-				{#each designThemes as theme (theme.id)}
-					<option value={theme.id}>{theme.title}</option>
-				{/each}
-			</Select>
-		</div>
+			<div class="lobby-side">
+				<div class="theme-picker">
+					<Select
+						label="Vizuális köntös"
+						value={game.design_theme_id ?? ''}
+						onchange={(e) => selectDesignTheme((e.currentTarget as HTMLSelectElement).value)}
+					>
+						<option value="">Alapértelmezett</option>
+						{#each designThemes as theme (theme.id)}
+							<option value={theme.id}>{theme.title}</option>
+						{/each}
+					</Select>
+				</div>
 
-		<div class="actions">
-			<Button onclick={startGame}>Kvíz indítása</Button>
-			<Button
-				variant="secondary"
-				href={resolve('/tv/[game_id]', { game_id: game.id })}
-				target="_blank"
-				rel="noopener"
-			>
-				Kivetítő megnyitása (TV mód) →
-			</Button>
-		</div>
+				<div class="actions">
+					<Button onclick={startGame}>Kvíz indítása</Button>
+					<Button
+						variant="secondary"
+						href={resolve('/tv/[game_id]', { game_id: game.id })}
+						target="_blank"
+						rel="noopener"
+					>
+						Kivetítő megnyitása (TV mód) →
+					</Button>
+				</div>
 
-		<h2>Csapatok ({teams.length})</h2>
-		<div class="team-list">
-			{#each teams as team (team.team_id)}
-				<TeamChip name={team.name} />
-			{:else}
-				{#if connectionStatus.status !== 'connected'}
-					<p class="loading">Csapatok betöltése…</p>
-				{:else}
-					<p class="empty">Még senki sem csatlakozott.</p>
-				{/if}
-			{/each}
+				<h2>Csapatok ({teams.length})</h2>
+				<div class="team-list">
+					{#each teams as team (team.team_id)}
+						<TeamChip name={team.name} />
+					{:else}
+						{#if connectionStatus.status !== 'connected'}
+							<p class="loading">Csapatok betöltése…</p>
+						{:else}
+							<p class="empty">Még senki sem csatlakozott.</p>
+						{/if}
+					{/each}
+				</div>
+			</div>
 		</div>
 	{:else if game.status === 'active' && roundQuestions.length === 0}
 		<p class="loading">Kérdések betöltése…</p>
@@ -785,9 +791,40 @@
 		min-height: 100%;
 	}
 
+	main.cabinet.lobby {
+		max-width: 60rem;
+		padding-top: clamp(1rem, 3vh, 2rem);
+		padding-bottom: clamp(1rem, 3vh, 2rem);
+	}
+
+	.lobby-grid {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: clamp(0.75rem, 2vh, 1.5rem);
+	}
+
+	.lobby-side {
+		width: 100%;
+		max-width: 22rem;
+	}
+
+	.lobby-side h2 {
+		margin: clamp(0.5rem, 2vh, 1rem) 0 0.5rem;
+	}
+
+	@media (min-width: 860px) {
+		.lobby-grid {
+			flex-direction: row;
+			justify-content: center;
+			align-items: center;
+			gap: 3rem;
+		}
+	}
+
 	.theme-picker {
 		max-width: 16rem;
-		margin: 1.5rem auto;
+		margin: 0 auto clamp(0.75rem, 2vh, 1.5rem);
 	}
 
 	.actions {
@@ -795,7 +832,6 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 0.5rem;
-		margin-bottom: 1.5rem;
 	}
 
 	.round-label {
