@@ -2144,3 +2144,37 @@ rollback-kal ellenőrizve (valódi este listázva, próbaeste nem), és a
 Próbaeste összes beszúrása admin jogosultsággal, RLS alatt is lefut. A
 bemutatók böngészőben végigkattintva ellenőrizve (kvízeste összeállítása,
 host várakozás). Részletek: `docs/features/guided-tours.md`.
+
+## 2026-09-26 — Újrakezdés: adattörlés, várólista, e-mail háttér
+
+**Adattörlés (a felhasználó „a)” opciója):** minden játékadat törölve
+(kérdésbank, témák, kvízesték, körök, csapatok, válaszok, helyszínek,
+jelentkezések). Megmaradt: felhasználói fiókok (`profiles`), design témák
+(az arcade téma is), `app_settings`, `question_types`, `audit_logs`, a
+feltöltött képek. Törlés előtt teljes mentés a `backup_20260926`
+sémába (minden jog visszavonva; darabszámok egyeztetve: 3859 kérdés, 9969
+opció, 16 téma, 6 este, 38 válasz). Ha már nincs rá szükség:
+`drop schema backup_20260926 cascade`.
+
+**Várólista és lemondás:** a jóváhagyott javaslat szerint betelt estére is
+lehet jelentkezni (várólista), a visszaigazoló e-mailben személyes
+lemondási link van, lemondáskor az első várólistás automatikusan bekerül és
+e-mailt kap. A `registration_open` oszlop `is_public` lett: a jelentkezés a
+kezdésig magától nyitva van, külön kapcsoló nem kell. A landing „Legutóbbi
+győztesek” blokkját a `public_past_events` váltja (az elmúlt esték
+inaktívan, győztessel). Élőben, rollback-kal ellenőrizve.
+
+**E-mail:** Resend, SDK nélkül (`fetch`), env-ből konfigurálva, hiányzó
+kulcsnál csendben kihagyva. A domain még nincs meg, ezért egyelőre nem megy
+ki levél.
+
+**Biztonsági javítás:** a tesztelés közben kiderült, hogy a
+`current_user_role_id()` profil nélküli bejelentkezett felhasználóra NULL-t
+ad, és a `not in (1, 2, 3)` ellenőrzés NULL-ra nem dob hibát. 11 függvényt
+érintett (riportok, kezelői műveletek). Javítva a forrásnál: a függvény 0-t
+ad vissza (`20260926130000_role_id_never_null.sql`). Élőben ellenőrizve:
+profil nélkül 42501, superadminnal továbbra is működik. Gyakorlati
+kockázat eddig alacsony volt (az új felhasználók trigger-rel azonnal
+profilt kapnak), de a hiba szerkezeti volt.
+
+Részletek: `docs/features/landing-and-registration.md`.

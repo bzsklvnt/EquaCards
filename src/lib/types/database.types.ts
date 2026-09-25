@@ -291,7 +291,7 @@ export type Database = {
 					max_teams: number | null;
 					pin: string;
 					public_note: string | null;
-					registration_open: boolean;
+					is_public: boolean;
 					scheduled_at: string | null;
 					started_at: string | null;
 					status: string;
@@ -312,7 +312,7 @@ export type Database = {
 					max_teams?: number | null;
 					pin: string;
 					public_note?: string | null;
-					registration_open?: boolean;
+					is_public?: boolean;
 					scheduled_at?: string | null;
 					started_at?: string | null;
 					status?: string;
@@ -333,7 +333,7 @@ export type Database = {
 					max_teams?: number | null;
 					pin?: string;
 					public_note?: string | null;
-					registration_open?: boolean;
+					is_public?: boolean;
 					scheduled_at?: string | null;
 					started_at?: string | null;
 					status?: string;
@@ -730,6 +730,8 @@ export type Database = {
 			};
 			team_registrations: {
 				Row: {
+					cancel_token: string;
+					cancelled_at: string | null;
 					consent_at: string;
 					contact_email: string;
 					contact_name: string;
@@ -739,9 +741,13 @@ export type Database = {
 					headcount: number;
 					id: string;
 					note: string | null;
+					promoted_at: string | null;
+					status: string;
 					team_name: string;
 				};
 				Insert: {
+					cancel_token?: string;
+					cancelled_at?: string | null;
 					consent_at: string;
 					contact_email: string;
 					contact_name: string;
@@ -751,9 +757,13 @@ export type Database = {
 					headcount: number;
 					id?: string;
 					note?: string | null;
+					promoted_at?: string | null;
+					status?: string;
 					team_name: string;
 				};
 				Update: {
+					cancel_token?: string;
+					cancelled_at?: string | null;
 					consent_at?: string;
 					contact_email?: string;
 					contact_name?: string;
@@ -763,6 +773,8 @@ export type Database = {
 					headcount?: number;
 					id?: string;
 					note?: string | null;
+					promoted_at?: string | null;
+					status?: string;
 					team_name?: string;
 				};
 				Relationships: [
@@ -860,6 +872,8 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Functions: {
+			admin_cancel_registration: { Args: { p_id: string }; Returns: string };
+			admin_promote_registration: { Args: { p_id: string }; Returns: boolean };
 			answer_owner_game_active: {
 				Args: { p_answer_id: string };
 				Returns: boolean;
@@ -867,6 +881,13 @@ export type Database = {
 			answer_within_timer: {
 				Args: { p_game_id: string; p_question_id: string };
 				Returns: boolean;
+			};
+			cancel_registration: {
+				Args: { p_token: string };
+				Returns: {
+					cancelled_id: string;
+					promoted_id: string;
+				}[];
 			};
 			current_question_state: { Args: { p_game_id: string }; Returns: Json };
 			current_user_role_id: { Args: never; Returns: number };
@@ -896,28 +917,33 @@ export type Database = {
 			};
 			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
 			game_status: { Args: { p_game_id: string }; Returns: string };
-			public_recent_winners: {
+			promote_from_waitlist: { Args: { p_game_id: string }; Returns: string };
+			public_past_events: {
 				Args: { p_limit?: number };
 				Returns: {
-					finished_at: string;
-					game_title: string;
-					team_name: string;
-					total_score: number;
+					id: string;
+					scheduled_at: string;
+					team_count: number;
+					title: string;
+					venue_city: string;
+					venue_name: string;
+					winner_name: string;
 				}[];
 			};
 			public_upcoming_events: {
 				Args: never;
 				Returns: {
+					confirmed_teams: number;
 					id: string;
 					max_teams: number;
 					public_note: string;
-					registered_teams: number;
 					scheduled_at: string;
 					title: string;
 					venue_address: string;
 					venue_city: string;
 					venue_maps_url: string;
 					venue_name: string;
+					waitlist_teams: number;
 				}[];
 			};
 			register_team: {
@@ -930,7 +956,23 @@ export type Database = {
 					p_note?: string;
 					p_team_name: string;
 				};
-				Returns: string;
+				Returns: {
+					cancel_token: string;
+					id: string;
+					status: string;
+					waitlist_position: number;
+				}[];
+			};
+			registration_by_token: {
+				Args: { p_token: string };
+				Returns: {
+					can_cancel: boolean;
+					game_title: string;
+					scheduled_at: string;
+					status: string;
+					team_name: string;
+					venue_name: string;
+				}[];
 			};
 			registered_team_names: {
 				Args: { p_game_id: string };
