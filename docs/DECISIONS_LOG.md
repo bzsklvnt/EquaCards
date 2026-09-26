@@ -2285,3 +2285,14 @@ kódját fogadja el. Döntések:
 és `/szabalyzat` (részvételi szabályzat); a jelentkezéskor mindkét
 dokumentum elfogadása kötelező. A szövegek minták, élesítés előtt jogi
 átnézés javasolt. Részletek: `docs/features/landing-and-registration.md`.
+
+## 2026-09-26 — Kvízeste törlése (csak rendszergazda)
+
+A felhasználó kérése: kvízestét csak a legmagasabb jogosultsági szint
+(rendszergazda, role_id = 1) törölhessen. Eddig nem volt törlés a felületen,
+de a `games_staff_all` policy adatbázis-szinten minden kezelőnek (1–3)
+engedte volna — ez most szétválasztva: a DELETE csak role 1. A felületen
+(Kvízesték lista, Esemény fül „Kvízeste törlése” szakasz) a gomb csak
+rendszergazdának látszik, megerősítést kér, és felsorolja, mi törlődik.
+Futó estét nem lehet törölni. A jelentkezett csapatok nem kapnak
+automatikus értesítést (ezt a megerősítés jelzi). Részletek: DATA_MODEL.md 4. szakasz.

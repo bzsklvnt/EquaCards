@@ -4,6 +4,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
+	import DeleteGameButton from '$lib/components/DeleteGameButton.svelte';
 	import { withToast } from '$lib/toast-enhance';
 	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { formatEventDate } from '$lib/datetime';
@@ -17,6 +18,9 @@
 	let creatingPractice = $state(false);
 
 	registerPageTour(() => 'games');
+
+	// Kvízestét csak rendszergazda (role_id = 1) törölhet.
+	const isSuperAdmin = $derived(data.profile?.role_id === 1);
 
 	const firstFinishedId = $derived(data.games.find((g) => g.status === 'finished')?.id);
 
@@ -113,6 +117,15 @@
 								>Kvízeste újranyitása</Button
 							>
 						</form>
+					{/if}
+					{#if isSuperAdmin}
+						<div class="delete-row" data-tour={i === 0 ? 'games-delete' : undefined}>
+							<DeleteGameButton
+								gameId={game.id}
+								title={game.title}
+								running={game.status === 'active' || game.status === 'paused'}
+							/>
+						</div>
 					{/if}
 				</div>
 			</ArcadePanel>
@@ -224,6 +237,11 @@
 	.status-finished {
 		background: var(--cabinet-3);
 		color: var(--marquee-dim);
+	}
+
+	.delete-row {
+		display: flex;
+		justify-content: flex-end;
 	}
 
 	.empty {

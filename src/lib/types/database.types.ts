@@ -886,6 +886,7 @@ export type Database = {
 				Returns: { id: string; join_code: string }[];
 			};
 			admin_cancel_registration: { Args: { p_id: string }; Returns: string[] };
+			admin_delete_game: { Args: { p_game_id: string }; Returns: string };
 			admin_fill_from_waitlist: { Args: { p_game_id: string }; Returns: string[] };
 			admin_promote_registration: { Args: { p_id: string }; Returns: boolean };
 			answer_owner_game_active: {

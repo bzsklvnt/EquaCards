@@ -572,6 +572,18 @@ execute ... from public` **önmagában nem** veszi el az `anon`/
   `revoke ... from public` **és** `revoke ... from anon, authenticated`
   **együtt**, mielőtt a tényleges `grant`-ot kiadnánk.
 
+### Kvízeste törlése (`20260926190000_game_delete_super_admin.sql`)
+
+- A korábbi `games_staff_all` (ALL, role 1–3) policy helyett: SELECT / INSERT /
+  UPDATE továbbra is 1–3, **DELETE csak rendszergazda (role_id = 1)**.
+- `admin_delete_game(game_id)`: csak role 1; futó (`active`/`paused`) estét
+  nem töröl (`game_running`). A törlés tovagyűrűzik: körök és
+  kérdés-hozzárendelések, csapatok, válaszok (és a típusonkénti
+  válasz-táblák), jokerek, jelentkezések. A kérdések a bankban maradnak.
+- Élőben, rollback-kal ellenőrizve: profil nélkül és role 2-vel 42501 (a
+  közvetlen DELETE 0 sort érint, az UPDATE működik), futó estére
+  `game_running`, rendszergazdaként a törlés és a cascade lefut.
+
 ### Helyszínek, események, csapatregisztráció (`20260926100000_landing_events_registrations.sql` + `20260926120000_registration_waitlist.sql`)
 
 ```sql

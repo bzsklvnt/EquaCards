@@ -1,6 +1,6 @@
-import { error as kitError, fail } from '@sveltejs/kit';
+import { error as kitError, fail, redirect } from '@sveltejs/kit';
 import { fromBudapestLocalInput } from '$lib/datetime';
-import { reopenGameAction } from '$lib/server/games';
+import { deleteGameAction, reopenGameAction } from '$lib/server/games';
 import {
 	adminAddWalkin,
 	adminCancelRegistration,
@@ -62,6 +62,13 @@ function text(form: FormData, key: string): string {
 }
 
 export const actions: Actions = {
+	// Végleges törlés — csak rendszergazda; utána vissza a kvízestek listájára.
+	deleteGame: async ({ request, locals: { supabase } }) => {
+		const result = await deleteGameAction(supabase, await request.formData());
+		if ('error' in result) return fail(400, { error: result.error });
+		redirect(303, '/admin/games');
+	},
+
 	// Lezárt este újranyitása az este saját oldaláról (reopenGameAction).
 	reopen: async ({ request, locals: { supabase } }) => {
 		const failure = await reopenGameAction(supabase, await request.formData());

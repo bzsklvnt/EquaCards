@@ -252,3 +252,25 @@ export async function reopenGameAction(
 		.eq('status', 'finished');
 	return error ? { error: error.message } : null;
 }
+
+// Kvízeste végleges törlése — csak rendszergazda (role_id = 1). A jogosultságot
+// és a "futó este nem törölhető" szabályt az admin_delete_game() RPC és a
+// games RLS is kikényszeríti (supabase/migrations/20260926190000_…).
+export async function deleteGameAction(
+	supabase: SupabaseClient<Database>,
+	formData: FormData
+): Promise<{ error: string } | { title: string }> {
+	const gameId = formData.get('game_id');
+	if (typeof gameId !== 'string' || !gameId) return { error: 'Hiányzó kvízeste azonosító.' };
+	const { data, error } = await supabase.rpc('admin_delete_game', { p_game_id: gameId });
+	if (error) {
+		if (error.message.includes('game_running')) {
+			return { error: 'Futó kvízestét nem lehet törölni — előbb zárd le.' };
+		}
+		if (error.code === '42501' || error.message.includes('insufficient_privilege')) {
+			return { error: 'Kvízestét csak rendszergazda törölhet.' };
+		}
+		return { error: 'Nem sikerült törölni a kvízestét.' };
+	}
+	return { title: data ?? '' };
+}
