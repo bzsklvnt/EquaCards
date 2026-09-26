@@ -2239,3 +2239,12 @@ a kérdésbankba kerül, azonnal a kör végére fűződik, az ablak bezárul é
 listája frissül. A kérdés-létrehozás közös szerver-függvénybe került
 (`createQuestionFromForm`), amit a kérdésbank oldala is használ. Részletek:
 `docs/features/random-draw.md`.
+
+## 2026-09-26 — Újranyitás az este saját oldaláról
+
+Élő tesztből: az új felületen nem volt található a „Kvízeste újranyitása”
+gomb (csak a Kvízesték lista kártyáin volt, lezárt estéknél). Most lezárt
+estén az este mindhárom fülének fejlécében is megjelenik (Körök és
+kérdések, Esemény és jelentkezések, Eredmények). A logika közös
+(`reopenGameAction()`, `src/lib/server/games.ts`), a gomb a
+`ReopenGameButton.svelte`; a bemutatók is említik.

@@ -1,6 +1,7 @@
 import { error as kitError, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { appendQuestionsToRound, createQuestionFromForm } from '$lib/server/questions';
+import { reopenGameAction } from '$lib/server/games';
 
 export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
 	// Élő tesztből: a körönkénti round_questions lekérdezés korábban
@@ -80,6 +81,13 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 // jövőbeli változtatás ne vezessen be véletlenül egy ilyen korlátozást —
 // lásd docs/DECISIONS_LOG.md Fázis Q4 bejegyzését.
 export const actions: Actions = {
+	// Lezárt este újranyitása az este saját oldaláról (reopenGameAction).
+	reopen: async ({ request, locals: { supabase } }) => {
+		const failure = await reopenGameAction(supabase, await request.formData());
+		if (failure) return fail(400, failure);
+		return { success: true, reopened: true };
+	},
+
 	addRound: async ({ request, params, locals: { supabase } }) => {
 		const formData = await request.formData();
 		const title = (formData.get('title') as string)?.trim();

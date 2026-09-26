@@ -232,3 +232,21 @@ export async function createPracticeGame(
 
 	return { gameId: game.id };
 }
+
+// Fázis Q3 — a "Kvízeste újranyitása" a games.status-t 'lobby'-ra állítja
+// vissza (nem 'active'-re és nem 'paused'-re, lásd docs/DECISIONS_LOG.md), és
+// törli a finished_at-ot; a trg_audit_games trigger naplózza. A kvízestek
+// listája és az este saját oldalai (Körök, Esemény) is ezt használják.
+export async function reopenGameAction(
+	supabase: SupabaseClient<Database>,
+	formData: FormData
+): Promise<{ error: string } | null> {
+	const gameId = formData.get('game_id');
+	if (typeof gameId !== 'string' || !gameId) return { error: 'Hiányzó kvízeste azonosító.' };
+	const { error } = await supabase
+		.from('games')
+		.update({ status: 'lobby', finished_at: null })
+		.eq('id', gameId)
+		.eq('status', 'finished');
+	return error ? { error: error.message } : null;
+}

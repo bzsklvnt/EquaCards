@@ -6,6 +6,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Checkbox from '$lib/components/Checkbox.svelte';
 	import GameTabs from '$lib/components/GameTabs.svelte';
+	import ReopenGameButton from '$lib/components/ReopenGameButton.svelte';
 	import QuestionForm from '$lib/components/QuestionForm.svelte';
 	import { withToast } from '$lib/toast-enhance';
 	import { registerPageTour } from '$lib/tours/state.svelte';
@@ -128,11 +129,16 @@
 		<h1>{data.game.title}</h1>
 		<p class="status">Állapot: {STATUS_LABELS[data.game.status] ?? data.game.status}</p>
 	</div>
-	<span data-tour="gs-open-host">
-		<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
-			>Élő lebonyolítás megnyitása →</Button
-		>
-	</span>
+	<div class="head-actions">
+		{#if data.game.status === 'finished'}
+			<ReopenGameButton gameId={data.game.id} />
+		{/if}
+		<span data-tour="gs-open-host">
+			<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
+				>Élő lebonyolítás megnyitása →</Button
+			>
+		</span>
+	</div>
 </header>
 
 <GameTabs gameId={data.game.id} />
@@ -392,6 +398,13 @@
 	.dialog-hint {
 		margin: 0.25rem 0 1.25rem;
 		color: var(--marquee-dim);
+	}
+
+	.head-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem;
 	}
 
 	.page-head {
