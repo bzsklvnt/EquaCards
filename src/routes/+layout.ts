@@ -2,6 +2,10 @@ import { createBrowserClient, createServerClient, isBrowser } from '@supabase/ss
 import { env } from '$env/dynamic/public';
 import type { Database } from '$lib/types/database.types';
 import type { LayoutLoad } from './$types';
+import { dev } from '$app/environment';
+import { injectAnalytics } from '@vercel/analytics/sveltekit';
+
+injectAnalytics({ mode: dev ? 'development' : 'production' });
 
 export const load: LayoutLoad = async ({ data, depends, fetch }) => {
 	depends('supabase:auth');
