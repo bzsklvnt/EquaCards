@@ -10,7 +10,8 @@ export type EmailMessage = {
 	text: string;
 };
 
-export type EmailResult = { status: 'sent' } | { status: 'skipped' } | { status: 'failed' };
+export type EmailResult =
+	{ status: 'sent' } | { status: 'skipped' } | { status: 'failed'; detail: string };
 
 export function isEmailConfigured(): boolean {
 	return Boolean(env.RESEND_API_KEY && env.EMAIL_FROM);
@@ -37,14 +38,35 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
 			signal: AbortSignal.timeout(8000)
 		});
 		if (!response.ok) {
-			console.error('[email] Resend error', response.status, await response.text());
-			return { status: 'failed' };
+			const body = await response.text();
+			console.error('[email] Resend error', response.status, body);
+			return { status: 'failed', detail: `${response.status}: ${resendMessage(body)}` };
 		}
 		return { status: 'sent' };
 	} catch (error) {
 		console.error('[email] send failed', error);
-		return { status: 'failed' };
+		return { status: 'failed', detail: error instanceof Error ? error.message : String(error) };
 	}
+}
+
+// A Resend hibaválasza JSON ({ name, message }); ha nem az, a nyers szöveg.
+function resendMessage(body: string): string {
+	try {
+		const parsed = JSON.parse(body) as { message?: string };
+		return parsed.message ?? body;
+	} catch {
+		return body;
+	}
+}
+
+// A Beállítások oldal "Élesítés állapota" panelje: melyik beállítás van meg
+// (titkos kulcsnál csak igen/nem, a feladó címe megjeleníthető).
+export function emailSetupStatus() {
+	return {
+		apiKey: Boolean(env.RESEND_API_KEY),
+		from: env.EMAIL_FROM || null,
+		replyTo: env.EMAIL_REPLY_TO || null
+	};
 }
 
 export function escapeHtml(value: string): string {

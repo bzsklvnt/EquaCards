@@ -2248,3 +2248,15 @@ estén az este mindhárom fülének fejlécében is megjelenik (Körök és
 kérdések, Esemény és jelentkezések, Eredmények). A logika közös
 (`reopenGameAction()`, `src/lib/server/games.ts`), a gomb a
 `ReopenGameButton.svelte`; a bemutatók is említik.
+
+## 2026-09-26 — Élesítés állapota panel és go-live útmutató
+
+Élő tesztből: az e-mail küldés nem működött, és nem látszott, miért. A
+Beállítások oldalon (csak rendszergazda) új „Élesítés állapota” panel
+mutatja, melyik éles beállítás van meg: domainek, Resend kulcs és feladó,
+service-role kulcs (egy lekérdezéssel ténylegesen kipróbálva), üzemeltetői
+adatok. Titkos kulcsnak csak a megléte látszik. A „Teszt e-mail küldése
+magamnak” gomb a Resend pontos hibaüzenetét és a valószínű teendőt írja ki.
+Az `EmailResult` hibaágban `detail` mezőt kapott. Lépésenkénti útmutató
+(Vercel, Resend + Rackhost DNS, Supabase Auth, éles próba):
+`docs/operations/GO_LIVE.md`.
