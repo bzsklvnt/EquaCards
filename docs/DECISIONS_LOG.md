@@ -2229,3 +2229,13 @@ renderelve ellenőrizve). Fájlok: `src/lib/assets/favicon.svg` (fül),
 PNG-tartalékok: `static/favicon-32.png` (SVG-t nem ismerő böngészők),
 `static/apple-touch-icon.png` (iOS kezdőképernyő). A manifest neve
 „Kocsmakvízest” lett, színei a letisztult témát követik.
+
+## 2026-09-26 — Új kérdés a kör szerkesztőjén belül
+
+Élő tesztből: a „+ Új kérdés ehhez a körhöz” a kérdésbank új-kérdés oldalára
+navigált, a felhasználó viszont a kör szerkesztésén akart maradni. Most a
+kérdés-űrlap felugró ablakban nyílik a kvízeste oldalán; mentéskor a kérdés
+a kérdésbankba kerül, azonnal a kör végére fűződik, az ablak bezárul és a kör
+listája frissül. A kérdés-létrehozás közös szerver-függvénybe került
+(`createQuestionFromForm`), amit a kérdésbank oldala is használ. Részletek:
+`docs/features/random-draw.md`.

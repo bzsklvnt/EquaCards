@@ -339,7 +339,7 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				element: 'gs-pick',
 				title: 'Kézi válogatás vagy új kérdés',
 				description:
-					'„+ Kérdés a kérdésbankból”: téma és keresés alapján több kérdést is kijelölhetsz.<br>„+ Új kérdés ehhez a körhöz”: új kérdést írsz, és mentéskor egyből a kör végére kerül.'
+					'„+ Kérdés a kérdésbankból”: téma és keresés alapján több kérdést is kijelölhetsz.<br>„+ Új kérdés ehhez a körhöz”: felugró ablakban új kérdést írsz, mentéskor egyből a kör végére kerül, és az oldalon maradsz.'
 			},
 			{
 				element: 'gs-question-list',

@@ -218,3 +218,50 @@ export async function appendQuestionsToRound(
 		);
 	return { added: error ? 0 : toAdd.length, error: error?.message ?? null };
 }
+
+/** Új kérdés létrehozása egy beküldött QuestionForm-ból (kérdésbank és a kör
+ * szerkesztőjének felugró űrlapja közös útja). Ha a típus-specifikus adatok
+ * mentése elbukik, a félkész kérdést visszatörli. */
+export async function createQuestionFromForm(
+	supabase: SupabaseClient<Database>,
+	formData: FormData,
+	userId: string | undefined
+): Promise<{ id: string } | { error: string }> {
+	const { data: type } = await supabase
+		.from('question_types')
+		.select('code, min_options, max_options')
+		.eq('id', Number(formData.get('question_type_id')))
+		.single();
+	if (!type) return { error: 'Érvénytelen kérdéstípus.' };
+
+	const parsed = parseQuestionForm(formData, type.code);
+	const validationError = validateQuestionForm(parsed, type);
+	if (validationError) return { error: validationError };
+
+	const { data: question, error } = await supabase
+		.from('questions')
+		.insert({
+			theme_id: parsed.theme_id,
+			question_type_id: parsed.question_type_id,
+			prompt: parsed.prompt,
+			image_url: parsed.image_url,
+			image_pixelate: parsed.image_pixelate,
+			points: parsed.points,
+			points_multiplier: parsed.points_multiplier,
+			time_limit_seconds: parsed.time_limit_seconds,
+			points_decay: parsed.points_decay,
+			created_by: userId
+		})
+		.select('id')
+		.single();
+	if (error || !question) {
+		return { error: error?.message ?? 'Nem sikerült létrehozni a kérdést.' };
+	}
+
+	const childError = await insertQuestionTypeData(supabase, question.id, parsed);
+	if (childError) {
+		await supabase.from('questions').delete().eq('id', question.id);
+		return { error: childError };
+	}
+	return { id: question.id };
+}

@@ -47,7 +47,10 @@
 		error,
 		defaultThemeId,
 		hiddenFields = {},
-		cancelHref
+		cancelHref,
+		oncancel,
+		onsuccess,
+		successMessage
 	}: {
 		themes: Theme[];
 		questionTypes: QuestionType[];
@@ -59,6 +62,11 @@
 		/** Extra rejtett mezők a formhoz (pl. round_id a "kérdés ehhez a körhöz" folyamatnál). */
 		hiddenFields?: Record<string, string>;
 		cancelHref?: string;
+		/** Felugró ablakban: a "Mégse" gomb link helyett ezt hívja. */
+		oncancel?: () => void;
+		/** Sikeres mentés után (ha az action nem irányít át, pl. felugró ablakban). */
+		onsuccess?: () => void;
+		successMessage?: string;
 	} = $props();
 
 	let saving = $state(false);
@@ -136,7 +144,15 @@
 	}
 </script>
 
-<form method="POST" {action} use:enhance={withToast({ setSubmitting: (v) => (saving = v) })}>
+<form
+	method="POST"
+	{action}
+	use:enhance={withToast({
+		setSubmitting: (v) => (saving = v),
+		onSuccess: () => onsuccess?.(),
+		successMessage
+	})}
+>
 	{#if error}
 		<p class="error">{error}</p>
 	{/if}
@@ -345,7 +361,9 @@
 
 	<div class="form-actions" data-tour="qf-save">
 		<Button type="submit" loading={saving}>Mentés</Button>
-		{#if cancelHref}
+		{#if oncancel}
+			<Button variant="ghost" onclick={oncancel}>Mégse</Button>
+		{:else if cancelHref}
 			<Button variant="ghost" href={cancelHref}>Mégse</Button>
 		{/if}
 	</div>
