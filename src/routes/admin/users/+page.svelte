@@ -1,179 +1,211 @@
 <script lang="ts">
-	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import Select from '$lib/components/Select.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import type { ActionData, PageData } from './$types';
+	import Workspace from '$lib/components/admin/Workspace.svelte';
+	import RailList from '$lib/components/admin/RailList.svelte';
+	import { createSelection } from '$lib/admin/selection.svelte';
+	import { registerPageTour } from '$lib/tours/state.svelte';
+	import type { PageData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// Felhasználók (csak rendszergazda) — lista · profil és szerepkör ·
+	// a szerepkörök jelentése. docs/features/admin-workspace.md.
+	let { data }: { data: PageData } = $props();
 
+	registerPageTour(() => 'users');
+
+	const ROLE_INFO: Record<number, string> = {
+		1: 'Mindenhez hozzáfér: felhasználók, beállítások, kvízeste törlése.',
+		2: 'Kérdésbank, témák, kvízesték összeállítása és lebonyolítása, helyszínek.',
+		3: 'Élő lebonyolítás (host) és riportok — összeállítani nem tud.',
+		4: 'Csak a riportokat látja.'
+	};
+
+	let search = $state('');
+	const matches = (u: PageData['users'][number]) =>
+		`${u.display_name} ${u.email ?? ''}`.toLowerCase().includes(search.trim().toLowerCase());
+	const groups = $derived(
+		data.roles
+			.map((role) => ({
+				label: role.label,
+				items: data.users.filter((u) => u.role_id === role.id && matches(u))
+			}))
+			.filter((g) => g.items.length > 0)
+	);
+	const selection = createSelection(
+		'id',
+		() => groups.find((g) => g.items.length > 0)?.items[0]?.id ?? null
+	);
+	const selected = $derived(data.users.find((u) => u.id === selection.id) ?? null);
+
+	let saving = $state(false);
 	const handleRoleUpdate: SubmitFunction = () => {
+		saving = true;
 		return async ({ result, update }) => {
-			if (result.type === 'success') {
-				toast.success('Jogosultság frissítve.');
-			} else if (result.type === 'failure') {
+			saving = false;
+			if (result.type === 'success') toast.success('Jogosultság frissítve.');
+			else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Nem sikerült a módosítás.');
 			}
 			await update();
 		};
 	};
-
-	registerPageTour(() => 'users');
 </script>
 
 <svelte:head>
 	<title>Felhasználók — Kezelőfelület</title>
 </svelte:head>
 
-<h1>Felhasználók</h1>
+<Workspace
+	label="Felhasználók"
+	keys={[
+		['↑ ↓', 'felhasználók'],
+		['/', 'keresés']
+	]}
+>
+	{#snippet rail()}
+		<RailList
+			label="Felhasználók"
+			{groups}
+			getId={(u) => u.id}
+			selectedId={selection.id}
+			onselect={(u) => selection.set(u.id)}
+			onopen={() => document.getElementById('role-select')?.focus()}
+			bind:search
+			placeholder="Név vagy e-mail…"
+			empty="Még nincs regisztrált felhasználó."
+		>
+			{#snippet item(u)}
+				<span class="avatar" aria-hidden="true">{u.display_name.slice(0, 1)}</span>
+				<span class="ws-item-text">
+					<strong>{u.display_name}</strong>
+					<small>{u.email ?? '—'}</small>
+				</span>
+			{/snippet}
+		</RailList>
+	{/snippet}
 
-{#if form?.error}
-	<p class="error">{form.error}</p>
-{/if}
-
-<table data-tour="us-table">
-	<thead>
-		<tr>
-			<th>Név</th>
-			<th>Email</th>
-			<th>Jogosultság</th>
-			<th>Regisztrált</th>
-		</tr>
-	</thead>
-	<tbody>
-		{#each data.users as u, i (u.id)}
-			<tr>
-				<td data-label="Név">{u.display_name}</td>
-				<td data-label="Email">{u.email ?? '—'}</td>
-				<td data-label="Jogosultság" data-tour={i === 0 ? 'us-role' : undefined}>
-					<form method="POST" action="?/updateRole" use:enhance={handleRoleUpdate}>
-						<input type="hidden" name="user_id" value={u.id} />
-						<Select
-							label="Jogosultság"
-							name="role_id"
-							value={String(u.role_id)}
-							onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.requestSubmit()}
-						>
-							{#each data.roles as role (role.id)}
-								<option value={role.id}>{role.label}</option>
-							{/each}
-						</Select>
-					</form>
-				</td>
-				<td data-label="Regisztrált"
-					>{u.created_at ? new Date(u.created_at).toLocaleDateString('hu-HU') : '—'}</td
-				>
-			</tr>
+	{#snippet main()}
+		{#if selected}
+			<div class="ws-crumb">Felhasználók › <b>{selected.display_name}</b></div>
+			<div class="ws-head">
+				<div>
+					<h1 class="ws-h1">{selected.display_name}</h1>
+					<p class="ws-sub">
+						{selected.email ?? 'nincs e-mail'} · regisztrált: {selected.created_at
+							? new Date(selected.created_at).toLocaleDateString('hu-HU')
+							: '—'}
+					</p>
+				</div>
+			</div>
+			<form
+				method="POST"
+				action="?/updateRole"
+				class="ws-card"
+				data-tour="us-table"
+				use:enhance={handleRoleUpdate}
+			>
+				<h2>Jogosultság</h2>
+				<input type="hidden" name="user_id" value={selected.id} />
+				<div class="roles" role="radiogroup" aria-label="Jogosultság" data-tour="us-role">
+					{#each data.roles as role (role.id)}
+						<label class="role" class:on={selected.role_id === role.id}>
+							<input
+								id={role.id === selected.role_id ? 'role-select' : undefined}
+								type="radio"
+								name="role_id"
+								value={role.id}
+								checked={selected.role_id === role.id}
+								disabled={saving}
+								onchange={(e) => e.currentTarget.form?.requestSubmit()}
+							/>
+							<span class="role-text">
+								<strong>{role.label}</strong>
+								<small>{ROLE_INFO[role.id] ?? ''}</small>
+							</span>
+						</label>
+					{/each}
+				</div>
+				<p class="ws-note">
+					A változás azonnal érvényes. A saját rendszergazda jogodat nem veheted el.
+				</p>
+			</form>
 		{:else}
-			<tr>
-				<td colspan="4" class="empty-row">Még nincs regisztrált felhasználó.</td>
-			</tr>
+			<div class="ws-empty">
+				<h2>Felhasználók</h2>
+				<p>Még nincs regisztrált felhasználó.</p>
+			</div>
+		{/if}
+	{/snippet}
+
+	{#snippet side()}
+		<p class="ws-cap">Szerepkörök</p>
+		{#each data.roles as role (role.id)}
+			<div class="role-info">
+				<strong>{role.label}</strong>
+				<span>{data.users.filter((u) => u.role_id === role.id).length} fő</span>
+			</div>
 		{/each}
-	</tbody>
-</table>
+	{/snippet}
+</Workspace>
 
 <style>
-	h1 {
-		font-family: var(--font-display);
-		font-size: 2.1rem;
-		font-weight: 400;
-		color: var(--marquee);
+	.avatar {
+		width: 2rem;
+		height: 2rem;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		background: var(--cabinet);
+		font-weight: 700;
+		text-transform: uppercase;
 	}
 
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		color: var(--marquee);
+	.roles {
+		display: flex;
+		flex-direction: column;
+		gap: 0.45rem;
 	}
 
-	th,
-	td {
-		text-align: left;
-		padding: 0.5rem;
-		border-bottom: 1px solid var(--cabinet-3);
-		vertical-align: middle;
+	.role {
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		padding: 0.65rem 0.8rem;
+		border: 1px solid var(--panel-border, #e4ded2);
+		border-radius: 0.7rem;
+		cursor: pointer;
 	}
 
-	th {
+	.role.on {
+		border: 2px solid var(--cyan);
+		background: color-mix(in srgb, var(--cyan) 8%, var(--cabinet-2));
+	}
+
+	.role input {
+		accent-color: var(--cyan);
+		width: 1.1rem;
+		height: 1.1rem;
+	}
+
+	.role-text {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.role-text small {
 		color: var(--marquee-dim);
-		font-size: 0.85rem;
 	}
 
-	td form {
-		margin: 0;
+	.role-info {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.9rem;
 	}
 
-	/* A "Jogosultság" oszlopfejléc már vizuálisan címkézi a select-et —
-	   a mezőcímkét csak képernyőolvasóknak hagyjuk meg (display:none
-	   kivenné az accessible name-ből is, nem csak vizuálisan tüntetné el). */
-	td :global(.field-label) {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-	}
-
-	.error {
-		color: var(--danger);
-	}
-
-	.empty-row {
+	.role-info span {
 		color: var(--marquee-dim);
-	}
-
-	/* Fázis N3 — a táblázat 640px alatt kártyás nézetté alakul, mert
-	oszloponként vízszintesen csúnyán törne/scrollózna mobilon. */
-	@media (max-width: 640px) {
-		thead {
-			display: none;
-		}
-
-		table,
-		tbody,
-		tr,
-		td {
-			display: block;
-			width: 100%;
-		}
-
-		tr {
-			background: var(--cabinet-2);
-			border: 2px solid var(--cabinet-3);
-			border-radius: 0.75rem;
-			padding: 0.75rem;
-			margin-bottom: 0.75rem;
-		}
-
-		td {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			gap: 1rem;
-			border-bottom: 1px solid var(--cabinet-3);
-			text-align: right;
-		}
-
-		td:last-child {
-			border-bottom: none;
-		}
-
-		td::before {
-			content: attr(data-label);
-			color: var(--marquee-dim);
-			font-size: 0.8rem;
-			text-align: left;
-		}
-
-		.empty-row {
-			display: block;
-			text-align: left;
-		}
-
-		.empty-row::before {
-			content: none;
-		}
 	}
 </style>

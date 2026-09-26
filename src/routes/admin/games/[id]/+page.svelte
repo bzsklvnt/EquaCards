@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { beforeNavigate } from '$app/navigation';
 	import { onMount, tick, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -65,7 +66,9 @@
 			? { roundId: initialRounds[0].id, key: initialRounds[0].keys[0] ?? null }
 			: null
 	);
-	let view = $state<'editor' | 'overview'>('editor');
+	let view = $state<'editor' | 'overview'>(
+		untrack(() => page.url.searchParams.get('view')) === 'overview' ? 'overview' : 'editor'
+	);
 	let bankOpen = $state(false);
 	let helpOpen = $state(false);
 	let previewOpen = $state(false);
@@ -420,7 +423,11 @@
 		// Új kérdés mindig "Egy helyes"-ként indul (T-vel váltható); a téma, az
 		// idő és a pontozás az aktuális kérdésből öröklődik.
 		const type = types.find((t) => t.code === 'single_choice') ?? types[0];
-		const draft = emptyDraft(type, template?.theme_id ?? null, template);
+		const draft = emptyDraft(
+			type,
+			template?.theme_id ?? null,
+			template ?? { time_limit_seconds: data.defaultTime, points: 1000, points_decay: true }
+		);
 		drafts[draft.key] = draft;
 		const index =
 			round.id === currentRound?.id && currentIndex >= 0 ? currentIndex + 1 : round.keys.length;

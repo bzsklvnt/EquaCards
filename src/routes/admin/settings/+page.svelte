@@ -1,42 +1,36 @@
 <script lang="ts">
-	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import Input from '$lib/components/Input.svelte';
-	import Checkbox from '$lib/components/Checkbox.svelte';
-	import Textarea from '$lib/components/Textarea.svelte';
-	import Select from '$lib/components/Select.svelte';
-	import Button from '$lib/components/Button.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import Workspace from '$lib/components/admin/Workspace.svelte';
+	import RailList from '$lib/components/admin/RailList.svelte';
+	import SettingField from '$lib/components/admin/SettingField.svelte';
+	import { createSelection } from '$lib/admin/selection.svelte';
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
 
+	// Beállítások (csak rendszergazda) — kategóriák · beállítások (automatikus
+	// mentés) · élesítés állapota. docs/features/admin-workspace.md,
+	// docs/features/app-settings.md.
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let selectedDefaultThemeId = $state(
-		untrack(() => data.designThemes.find((t) => t.is_default)?.id ?? data.designThemes[0]?.id ?? '')
-	);
+	registerPageTour(() => 'settings');
 
-	const handleSetDefaultTheme: SubmitFunction = () => {
-		return async ({ result, update }) => {
-			if (result.type === 'success') {
-				toast.success('Globális alapértelmezett design téma frissítve.');
-			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Nem sikerült frissíteni a témát.');
-			}
-			await update();
-		};
-	};
-
-	// Csak prezentációs "cukorka" ismert kulcsokhoz (barátságosabb címke +
-	// mértékegység) — ha egy jövőbeli app_settings sor nincs itt felsorolva,
-	// attól még megjelenik a listában, csak a nyers kulcsnevét mutatja.
+	// Barátságos címkék ismert kulcsokhoz — ismeretlen kulcs az „Egyéb”
+	// kategóriában, a nyers nevével jelenik meg.
 	const SETTING_META: Record<string, { label: string; unit?: string; description?: string }> = {
 		question_reuse_cooldown_months: {
 			label: 'Kérdés-újrafelhasználási türelmi idő',
 			unit: 'hónap',
 			description: 'Ennyi hónapig nem húzható újra ugyanaz a kérdés a "Random húzás" funkcióval.'
+		},
+		question_default_time_seconds: {
+			label: 'Alap válaszidő új kérdéshez',
+			unit: 'mp',
+			description:
+				'Új kérdés ezzel a válaszidővel indul a kvízösszerakóban és a kérdésbankban (kérdésenként átírható).'
 		},
 		question_reading_seconds: {
 			label: 'Olvasási idő (alapérték)',
@@ -77,29 +71,74 @@
 		}
 	};
 
-	type ValueType = 'number' | 'boolean' | 'string' | 'json';
+	type Category = { id: string; title: string; sub: string; keys: string[] };
+	const CATEGORIES: Category[] = [
+		{
+			id: 'game',
+			title: 'Játék',
+			sub: 'olvasási idő, válaszidő, pihentetés',
+			keys: [
+				'question_reading_seconds',
+				'question_default_time_seconds',
+				'question_reuse_cooldown_months'
+			]
+		},
+		{ id: 'appearance', title: 'Megjelenés', sub: 'alap vizuális téma', keys: [] },
+		{
+			id: 'public',
+			title: 'Nyilvános oldal',
+			sub: 'név, város, kapcsolat',
+			keys: ['site_name', 'site_city', 'site_contact_email']
+		},
+		{
+			id: 'legal',
+			title: 'Impresszum és jogi',
+			sub: 'üzemeltető, székhely, adószám',
+			keys: ['site_operator_name', 'site_address', 'site_tax_number', 'site_registration']
+		},
+		{ id: 'email', title: 'E-mail', sub: 'küldés, teszt e-mail', keys: [] }
+	];
+	const knownKeys = new Set(CATEGORIES.flatMap((c) => c.keys));
+	const otherKeys = $derived(data.settings.filter((s) => !knownKeys.has(s.key)).map((s) => s.key));
+	const categories = $derived(
+		otherKeys.length > 0
+			? [...CATEGORIES, { id: 'other', title: 'Egyéb', sub: 'további kulcsok', keys: otherKeys }]
+			: CATEGORIES
+	);
 
-	function valueType(value: unknown): ValueType {
-		if (typeof value === 'number') return 'number';
-		if (typeof value === 'boolean') return 'boolean';
-		if (typeof value === 'string') return 'string';
-		return 'json';
-	}
+	const PRESETS: Record<string, number[]> = {
+		question_reading_seconds: [0, 3, 5, 8, 10],
+		question_default_time_seconds: [20, 30, 45, 60]
+	};
 
-	const handleSave: SubmitFunction = () => {
+	const setup = $derived(data.setup);
+	const appHostMismatch = $derived(
+		setup.appUrl !== null && new URL(setup.appUrl).host !== setup.currentHost
+	);
+	const legalMissing = $derived(!setup.imprint || !setup.operatorName || !setup.contactEmail);
+	const emailMissing = $derived(!setup.email.apiKey || !setup.email.from);
+
+	const selection = createSelection('cat', () => 'game');
+	const current = $derived(categories.find((c) => c.id === selection.id) ?? categories[0]);
+	const settingsOf = (keys: string[]) =>
+		keys
+			.map((key) => data.settings.find((s) => s.key === key))
+			.filter((s): s is PageData['settings'][number] => !!s);
+
+	let selectedDefaultThemeId = $state(
+		untrack(() => data.designThemes.find((t) => t.is_default)?.id ?? data.designThemes[0]?.id ?? '')
+	);
+	let themeForm = $state<HTMLFormElement>();
+	const handleSetDefaultTheme: SubmitFunction = () => {
 		return async ({ result, update }) => {
-			if (result.type === 'success') {
-				toast.success('Beállítás mentve.');
-			} else if (result.type === 'failure') {
-				toast.error((result.data?.error as string) ?? 'Nem sikerült a mentés.');
+			if (result.type === 'success') toast.success('Alapértelmezett vizuális téma frissítve.');
+			else if (result.type === 'failure') {
+				toast.error((result.data?.error as string) ?? 'Nem sikerült frissíteni a témát.');
 			}
 			await update();
 		};
 	};
 
-	registerPageTour(() => 'settings');
-
-	// Élesítés állapota — a teszt e-mail eredménye és a Resend hibák magyarázata.
 	let testingEmail = $state(false);
 	const emailTest = $derived(form && 'emailTest' in form ? form.emailTest : null);
 
@@ -118,265 +157,297 @@
 		}
 		return 'Nézd meg a Resend „Logs” oldalát, ott részletesebben is látszik a hiba.';
 	}
-
-	const appHostMismatch = $derived(
-		data.setup.appUrl !== null && new URL(data.setup.appUrl).host !== data.setup.currentHost
-	);
 </script>
 
 <svelte:head>
 	<title>Beállítások — Kezelőfelület</title>
 </svelte:head>
 
-<h1>Globális beállítások</h1>
-
-{#if form && 'error' in form && form.error}
-	<p class="error">{form.error}</p>
-{/if}
-
-<section class="setup" aria-labelledby="setup-title">
-	<h2 id="setup-title">Élesítés állapota</h2>
-	<p class="setting-description">
-		A Vercelen beállított környezeti változók csak a következő deploy után lépnek életbe
-		(Deployments → … → Redeploy).
-	</p>
-	<ul class="checks">
-		<li class:ok={data.setup.siteUrl}>
-			<span class="mark" aria-hidden="true">{data.setup.siteUrl ? '✓' : '✗'}</span>
-			<span
-				><b>Nyilvános domain</b> (<code>PUBLIC_SITE_URL</code>): {data.setup.siteUrl ??
-					'nincs beállítva'}</span
-			>
-		</li>
-		<li class:ok={data.setup.appUrl && !appHostMismatch} class:warn={appHostMismatch}>
-			<span class="mark" aria-hidden="true"
-				>{data.setup.appUrl ? (appHostMismatch ? '!' : '✓') : '✗'}</span
-			>
-			<span
-				><b>App domain</b> (<code>PUBLIC_APP_URL</code>): {data.setup.appUrl ?? 'nincs beállítva'}
-				{#if appHostMismatch}— most ezen a címen vagy: {data.setup.currentHost}{/if}</span
-			>
-		</li>
-		<li class:ok={data.setup.email.apiKey}>
-			<span class="mark" aria-hidden="true">{data.setup.email.apiKey ? '✓' : '✗'}</span>
-			<span
-				><b>Resend API kulcs</b> (<code>RESEND_API_KEY</code>): {data.setup.email.apiKey
-					? 'beállítva'
-					: 'nincs beállítva'}</span
-			>
-		</li>
-		<li class:ok={data.setup.email.from}>
-			<span class="mark" aria-hidden="true">{data.setup.email.from ? '✓' : '✗'}</span>
-			<span
-				><b>Feladó</b> (<code>EMAIL_FROM</code>): {data.setup.email.from ?? 'nincs beállítva'}</span
-			>
-		</li>
-		<li class:ok={data.setup.email.replyTo} class:optional={!data.setup.email.replyTo}>
-			<span class="mark" aria-hidden="true">{data.setup.email.replyTo ? '✓' : '–'}</span>
-			<span
-				><b>Válaszcím</b> (<code>EMAIL_REPLY_TO</code>, nem kötelező): {data.setup.email.replyTo ??
-					'nincs beállítva'}</span
-			>
-		</li>
-		<li class:ok={data.setup.serviceRole === 'ok'}>
-			<span class="mark" aria-hidden="true">{data.setup.serviceRole === 'ok' ? '✓' : '✗'}</span>
-			<span
-				><b>Supabase service-role kulcs</b> (<code>SUPABASE_SERVICE_ROLE_KEY</code>): {data.setup
-					.serviceRole === 'ok'
-					? 'működik'
-					: data.setup.serviceRole === 'invalid'
-						? 'be van állítva, de hibás'
-						: 'nincs beállítva'}</span
-			>
-		</li>
-		<li class:ok={data.setup.imprint}>
-			<span class="mark" aria-hidden="true">{data.setup.imprint ? '✓' : '✗'}</span>
-			<span
-				><b>Impresszum</b> (székhely, adószám, nyilvántartási szám — lent, ezen az oldalon): {data
-					.setup.imprint
-					? 'kitöltve'
-					: 'hiányzik — az Ekertv. szerint kötelező'}</span
-			>
-		</li>
-		<li class:ok={data.setup.operatorName && data.setup.contactEmail}>
-			<span class="mark" aria-hidden="true"
-				>{data.setup.operatorName && data.setup.contactEmail ? '✓' : '✗'}</span
-			>
-			<span
-				><b>Üzemeltető neve és kapcsolati e-mail</b> (lent, ezen az oldalon): {data.setup
-					.operatorName && data.setup.contactEmail
-					? 'kitöltve'
-					: 'hiányzik — az adatkezelési tájékoztatóhoz kötelező'}</span
-			>
-		</li>
-	</ul>
-
-	<form
-		method="POST"
-		action="?/test_email"
-		class="test-email"
-		use:enhance={() => {
-			testingEmail = true;
-			return async ({ update }) => {
-				await update({ reset: false });
-				testingEmail = false;
-			};
-		}}
-	>
-		<Button type="submit" variant="secondary" loading={testingEmail}
-			>Teszt e-mail küldése magamnak</Button
+<Workspace
+	label="Beállítások"
+	railWidth="17rem"
+	sideWidth="22rem"
+	keys={[
+		['↑ ↓', 'kategóriák'],
+		['Tab', 'mezők'],
+		['Esc', 'vissza']
+	]}
+>
+	{#snippet rail()}
+		<RailList
+			label="Kategóriák"
+			groups={[{ items: categories }]}
+			getId={(c) => c.id}
+			selectedId={current.id}
+			onselect={(c) => selection.set(c.id)}
+			onopen={() =>
+				document.querySelector<HTMLElement>('.main-settings input, .main-settings select')?.focus()}
 		>
-	</form>
-	{#if emailTest}
-		<div class="test-result" class:ok={emailTest.status === 'sent'} role="status">
-			{#if emailTest.status === 'sent'}
-				Elküldve ide: <b>{'to' in emailTest ? emailTest.to : ''}</b>. Nézd meg a postafiókot (a spam
-				mappát is).
-			{:else if emailTest.status === 'skipped'}
-				Nem ment ki: a <code>RESEND_API_KEY</code> vagy az <code>EMAIL_FROM</code> nincs beállítva ezen
-				a deployon.
+			{#snippet item(c)}
+				<span class="ws-item-text"><strong>{c.title}</strong><small>{c.sub}</small></span>
+				{#if (c.id === 'legal' || c.id === 'public') && legalMissing}<span class="mark err">!</span>
+				{:else if c.id === 'email' && emailMissing}<span class="mark warn">?</span>{/if}
+			{/snippet}
+		</RailList>
+	{/snippet}
+
+	{#snippet main()}
+		<div class="ws-crumb">
+			Beállítások › <b>{current.title}</b><span class="ws-saved">automatikus mentés</span>
+		</div>
+		<h1 class="ws-h1">{current.title}</h1>
+		<div class="main-settings" data-tour="st-list">
+			{#if current.id === 'appearance'}
+				<div class="ws-card" data-tour="st-default-theme">
+					<h2>Kvízestek alapértelmezett vizuális témája</h2>
+					<p class="ws-note">
+						A kivetítőn, a host és a csapatok felületén érvényes minden estén, amihez nem
+						választottak külön témát (<a href={resolve('/admin/design-themes')}>Vizuális témák</a>).
+						A kezelőfelület mindig a letisztult megjelenést használja.
+					</p>
+					{#if data.designThemes.length === 0}
+						<p class="ws-note">Még nincs felvett vizuális téma.</p>
+					{:else}
+						<form
+							bind:this={themeForm}
+							method="POST"
+							action="?/set_default_theme"
+							class="theme-row"
+							use:enhance={handleSetDefaultTheme}
+						>
+							{#each data.designThemes as theme (theme.id)}
+								<label class="theme" class:on={selectedDefaultThemeId === theme.id}>
+									<input
+										type="radio"
+										name="design_theme_id"
+										value={theme.id}
+										bind:group={selectedDefaultThemeId}
+										onchange={() => themeForm?.requestSubmit()}
+									/>
+									{theme.title}
+								</label>
+							{/each}
+						</form>
+					{/if}
+				</div>
+			{:else if current.id === 'email'}
+				<div class="ws-card">
+					<h2>E-mail küldés (Resend)</h2>
+					<p class="ws-note">
+						A kulcsokat a Vercelen, környezeti változóként kell megadni; csak a következő deploy
+						után lépnek életbe (Deployments → … → Redeploy).
+					</p>
+					<ul class="checks">
+						<li>
+							<span class="mark" class:ok={setup.email.apiKey}
+								>{setup.email.apiKey ? '✓' : '✗'}</span
+							><span
+								><b>RESEND_API_KEY</b>: {setup.email.apiKey ? 'beállítva' : 'nincs beállítva'}</span
+							>
+						</li>
+						<li>
+							<span class="mark" class:ok={setup.email.from}>{setup.email.from ? '✓' : '✗'}</span
+							><span><b>EMAIL_FROM</b>: {setup.email.from ?? 'nincs beállítva'}</span>
+						</li>
+						<li>
+							<span class="mark" class:ok={setup.email.replyTo}
+								>{setup.email.replyTo ? '✓' : '–'}</span
+							><span
+								><b>EMAIL_REPLY_TO</b> (nem kötelező): {setup.email.replyTo ??
+									'nincs beállítva'}</span
+							>
+						</li>
+					</ul>
+					<form
+						method="POST"
+						action="?/test_email"
+						use:enhance={() => {
+							testingEmail = true;
+							return async ({ update }) => {
+								await update({ reset: false });
+								testingEmail = false;
+							};
+						}}
+					>
+						<button type="submit" class="ws-btn" disabled={testingEmail}
+							>{testingEmail ? 'Küldés…' : 'Teszt e-mail küldése magamnak'}</button
+						>
+					</form>
+					{#if emailTest}
+						<div class="test-result" class:ok={emailTest.status === 'sent'} role="status">
+							{#if emailTest.status === 'sent'}
+								Elküldve ide: <b>{'to' in emailTest ? emailTest.to : ''}</b>. Nézd meg a postafiókot
+								(a spam mappát is).
+							{:else if emailTest.status === 'skipped'}
+								Nem ment ki: a RESEND_API_KEY vagy az EMAIL_FROM nincs beállítva ezen a deployon.
+							{:else}
+								<p>Hiba: <code>{'detail' in emailTest ? emailTest.detail : ''}</code></p>
+								<p>{explainEmailError('detail' in emailTest ? emailTest.detail : '')}</p>
+							{/if}
+						</div>
+					{/if}
+				</div>
 			{:else}
-				<p>Hiba: <code>{'detail' in emailTest ? emailTest.detail : ''}</code></p>
-				<p>{explainEmailError('detail' in emailTest ? emailTest.detail : '')}</p>
+				{#each settingsOf(current.keys) as setting (setting.key)}
+					{@const meta = SETTING_META[setting.key]}
+					<div
+						data-tour={setting.key === 'question_reuse_cooldown_months' ? 'st-cooldown' : undefined}
+					>
+						<SettingField
+							settingKey={setting.key}
+							value={setting.value}
+							label={meta?.label ?? setting.key}
+							description={meta?.description}
+							unit={meta?.unit}
+							presets={PRESETS[setting.key] ?? []}
+						/>
+					</div>
+				{:else}
+					<p class="ws-note">Ebben a kategóriában nincs beállítás.</p>
+				{/each}
 			{/if}
 		</div>
-	{/if}
-</section>
+	{/snippet}
 
-<section class="setting-row" data-tour="st-default-theme">
-	<div class="setting-info">
-		<span class="setting-label">Kvízestek alapértelmezett design témája</span>
-		<p class="setting-description">
-			A kivetítőn, a host és a csapatok felületén érvényes minden olyan kvízestén, amihez nem
-			választottak külön témát (<a href={resolve('/admin/design-themes')}>Vizuális témák</a>). A
-			kezelőfelület mindig a letisztult megjelenést használja. A választás azonnal, oldal-újratöltés
-			nélkül alkalmazódik minden érintett nyitott felületen.
+	{#snippet side()}
+		<p class="ws-cap">Élesítés állapota</p>
+		<ul class="checks">
+			<li>
+				<span class="mark" class:ok={setup.siteUrl}>{setup.siteUrl ? '✓' : '✗'}</span><span
+					><b>Nyilvános domain</b>: {setup.siteUrl ?? 'nincs beállítva'}</span
+				>
+			</li>
+			<li>
+				<span class="mark" class:ok={setup.appUrl && !appHostMismatch}
+					>{setup.appUrl ? (appHostMismatch ? '!' : '✓') : '✗'}</span
+				><span
+					><b>App domain</b>: {setup.appUrl ?? 'nincs beállítva'}{appHostMismatch
+						? ` — most: ${setup.currentHost}`
+						: ''}</span
+				>
+			</li>
+			<li>
+				<span class="mark" class:ok={!emailMissing}>{emailMissing ? '✗' : '✓'}</span><span
+					><b>E-mail küldés</b>: {emailMissing ? 'hiányzik' : 'beállítva'}
+					<button type="button" class="link" onclick={() => selection.set('email')}>→</button></span
+				>
+			</li>
+			<li>
+				<span class="mark" class:ok={setup.serviceRole === 'ok'}
+					>{setup.serviceRole === 'ok' ? '✓' : '✗'}</span
+				><span
+					><b>Supabase service-role kulcs</b>: {setup.serviceRole === 'ok'
+						? 'működik'
+						: setup.serviceRole === 'invalid'
+							? 'hibás'
+							: 'nincs beállítva'}</span
+				>
+			</li>
+			<li>
+				<span class="mark" class:ok={setup.imprint}>{setup.imprint ? '✓' : '✗'}</span><span
+					><b>Impresszum</b>: {setup.imprint ? 'kitöltve' : 'hiányzik (kötelező)'}
+					<button type="button" class="link" onclick={() => selection.set('legal')}>→</button></span
+				>
+			</li>
+			<li>
+				<span class="mark" class:ok={setup.operatorName && setup.contactEmail}
+					>{setup.operatorName && setup.contactEmail ? '✓' : '✗'}</span
+				><span
+					><b>Üzemeltető és kapcsolati e-mail</b>: {setup.operatorName && setup.contactEmail
+						? 'kitöltve'
+						: 'hiányzik (kötelező)'}</span
+				>
+			</li>
+		</ul>
+		<p class="ws-note">
+			Ez a panel minden kategória mellett látszik, így élesítés előtt egy pillantással kiderül, mi
+			hiányzik.
 		</p>
-	</div>
-	{#if data.designThemes.length === 0}
-		<p class="empty">Még nincs felvett design téma.</p>
-	{:else}
-		<form
-			method="POST"
-			action="?/set_default_theme"
-			use:enhance={handleSetDefaultTheme}
-			class="setting-form"
-		>
-			<Select name="design_theme_id" bind:value={selectedDefaultThemeId}>
-				{#each data.designThemes as theme (theme.id)}
-					<option value={theme.id}>{theme.title}{theme.is_default ? ' (jelenlegi)' : ''}</option>
-				{/each}
-			</Select>
-			<Button type="submit">Beállítás alapértelmezettként</Button>
-		</form>
-	{/if}
-</section>
-
-<div class="settings-list" data-tour="st-list">
-	{#each data.settings as setting (setting.key)}
-		{@const meta = SETTING_META[setting.key]}
-		{@const type = valueType(setting.value)}
-		<div
-			class="setting-row"
-			data-tour={setting.key === 'question_reuse_cooldown_months' ? 'st-cooldown' : undefined}
-		>
-			<div class="setting-info">
-				<span class="setting-label">{meta?.label ?? setting.key}</span>
-				<code class="setting-key">{setting.key}</code>
-				{#if meta?.description}
-					<p class="setting-description">{meta.description}</p>
-				{/if}
-			</div>
-			<form method="POST" action="?/update" use:enhance={handleSave} class="setting-form">
-				<input type="hidden" name="key" value={setting.key} />
-				<input type="hidden" name="value_type" value={type} />
-
-				{#if type === 'number'}
-					<div class="value-input">
-						<Input type="number" name="value" value={String(setting.value)} required />
-						{#if meta?.unit}<span class="unit">{meta.unit}</span>{/if}
-					</div>
-				{:else if type === 'boolean'}
-					<Checkbox
-						name="value"
-						value="true"
-						checked={Boolean(setting.value)}
-						label="Bekapcsolva"
-					/>
-				{:else if type === 'string'}
-					<Input type="text" name="value" value={String(setting.value)} />
-				{:else}
-					<Textarea
-						name="value"
-						value={JSON.stringify(setting.value, null, 2)}
-						monospace
-						rows={4}
-					/>
-				{/if}
-
-				<Button type="submit">Mentés</Button>
-			</form>
-		</div>
-	{:else}
-		<p class="empty">Nincs beállítás az app_settings táblában.</p>
-	{/each}
-</div>
+	{/snippet}
+</Workspace>
 
 <style>
-	.setup {
-		margin: 1rem 0 2rem;
-		padding: 1.25rem 1.4rem;
-		background: var(--cabinet-2);
-		border: 1px solid var(--panel-border, var(--cabinet-3));
-		border-radius: 0.75rem;
+	.main-settings {
+		display: flex;
+		flex-direction: column;
+		gap: 0.7rem;
 	}
 
-	.setup h2 {
-		margin: 0 0 0.25rem;
-		font-size: 1.1rem;
+	.mark {
+		width: 1.2rem;
+		flex-shrink: 0;
+		font-weight: 800;
+		text-align: center;
+		color: var(--danger);
+	}
+
+	.mark.ok {
+		color: var(--power);
+	}
+
+	.mark.warn {
+		color: var(--coin);
+	}
+
+	.mark.err {
+		color: var(--danger);
 	}
 
 	.checks {
-		margin: 1rem 0;
-		padding: 0;
 		list-style: none;
+		margin: 0;
+		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.45rem;
+		font-size: 0.88rem;
 	}
 
 	.checks li {
 		display: flex;
-		gap: 0.6rem;
-		align-items: baseline;
-		color: var(--marquee);
-		overflow-wrap: anywhere;
+		gap: 0.4rem;
+		line-height: 1.4;
 	}
 
-	.mark {
-		width: 1.25rem;
-		flex-shrink: 0;
-		text-align: center;
+	.link {
+		border: 0;
+		background: none;
+		color: var(--cyan);
+		font: inherit;
 		font-weight: 700;
-		color: var(--danger);
+		cursor: pointer;
 	}
 
-	.checks li.ok .mark {
-		color: var(--power);
+	.theme-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem;
 	}
 
-	.checks li.warn .mark,
-	.checks li.optional .mark {
-		color: var(--coin);
+	.theme {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.45rem 0.8rem;
+		border: 1px solid var(--field-border, #d5cec0);
+		border-radius: 0.6rem;
+		cursor: pointer;
+	}
+
+	.theme.on {
+		border: 2px solid var(--cyan);
+		font-weight: 600;
+	}
+
+	.theme input {
+		accent-color: var(--cyan);
 	}
 
 	.test-result {
-		margin-top: 0.75rem;
-		padding: 0.8rem 1rem;
-		border-radius: 0.5rem;
+		padding: 0.7rem 0.9rem;
+		border-radius: 0.6rem;
 		background: color-mix(in srgb, var(--danger) 10%, var(--cabinet-2));
-		color: var(--marquee);
-		overflow-wrap: anywhere;
+		font-size: 0.88rem;
 	}
 
 	.test-result.ok {
@@ -385,81 +456,5 @@
 
 	.test-result p {
 		margin: 0.2rem 0;
-	}
-
-	h1 {
-		font-family: var(--font-display);
-		font-size: 2.1rem;
-		font-weight: 400;
-		color: var(--marquee);
-	}
-
-	.settings-list {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		margin-top: 1rem;
-	}
-
-	.setting-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1.5rem;
-		justify-content: space-between;
-		align-items: flex-start;
-		background: var(--cabinet-2);
-		border: 2px solid var(--cabinet-3);
-		border-radius: 0.75rem;
-		padding: 1rem 1.25rem;
-	}
-
-	.setting-info {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		max-width: 28rem;
-	}
-
-	.setting-label {
-		font-weight: 600;
-		color: var(--marquee);
-	}
-
-	.setting-key {
-		font-family: var(--font-led);
-		font-size: 0.75rem;
-		color: var(--marquee-dim);
-	}
-
-	.setting-description {
-		color: var(--marquee-dim);
-		font-size: 0.85rem;
-		margin: 0;
-	}
-
-	.setting-form {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-	}
-
-	.value-input {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.unit {
-		color: var(--marquee-dim);
-		font-size: 0.9rem;
-	}
-
-	.error {
-		color: var(--danger);
-	}
-
-	.empty {
-		color: var(--marquee-dim);
 	}
 </style>

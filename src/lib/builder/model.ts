@@ -63,6 +63,15 @@ export type BankItem = {
 	played_last: string | null;
 };
 
+/** A kérdésbank „Hol szerepel” listájának egy sora (loadUsage). */
+export type QuestionUsage = {
+	game_id: string;
+	game_title: string;
+	status: string;
+	scheduled_at: string | null;
+	round_title: string;
+};
+
 export const TYPE_ORDER = ['single_choice', 'multi_choice', 'true_false', 'slider', 'ordering'];
 
 export const TYPE_SHORT: Record<string, string> = {

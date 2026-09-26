@@ -41,25 +41,23 @@ komponensek nem adják tovább az attribútumot), és vegyél fel egy lépést a
 
 ## Bemutatók
 
-| Azonosító             | Oldal                               | Lépések |
-| --------------------- | ----------------------------------- | ------- |
-| `dashboard`           | `/admin` — Első lépések, a menü     | 11      |
-| `themes`              | `/admin/themes`                     | 3       |
-| `questions`           | `/admin/questions`                  | 5       |
-| `question-form`       | `/admin/questions/new`, `/[id]`     | 9       |
-| `games`               | `/admin/games` (Próbaeste gombbal)  | 6       |
-| `game-setup`          | `/admin/games/[id]` (kvízösszerakó) | 11      |
-| `game-event`          | `/admin/games/[id]/event`           | 9       |
-| `venues`              | `/admin/venues`                     | 2       |
-| `host-lobby`          | `/host/[game_id]`, várakozás        | 9       |
-| `host-live`           | `/host/[game_id]`, élő játék        | 10      |
-| `results`             | `/admin/games/[id]/results`         | 5       |
-| `design-themes`       | `/admin/design-themes`              | 4       |
-| `design-theme-editor` | `/admin/design-themes/new`, `/[id]` | 4       |
-| `users`               | `/admin/users`                      | 2       |
-| `settings`            | `/admin/settings`                   | 3       |
-| `reports`             | `/reports`                          | 2       |
-| `report-detail`       | `/reports/[game_id]`                | 1       |
+| Azonosító       | Oldal                                       | Lépések |
+| --------------- | ------------------------------------------- | ------- |
+| `dashboard`     | `/admin` — Vezérlőpult, menü, Ctrl K        | 11      |
+| `themes`        | `/admin/themes`                             | 3       |
+| `questions`     | `/admin/questions` (vászon a lista mellett) | 7       |
+| `games`         | `/admin/games` (Próbaeste gombbal)          | 6       |
+| `game-setup`    | `/admin/games/[id]` (kvízösszerakó)         | 11      |
+| `game-event`    | `/admin/games/[id]/event`                   | 9       |
+| `venues`        | `/admin/venues`                             | 2       |
+| `host-lobby`    | `/host/[game_id]`, várakozás                | 9       |
+| `host-live`     | `/host/[game_id]`, élő játék                | 10      |
+| `results`       | `/admin/games/[id]/results`                 | 5       |
+| `design-themes` | `/admin/design-themes` (élő előnézettel)    | 5       |
+| `users`         | `/admin/users`                              | 2       |
+| `settings`      | `/admin/settings`                           | 4       |
+| `reports`       | `/reports`                                  | 2       |
+| `report-detail` | `/reports/[game_id]`                        | 1       |
 
 A csapatok telefonos felülete (`/play`) és a kivetítő (`/tv`) nem kap
 bemutatót: nem kezelői oldalak, a host bemutatója egy-egy mondatban kitér

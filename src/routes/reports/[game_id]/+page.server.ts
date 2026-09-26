@@ -19,5 +19,5 @@ export const load: PageServerLoad = async ({ params, parent, locals: { supabase 
 		kitError(404, 'Az este nem található, vagy még nem zárult le.');
 	}
 
-	return { profile, game, leaderboard: leaderboard ?? [] };
+	return { profile, game, games: games ?? [], leaderboard: leaderboard ?? [] };
 };

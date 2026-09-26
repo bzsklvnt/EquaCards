@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database.types';
-import type { BankItem, Draft } from '$lib/builder/model';
+import type { BankItem, Draft, QuestionUsage } from '$lib/builder/model';
 
 type Client = SupabaseClient<Database>;
 
@@ -68,17 +68,21 @@ export async function loadDrafts(supabase: Client, ids: string[]): Promise<Draft
 	return ids.map((id) => byId.get(id)).filter((d): d is Draft => !!d);
 }
 
-export async function loadBank(supabase: Client, gameId: string): Promise<BankItem[]> {
+export async function loadBank(supabase: Client, gameId?: string): Promise<BankItem[]> {
+	let usageQuery = supabase
+		.from('round_questions')
+		.select(
+			'question_id, rounds!inner(game_id, games!rounds_game_id_fkey!inner(title, started_at))'
+		)
+		.not('rounds.games.started_at', 'is', null);
+	if (gameId) usageQuery = usageQuery.neq('rounds.game_id', gameId);
+
 	const [{ data: questions }, { data: usage }] = await Promise.all([
 		supabase
 			.from('questions')
 			.select('id, prompt, theme_id, image_url, created_at, question_types(code)')
 			.order('created_at', { ascending: false }),
-		supabase
-			.from('round_questions')
-			.select('question_id, rounds!inner(game_id, games!inner(title, started_at))')
-			.neq('rounds.game_id', gameId)
-			.not('rounds.games.started_at', 'is', null)
+		usageQuery
 	]);
 
 	const played = new Map<string, { count: number; last: string; at: string }>();
@@ -116,4 +120,38 @@ export async function readingDefault(supabase: Client): Promise<number> {
 		.maybeSingle();
 	const value = Number(data?.value);
 	return Number.isFinite(value) && value >= 0 ? value : 5;
+}
+
+/** Alap válaszidő új kérdéshez (Beállítások › Játék, 5–600 mp). */
+export async function defaultAnswerTime(supabase: Client): Promise<number> {
+	const { data } = await supabase
+		.from('app_settings')
+		.select('value')
+		.eq('key', 'question_default_time_seconds')
+		.maybeSingle();
+	const value = Number(data?.value);
+	return Number.isInteger(value) && value >= 5 && value <= 600 ? value : 30;
+}
+
+/** Mely estéken (körökben) szerepel a kérdés — a kérdésbank „Hol szerepel” listája. */
+export async function loadUsage(supabase: Client, questionId: string): Promise<QuestionUsage[]> {
+	const { data } = await supabase
+		.from('round_questions')
+		.select('rounds!inner(title, games!rounds_game_id_fkey(id, title, status, scheduled_at))')
+		.eq('question_id', questionId);
+	return (data ?? [])
+		.map((row) => {
+			const game = row.rounds?.games;
+			return game
+				? {
+						game_id: game.id,
+						game_title: game.title,
+						status: game.status,
+						scheduled_at: game.scheduled_at,
+						round_title: row.rounds.title
+					}
+				: null;
+		})
+		.filter((u): u is QuestionUsage => !!u)
+		.sort((a, b) => (b.scheduled_at ?? '').localeCompare(a.scheduled_at ?? ''));
 }

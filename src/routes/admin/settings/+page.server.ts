@@ -121,6 +121,12 @@ export const actions: Actions = {
 		) {
 			return fail(400, { error: 'Az olvasási idő 0–120 közötti egész szám (mp).', key });
 		}
+		if (
+			key === 'question_default_time_seconds' &&
+			!(typeof value === 'number' && Number.isInteger(value) && value >= 5 && value <= 600)
+		) {
+			return fail(400, { error: 'Az alap válaszidő 5–600 közötti egész szám (mp).', key });
+		}
 
 		const { user } = await safeGetSession();
 		const { error } = await supabase

@@ -7,22 +7,33 @@ import {
 	reopenGameAction
 } from '$lib/server/games';
 
+// Kvízesték — lista · részlet · műveletek (docs/features/admin-workspace.md).
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	const { data: games } = await supabase
 		.from('games')
 		.select(
-			'id, title, status, pin, created_at, finished_at, is_practice, scheduled_at, is_public, max_players, venues(name), teams(count), team_registrations(headcount, status)'
+			'id, title, status, pin, created_at, finished_at, is_practice, scheduled_at, is_public, max_players, join_requires_code, venues(name, city), teams(count), team_registrations(headcount, status), rounds!rounds_game_id_fkey(id, title, order_index, round_questions(count))'
 		)
 		.order('scheduled_at', { ascending: false, nullsFirst: true })
 		.order('created_at', { ascending: false });
 
 	return {
-		games: (games ?? []).map(({ team_registrations, ...game }) => ({
+		games: (games ?? []).map(({ team_registrations, rounds, teams, ...game }) => ({
 			...game,
+			teamCount: teams?.[0]?.count ?? 0,
 			confirmedPlayers: (team_registrations ?? [])
 				.filter((r) => r.status === 'confirmed')
 				.reduce((sum, r) => sum + r.headcount, 0),
-			waitlistTeams: (team_registrations ?? []).filter((r) => r.status === 'waitlist').length
+			confirmedTeams: (team_registrations ?? []).filter((r) => r.status === 'confirmed').length,
+			waitlistTeams: (team_registrations ?? []).filter((r) => r.status === 'waitlist').length,
+			rounds: (rounds ?? [])
+				.map((r) => ({
+					id: r.id,
+					title: r.title,
+					order_index: r.order_index,
+					questions: r.round_questions?.[0]?.count ?? 0
+				}))
+				.sort((a, b) => a.order_index - b.order_index)
 		}))
 	};
 };

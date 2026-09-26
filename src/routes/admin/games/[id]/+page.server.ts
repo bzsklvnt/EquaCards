@@ -1,7 +1,7 @@
 import { error as kitError, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { reopenGameAction } from '$lib/server/games';
-import { loadBank, loadDrafts, readingDefault } from '$lib/server/builder';
+import { defaultAnswerTime, loadBank, loadDrafts, readingDefault } from '$lib/server/builder';
 
 // Kvízösszerakó — docs/features/quiz-builder.md. A szerkesztési műveletek a
 // ./builder JSON végponton mennek (automatikus mentés, átrendezés,
@@ -17,7 +17,8 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 		{ data: rqRows },
 		{ data: questionTypes },
 		bank,
-		reading
+		reading,
+		defaultTime
 	] = await Promise.all([
 		supabase.from('games').select('id, title, status').eq('id', params.id).single(),
 		supabase
@@ -33,7 +34,8 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 			.order('order_index'),
 		supabase.from('question_types').select('id, code, label, min_options, max_options').order('id'),
 		loadBank(supabase, params.id),
-		readingDefault(supabase)
+		readingDefault(supabase),
+		defaultAnswerTime(supabase)
 	]);
 
 	if (!game) kitError(404, 'A kvízeste nem található.');
@@ -56,7 +58,8 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 		themes: themes ?? [],
 		questionTypes: questionTypes ?? [],
 		bank,
-		readingDefault: reading
+		readingDefault: reading,
+		defaultTime
 	};
 };
 

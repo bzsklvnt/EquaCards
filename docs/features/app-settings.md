@@ -55,6 +55,7 @@ nem funkcionális követelmény egy új beállítás megjelenéséhez.
 | -------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------- |
 | `question_reuse_cooldown_months` | number | Ennyi hónapig nem húzható újra ugyanaz a kérdés a `draw_random_questions_for_round` RPC-nél (DATA_MODEL.md 2. szakasz). |
 | `question_reading_seconds`       | number | Olvasási idő minden kérdés előtt (alap 5, 0–120 egész; kérdésenként felülírható) — `docs/features/timer.md` 9.          |
+| `question_default_time_seconds`  | number | Új kérdés alap válaszideje a kérdésbankban és a kvízösszerakóban (alap 30, 5–600 egész) — csak az előtöltést adja.      |
 
 ## Visszajelzés
 
@@ -68,7 +69,7 @@ Az oldal tetején egy külön szekció (nem `app_settings` sor — a
 `design_themes.is_default` mező, `docs/architecture/DATA_MODEL.md` 8.
 szakasz) egy legördülőt ad a felvitt design témákkal. Ez **nem új
 funkcionalitás** — az `is_default` eddig is állítható volt egy adott téma
-teljes szerkesztő oldalán (`/admin/design-themes/[id]`, checkbox) —, csak
+szerkesztőjében (`/admin/design-themes?id=…`, checkbox) —, csak
 egy gyorsabb, dedikált útvonal ugyanahhoz a mezőhöz, hogy egy super_admin
 ne kelljen a teljes szerkesztő formot megnyitnia csak ehhez. A `?/set_default_theme`
 action egyetlen `update design_themes set is_default = true where

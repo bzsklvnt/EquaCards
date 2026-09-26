@@ -98,7 +98,9 @@ Az `/admin/games/[id]` körkártyáin a random húzás mellett három új út va
    tesztből: korábban a `/admin/questions/new` oldalra vitt, ami a
    kérdésbankban való elvesztés érzését keltette.) Ha a körhöz fűzés nem
    sikerül, a hibaüzenet jelzi, hogy a kérdés a bankban már elmentődött. A
-   `/admin/questions/new?round_id=…` útvonal továbbra is működik.
+   régi `/admin/questions/new` útvonal a kérdésbank vásznára irányít át
+   (`?new=1`); ott a kész kérdés a „Hozzáadás körhöz” választóval tehető
+   bármelyik még le nem zárt este körébe (`docs/features/admin-workspace.md`).
 3. **"Összes kérdés törlése"** — `?/clearRound`, a kör összes
    `round_questions` sorát törli (a kérdések a bankban maradnak). Csak
    akkor jelenik meg, ha a körben van kérdés. Szándékosan nincs megerősítő

@@ -34,9 +34,12 @@ terv (9 képernyő) a „Kvízösszerakó – koncepció” artifactban van.
   kérdés után; random húzás a témából (a pihentetési idő szerint).
 - **Előnézet (P):** kivetítő-nézet, a helyes válasz jelölése nélkül.
 
-A kérdésbank új/szerkesztő oldala (`/admin/questions/new`, `/[id]`) ugyanazt
-a vásznat és beállításpanelt használja (`QuestionEditor`), hagyományos
-Mentés gombbal.
+A kérdésbank (`/admin/questions`) ugyanazt a vásznat és beállításpanelt
+használja, a lista mellett, automatikus mentéssel — nincs külön új/szerkesztő
+oldal (a régi `/admin/questions/new` és `/[id]` átirányít `?new=1`-re, ill.
+`?id=`-re). Részletek: `docs/features/admin-workspace.md`. Új kérdés
+válaszideje mindkét helyen az `app_settings.question_default_time_seconds`
+(alap 30 mp) — a szerver `defaultAnswerTime()` segédje adja át.
 
 ## Mentés
 

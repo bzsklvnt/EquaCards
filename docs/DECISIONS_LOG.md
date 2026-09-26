@@ -2331,3 +2331,22 @@ képernyő), és kérte, hogy mindenhol ez legyen. Megépült: menetrend + vász
   pontkülönbséggel, a kivetítős állástól függetlenül. A válaszlapok mindenhol
   kártyaszínesek (♠ ♥ ♦ ♣). Részletek: `docs/features/quiz-builder.md`,
   `docs/features/host-keyboard.md`, `docs/features/timer.md` 9.
+
+## 2026-09-26 — Kezelőfelület: munkaterület-elrendezés mindenhol
+
+A felhasználó kérte, hogy a kvízösszerakó elrendezése legyen az egész
+kezelőfelületen. Megépült (egy PR-ban): **felső menüsor** az oldalsáv helyett,
+**Ctrl K parancspaletta** kereséssel (`/admin/search`), **G + betű** ugrás,
+oldalankénti `?` súgó; minden admin oldal háromoszlopos munkaterület (lista ·
+kiválasztott elem · műveletek), a kiválasztás a `?id=` paraméterben. Döntések
+(a javasolt alapértékek szerint): a **kérdésbank a vásznon** szerkeszt a lista
+mellett — a külön új/szerkesztő oldalak (és a `QuestionEditor`, `GameTabs`,
+a vizuális téma szerkesztő oldala) megszűntek, a régi URL-ek átirányítanak;
+**automatikus mentés** mindenhol, elemváltáskor a függő mentés még a régi
+elemre megy ki; **CSV export** a jelentkezésekhez; új beállítás:
+`question_default_time_seconds` (új kérdés alap válaszideje, 30 mp —
+`supabase/migrations/20260926230000_default_answer_time.sql`). Mellékhatásként
+javítva: a `games`↔`rounds` kétirányú kulcs miatt kétértelmű PostgREST
+beágyazás (`rounds!rounds_game_id_fkey`), ami a bankfiók „már játszott”
+számlálóját csendben üresen hagyhatta. Bemutatók átírva, a `question-form` és
+`design-theme-editor` megszűnt. Részletek: `docs/features/admin-workspace.md`.
