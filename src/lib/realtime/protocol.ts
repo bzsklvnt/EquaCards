@@ -30,7 +30,12 @@ export type QuestionShowPayload = {
 export type TimerStartPayload = {
 	question_id: string;
 	duration: number; // másodperc
-	server_start_time: string; // ISO timestamp
+	// A VÁLASZIDŐ kezdete (ISO). Olvasási idő esetén ez a jövőben van: addig
+	// csak a kérdés látszik, a gombok utána aktiválódnak (docs/features/timer.md).
+	server_start_time: string;
+	// Az olvasási idő hossza (mp) — az olvasás server_start_time - reading_seconds-kor
+	// kezdődött. Hiányzó érték / 0 = nincs olvasási idő (pl. a host átugrotta).
+	reading_seconds?: number;
 };
 
 export type JokerActivatePayload = {
@@ -90,6 +95,20 @@ export type QuestionStandingsRevealPayload = {
 	total_questions: number;
 	standings: QuestionStandingsRow[];
 };
+
+// Minden feltárás után (akkor is, ha a host a kivetítős állást kihagyja): a
+// kör teljes állása. A csapatok telefonja ebből mutatja a saját helyét és a
+// szomszédokat; a kivetítő figyelmen kívül hagyja.
+export type RoundStandingsUpdatePayload = {
+	round_id: string;
+	question_number: number;
+	total_questions: number;
+	standings: QuestionStandingsRow[];
+};
+
+// A host távolról némítja / visszakapcsolja a kivetítő hangját (M billentyű).
+// Hang csak a kivetítőn szól — a host és a csapatok telefonja néma.
+export type TvSoundPayload = { muted: boolean };
 
 export type FinalLeaderboardRevealPayload = {
 	standings: { team_id: string; name: string; total_score: number; rank: number }[];

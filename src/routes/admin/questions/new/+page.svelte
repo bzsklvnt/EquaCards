@@ -1,12 +1,21 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import QuestionForm from '$lib/components/QuestionForm.svelte';
+	import QuestionEditor from '$lib/builder/QuestionEditor.svelte';
+	import { emptyDraft } from '$lib/builder/model';
+	import { untrack } from 'svelte';
 	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	registerPageTour(() => 'question-form');
+
+	const initial = untrack(() =>
+		emptyDraft(
+			data.questionTypes.find((t) => t.code === 'single_choice') ?? data.questionTypes[0],
+			data.defaultThemeId ?? null
+		)
+	);
 </script>
 
 <svelte:head>
@@ -20,12 +29,13 @@
 		<strong>{data.round.game_title} — {data.round.title}</strong>
 	</p>
 {/if}
-<QuestionForm
+<QuestionEditor
+	{initial}
+	types={data.questionTypes}
 	themes={data.themes}
-	questionTypes={data.questionTypes}
+	readingDefault={data.readingDefault}
 	action="?/create"
 	error={form?.error}
-	defaultThemeId={data.defaultThemeId}
 	hiddenFields={data.round ? { round_id: data.round.id } : {}}
 	cancelHref={data.round
 		? resolve('/admin/games/[id]', { id: data.round.game_id })

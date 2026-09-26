@@ -37,6 +37,10 @@
 		mobileNavOpen = false;
 	});
 
+	// Munkaterület-oldalak (pl. a kvízösszerakó) a teljes képernyőt használják:
+	// oldalsáv és tartalom-margó nélkül, saját fejléccel.
+	const workspace = $derived(page.data.workspace === true);
+
 	const isAdminRole = $derived(profile.role_id === 1 || profile.role_id === 2);
 
 	const navItems = [
@@ -64,7 +68,7 @@
 	}
 </script>
 
-<div class="admin-shell" style={themeCss}>
+<div class="admin-shell" class:workspace style={themeCss}>
 	<Toaster
 		theme="light"
 		toastOptions={{
@@ -125,7 +129,7 @@
 	</aside>
 
 	<main class="admin-content">
-		{#if tourState.current}
+		{#if tourState.current && !workspace}
 			<div class="content-topbar" data-tour="tour-button"><TourButton /></div>
 		{/if}
 		{@render children()}
@@ -228,6 +232,17 @@
 		padding: 2rem 3rem;
 		min-width: 0;
 		max-width: 80rem;
+	}
+
+	.workspace .sidebar,
+	.workspace .hamburger,
+	.workspace .backdrop {
+		display: none;
+	}
+
+	.workspace .admin-content {
+		padding: 0;
+		max-width: none;
 	}
 
 	.content-topbar {

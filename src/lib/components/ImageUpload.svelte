@@ -1,19 +1,9 @@
 <script lang="ts">
-	import { createSupabaseBrowserClient } from '$lib/supabase';
+	import { ImageUploadError, uploadQuestionImage } from '$lib/images/upload';
 	import Button from './Button.svelte';
 
-	// Fázis Q6 — kép feltöltés kérdésekhez/válaszlehetőségekhez. A feltöltés
-	// előtti kliens-oldali tömörítés (browser-image-compression) csökkenti a
-	// Storage-felhasználást és a betöltési időt kocsmai wifi mellett — lásd
-	// docs/architecture/DATA_MODEL.md 8a. szakasz.
-	const MAX_SIZE_BYTES = 5 * 1024 * 1024;
-	const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-	const EXT_BY_TYPE: Record<string, string> = {
-		'image/jpeg': 'jpg',
-		'image/png': 'png',
-		'image/webp': 'webp'
-	};
-
+	// Fázis Q6 — kép feltöltés kérdésekhez/válaszlehetőségekhez; a feltöltés
+	// maga a közös $lib/images/upload modulban van.
 	let {
 		name,
 		label,
@@ -35,45 +25,11 @@
 		const file = (e.currentTarget as HTMLInputElement).files?.[0];
 		if (!file) return;
 		error = '';
-
-		if (!ALLOWED_TYPES.includes(file.type)) {
-			error = 'Csak JPG, PNG vagy WebP formátumú kép tölthető fel.';
-			if (inputEl) inputEl.value = '';
-			return;
-		}
-		if (file.size > MAX_SIZE_BYTES) {
-			error = 'A kép mérete legfeljebb 5 MB lehet.';
-			if (inputEl) inputEl.value = '';
-			return;
-		}
-
 		uploading = true;
 		try {
-			const imageCompression = (await import('browser-image-compression')).default;
-			const compressed = await imageCompression(file, {
-				maxSizeMB: 1,
-				maxWidthOrHeight: 1920,
-				useWebWorker: true,
-				fileType: file.type
-			});
-
-			const path = `${crypto.randomUUID()}.${EXT_BY_TYPE[file.type]}`;
-			const supabase = createSupabaseBrowserClient();
-			const { error: uploadError } = await supabase.storage
-				.from('question-images')
-				.upload(path, compressed, { contentType: file.type });
-
-			if (uploadError) {
-				error = 'Nem sikerült feltölteni a képet, próbáld újra.';
-				return;
-			}
-
-			const {
-				data: { publicUrl }
-			} = supabase.storage.from('question-images').getPublicUrl(path);
-			value = publicUrl;
-		} catch {
-			error = 'Nem sikerült feltölteni a képet, próbáld újra.';
+			value = await uploadQuestionImage(file);
+		} catch (err) {
+			error = err instanceof ImageUploadError ? err.message : 'Nem sikerült feltölteni a képet.';
 		} finally {
 			uploading = false;
 			if (inputEl) inputEl.value = '';

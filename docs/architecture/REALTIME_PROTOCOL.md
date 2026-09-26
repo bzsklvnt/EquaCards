@@ -108,6 +108,19 @@ duration` alapján; ha lejár, a kliens **saját magát zárja le** (nem várja
   eszköz-független órát használ a hátralévő idő számításához — lásd
   `docs/features/timer.md` "8. Sürgősségi javítás" szakasza.
 
+- **Olvasási idő (2026-09-26):** a host mostantól a `start_question()`
+  RPC-t hívja (a `start_question_timer` a régi kliensek miatt marad), ami a
+  kérdés `reading_seconds`-ja vagy a globális alap
+  (`app_settings.question_reading_seconds`, 5 mp) szerint a **jövőbe** teszi
+  a `server_start_time`-ot. A payload új, opcionális mezője:
+  `reading_seconds` (az olvasás `server_start_time - reading_seconds`-kor
+  kezdődött). Amíg `serverNow() < server_start_time`: csak a kérdés
+  látszik, a csapatok gombjai tiltva (a szerver is elutasítja a választ, lásd
+  `answer_within_timer`), a válaszidő utána indul. A host Space-szel
+  átugorhatja (`skip_question_reading()` → új `timer_start`
+  `reading_seconds: 0`-val, amit minden kliens felülíróként kezel).
+  Részletek: `docs/features/timer.md` 9. szakasz.
+
 ### `joker_activate` (Fázis 4)
 
 - **Küldő:** csapat kliens, "Duplázás" gomb.
@@ -219,6 +232,36 @@ automatikus lezárást, mielőtt bárki válaszolt volna az újra.
   elv körön belül enyhítve (a felhasználó kérése, Kahoot-mintára): a köri
   állás kérdésenként megmutatható; a teljes, esti összpont továbbra is csak
   a végeredménynél látszik.
+
+- **Módosítás (kvízösszerakó):** a host az állást már minden felfedés
+  után kiszámolja (így a `gained` és a `prev_rank` mindig az előző
+  kérdéshez képest értendő, akkor is, ha a kivetítős állás kimaradt), és
+  `round_standings_update`-ként elküldi. A kiemelt lépés (Space) a
+  kvízösszerakóban kérdésenként beállított `round_questions.show_standings`
+  szerint az állás vagy a következő kérdés; a másik S-sel érhető el.
+
+### `round_standings_update` (2026-09-26)
+
+- **Küldő:** host, **minden** `question_reveal` után automatikusan.
+- **Payload** (`RoundStandingsUpdatePayload`): `{round_id, question_number,
+total_questions, standings}` — a `standings` ugyanaz a sor-formátum, mint a
+  `question_standings_reveal`-nél.
+- **Kliens teendő:** csapat — a telefon felső sávja (helyezés, köri pont,
+  „X pont kell a N. helyhez”, „Y ponttal a M. előtt”) és a felfedés utáni
+  kártya (az előtte álló csapat, ti, a mögöttetek álló, pontkülönbségekkel)
+  ebből frissül. TV és host figyelmen kívül hagyja. A telefon újratöltéskor
+  a `current_round_standings(game_id)` RPC-ből tölti vissza (nyilvános adat:
+  csak futó/lezárt estére, csak kiértékelt válaszokból). A
+  `round_leaderboard_reveal` (kör vége) nullázza.
+
+### `tv_sound` (2026-09-26)
+
+- **Küldő:** host, M billentyű / „Hang” gomb.
+- **Payload** (`TvSoundPayload`): `{muted: boolean}`.
+- **Kliens teendő:** TV — némít / visszakapcsol. **Hang csak a kivetítőn
+  szól** (visszaszámlálás utolsó 5 mp, gong, felfedés, állás, joker); a host
+  és a csapatok telefonja néma. A kivetítő az első kattintásig „Kattints a
+  hang bekapcsolásához” sávot mutat (böngészői autoplay-szabály).
 
 ### `round_leaderboard_reveal` (Fázis 5)
 

@@ -2310,3 +2310,24 @@ pontszám továbbra is csak a végeredménynél látszik — a korábbi „nincs
 folyamatos összpont” elv így körön belül enyhül. Nincs séma-változás, a
 meglévő `round_leaderboard` RPC-t használja. Részletek:
 REALTIME_PROTOCOL.md.
+
+## 2026-09-26 — Kvízösszerakó, olvasási idő, hang csak a TV-n, élő billentyűzet
+
+A felhasználó jóváhagyta a Kahoot-ihletésű, saját kvízösszerakó tervét (9
+képernyő), és kérte, hogy mindenhol ez legyen. Megépült: menetrend + vászon
+
+- beállítások, mind az 5 meglévő kérdéstípusra (a több helyes 6–8
+  kártyaszínes lappal), kérdésbank-fiók, áttekintés indulás előtti
+  ellenőrzéssel, teljes billentyűzetes vezérlés, automatikus mentés közös
+  kliens/szerver validációval; a kérdésbank oldalai is ezt a vásznat kapták.
+  Döntések: **olvasási idő** globális alap (5 mp, Beállítások) + kérdésenként
+  egyéni; alatta csak a kérdés látszik, a gombok utána aktiválódnak, a
+  válaszidő utána indul (a gyorsasági pontot nem rontja). **Válaszidő**: gyors
+  választók + egyéni mező. **Hang csak a kivetítőn** (host és telefon néma,
+  M-mel távolról némítható). A „+10 mp” gomb terve elvetve. **Élő
+  billentyűzet**: Space = kiemelt lépés, S/L/M/C/?, a játék lezárása csak
+  gombbal. **Csapat köri állása**: minden felfedés után a telefon felső sávja
+  és kártyája mutatja a saját helyet, pontot és az előtte/mögötte álló csapatot
+  pontkülönbséggel, a kivetítős állástól függetlenül. A válaszlapok mindenhol
+  kártyaszínesek (♠ ♥ ♦ ♣). Részletek: `docs/features/quiz-builder.md`,
+  `docs/features/host-keyboard.md`, `docs/features/timer.md` 9.

@@ -34,7 +34,8 @@ const base = {
 	points: 1000,
 	points_multiplier: 1,
 	time_limit_seconds: 20,
-	points_decay: true
+	points_decay: true,
+	reading_seconds: null
 };
 
 const choices = (texts: string[], correct: number[]) =>
@@ -170,6 +171,7 @@ async function practiceQuestionIds(
 				points_multiplier: parsed.points_multiplier,
 				time_limit_seconds: parsed.time_limit_seconds,
 				points_decay: parsed.points_decay,
+				reading_seconds: parsed.reading_seconds,
 				created_by: userId
 			})
 			.select('id')

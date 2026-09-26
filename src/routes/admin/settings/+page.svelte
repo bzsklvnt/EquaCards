@@ -38,6 +38,12 @@
 			unit: 'hónap',
 			description: 'Ennyi hónapig nem húzható újra ugyanaz a kérdés a "Random húzás" funkcióval.'
 		},
+		question_reading_seconds: {
+			label: 'Olvasási idő (alapérték)',
+			unit: 'mp',
+			description:
+				'Minden kérdés előtt ennyi ideig csak a kérdés látszik, utána aktiválódnak a gombok és indul a válaszidő. 0 = nincs olvasási idő. Kérdésenként a kvízösszerakóban felülírható.'
+		},
 		site_name: {
 			label: 'Oldal neve',
 			description: 'A nyilvános oldal fejlécében és a böngészőfülön jelenik meg.'

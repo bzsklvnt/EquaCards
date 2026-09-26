@@ -66,6 +66,20 @@ csapat felületen (tick az utolsó 5 másodpercben, búgás a lejáratkor, "ding
 a feltáráskor, fanfár a ranglistáknál) — indoklás a hang-választásra:
 `docs/DECISIONS_LOG.md` Fázis 6 bejegyzése.
 
+### Hang csak a kivetítőn (2026-09-26)
+
+A felhasználó döntése: **hangot csak a kivetítő ad**. A host és a csapatok
+telefonja néma (a korábbi host-oldali felfedés/állás/joker hang és a
+telefonos tick/helyes/hibás hang megszűnt). A TV játssza: tick az utolsó 5
+mp-ben (az olvasási idő alatt nem), gong a lejáratkor, felfedés, állások,
+joker. Az első kattintásig „Kattints a hang bekapcsolásához” sáv látszik
+(böngészői autoplay-szabály). A host M-mel távolról némíthatja
+(`tv_sound` esemény).
+
+A válaszlapok itt is kártyaszínesek (♠ ♥ ♦ ♣, 5–8. lapnál számmal),
+2×2-es (8 lapnál 4×2-es) rácsban — ugyanaz a jelölés, mint a
+kvízösszerakóban és a telefonokon.
+
 ## Elérés a hosttól
 
 A host lobby nézete (`/host/[game_id]`, `status === 'lobby'`) egy "Kivetítő

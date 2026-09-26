@@ -66,10 +66,11 @@
 
 {#if questionType === 'single_choice' || questionType === 'multi_choice' || questionType === 'true_false'}
 	<div class="reveal-options">
-		{#each options ?? [] as option (option.id)}
+		{#each options ?? [] as option, i (option.id)}
 			<ChoiceButton
 				text={option.option_text}
 				imageUrl={option.image_url}
+				suit={i}
 				disabled
 				correct={correctSet.has(option.id)}
 			/>
@@ -98,8 +99,20 @@
 <style>
 	.reveal-options {
 		display: grid;
-		gap: 0.5rem;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.75rem;
 		margin: 1rem 0;
+	}
+
+	.reveal-options:has(> :global(:nth-child(5))) {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+
+	@media (max-width: 520px) {
+		.reveal-options,
+		.reveal-options:has(> :global(:nth-child(5))) {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 
 	/* Fázis Q6 — host/TV feltárás-képernyőn a kép valamivel nagyobb, mint

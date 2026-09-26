@@ -240,6 +240,28 @@ visszaszámlálás alatt élesedik), a válaszadás módját továbbra is a
 `current_question_state()` RPC is visszaadja. Részletek:
 `docs/features/pixel-reveal.md`.
 
+### Kvízösszerakó és olvasási idő (`supabase/migrations/20260926210000_builder_reading_time.sql`)
+
+- `questions.reading_seconds integer` (0–120, NULL = globális alap):
+  olvasási idő a válaszidő előtt. Globális alap:
+  `app_settings.question_reading_seconds` (5).
+- `round_questions.show_standings boolean not null default true`: a
+  kérdés a körben elfoglalt helyén — felfedés után a kivetítős állás-e a
+  host kiemelt következő lépése.
+- `games.current_question_reading_seconds`: az aktuális kérdés olvasási
+  ideje (újracsatlakozáshoz; a `current_question_state()` is visszaadja).
+- RPC-k: `start_question(game_id, duration)` → `{server_start_time,
+reading_seconds}` (a válaszidő kezdete = most + olvasás);
+  `skip_question_reading(game_id)`; `current_round_standings(game_id)`
+  (anon is: a kör állása futó/lezárt estén, csak kiértékelt válaszokból);
+  `admin_set_round_questions(round_id, question_ids[])` (a kör teljes
+  sorrendje egy lépésben, role 1–2); `admin_duplicate_question(question_id)`
+  (role 1–2). Az `answer_within_timer()` az olvasási idő alatt elutasít.
+- A kérdés-űrlap mezőinek értelmezése és ellenőrzése közös a kliens és a
+  szerver között: `src/lib/questions/form.ts` (válaszidő 5–600 mp egész,
+  olvasási idő 0–120). Részletek: `docs/features/quiz-builder.md`,
+  `docs/features/timer.md` 9.
+
 ### Kép feltöltés (Fázis Q6, `question-images` Storage bucket)
 
 A `questions.image_url` / `question_choice_options.image_url` oszlopok a

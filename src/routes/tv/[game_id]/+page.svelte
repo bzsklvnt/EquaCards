@@ -9,11 +9,23 @@
 		QuestionRevealPayload,
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload,
-		QuestionStandingsRevealPayload
+		QuestionStandingsRevealPayload,
+		TvSoundPayload
 	} from '$lib/realtime/protocol';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
-	import { playTick, playCountdownEnd, playReveal, playLeaderboard } from '$lib/audio/sfx';
+	// Hang CSAK a kivetítőn szól (a host és a csapatok telefonja néma) —
+	// docs/features/tv-mode.md.
+	import {
+		isAudioRunning,
+		playCountdownEnd,
+		playJokerActivate,
+		playLeaderboard,
+		playReveal,
+		playTick,
+		setMuted,
+		unlockAudio
+	} from '$lib/audio/sfx';
 	import { fireWinnerConfetti } from '$lib/effects/confetti';
 	import PinDisplay from '$lib/components/PinDisplay.svelte';
 	import TeamChip from '$lib/components/TeamChip.svelte';
@@ -47,7 +59,19 @@
 	let currentQuestion = $state<QuestionShowPayload | null>(null);
 	let timerInfo = $state<TimerStartPayload | null>(null);
 	let secondsLeft = $state(0);
+	let readingLeft = $state(0);
 	let locked = $state(false);
+	// A böngésző csak kattintás után enged hangot — addig egy sáv kéri.
+	let audioReady = $state(false);
+	let soundMuted = $state(false);
+
+	function enableAudio() {
+		if (audioReady) return;
+		unlockAudio();
+		// A resume aszinkron; rövid késleltetéssel ellenőrizzük.
+		setTimeout(() => (audioReady = isAudioRunning() || audioReady), 150);
+		audioReady = true;
+	}
 	let revealInfo = $state<QuestionRevealPayload | null>(null);
 	let roundLeaderboard = $state<RoundLeaderboardRevealPayload | null>(null);
 	let questionStandings = $state<QuestionStandingsRevealPayload | null>(null);
@@ -121,6 +145,15 @@
 			locked = true;
 		});
 
+		channel.on('broadcast', { event: 'tv_sound' }, ({ payload }) => {
+			soundMuted = (payload as TvSoundPayload).muted;
+			setMuted(soundMuted);
+		});
+
+		channel.on('broadcast', { event: 'joker_activate' }, () => {
+			playJokerActivate();
+		});
+
 		channel.on('broadcast', { event: 'question_reveal' }, ({ payload }) => {
 			revealInfo = payload as QuestionRevealPayload;
 			playReveal();
@@ -167,15 +200,20 @@
 	$effect(() => {
 		if (!timerInfo) {
 			secondsLeft = 0;
+			readingLeft = 0;
 			return;
 		}
-		const endTime = new Date(timerInfo.server_start_time).getTime() + timerInfo.duration * 1000;
+		const startTime = new Date(timerInfo.server_start_time).getTime();
+		const endTime = startTime + timerInfo.duration * 1000;
+		const duration = timerInfo.duration;
 
 		let lastWholeSecond = -1;
 		const tick = () => {
-			const remaining = Math.max(0, Math.round((endTime - serverNow()) / 1000));
+			const now = serverNow();
+			readingLeft = Math.max(0, Math.ceil((startTime - now) / 1000));
+			const remaining = Math.min(duration, Math.max(0, Math.round((endTime - now) / 1000)));
 			secondsLeft = remaining;
-			if (remaining !== lastWholeSecond) {
+			if (readingLeft === 0 && remaining !== lastWholeSecond) {
 				lastWholeSecond = remaining;
 				if (remaining > 0 && remaining <= 5) playTick();
 				else if (remaining === 0) playCountdownEnd();
@@ -191,9 +229,22 @@
 	<title>{game.title} — Kivetítő</title>
 </svelte:head>
 
+<svelte:window onpointerdown={enableAudio} onkeydown={enableAudio} />
+
 <main class="cabinet" style={theme.css}>
 	{#if connectionStatus !== 'connected'}
 		<ReconnectOverlay />
+	{/if}
+
+	{#if !audioReady}
+		<button type="button" class="sound-banner" onclick={enableAudio}>
+			<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"
+				><path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" /></svg
+			>
+			Kattints a hang bekapcsolásához — a visszaszámlálás és a jelzések itt, a kivetítőn szólnak.
+		</button>
+	{:else if soundMuted}
+		<p class="sound-muted">Hang némítva (a kvízmester kapcsolta ki)</p>
 	{/if}
 
 	{#if finalLeaderboard}
@@ -253,7 +304,7 @@
 					<p class="round-title">
 						{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
 					</p>
-					<p class="prompt">{currentQuestion.prompt}</p>
+					<p class="prompt" class:reading={readingLeft > 0}>{currentQuestion.prompt}</p>
 					{#if currentQuestion.image_url && currentQuestion.image_pixelate}
 						<PixelatedImage
 							--pixel-max-height="28rem"
@@ -269,15 +320,22 @@
 				<!-- Fázis P7 — a kérdés-prompt ÉS az opciók/csúszka/sorrendező
 				     lista is ugyanabban a formátumban jelenik meg, mint a
 				     csapatok /play oldalán (docs/features/tv-mode.md). -->
+				{#if readingLeft > 0}
+					<div class="reading" role="status" in:fade={{ duration: 200 }}>
+						<span class="reading-count">{readingLeft}</span>
+						<span>Olvassátok el — a válaszadás mindjárt indul</span>
+					</div>
+				{/if}
 				<QuestionAnswerDisplay
 					questionType={currentQuestion.question_type}
 					options={currentQuestion.options}
 					slider={currentQuestion.slider}
 					orderingItems={currentQuestion.ordering_items}
+					veiled={!timerInfo || readingLeft > 0}
 				/>
 			</div>
 		{/key}
-		{#if timerInfo}
+		{#if timerInfo && readingLeft === 0}
 			<div class="timer-wrap">
 				{#if locked}
 					<p class="locked-label">Lezárva</p>
@@ -364,6 +422,76 @@
 		font-size: clamp(1.5rem, 5vw, 3.5rem);
 		font-weight: bold;
 		color: var(--power);
+	}
+
+	.sound-banner {
+		position: fixed;
+		left: 50%;
+		bottom: 1.2rem;
+		transform: translateX(-50%);
+		z-index: 30;
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		max-width: min(46rem, calc(100vw - 2rem));
+		padding: 0.8rem 1.2rem;
+		border: 0;
+		border-radius: 999px;
+		background: var(--marquee);
+		color: var(--cabinet-2);
+		font: inherit;
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		box-shadow: 0 10px 30px rgb(0 0 0 / 25%);
+	}
+
+	.sound-banner svg {
+		flex-shrink: 0;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.sound-muted {
+		position: fixed;
+		right: 1rem;
+		bottom: 1rem;
+		margin: 0;
+		padding: 0.4rem 0.8rem;
+		border-radius: 999px;
+		background: var(--cabinet-2);
+		color: var(--marquee-dim);
+		font-size: 0.85rem;
+	}
+
+	.prompt.reading {
+		font-size: clamp(1.8rem, 7vw, 5rem);
+	}
+
+	.reading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		margin: 0.5rem 0 0;
+		font-size: clamp(1rem, 2.4vw, 1.6rem);
+		color: var(--marquee-dim);
+	}
+
+	.reading-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 4.5rem;
+		height: 4.5rem;
+		border-radius: 50%;
+		border: 5px solid var(--cyan);
+		font-family: var(--font-display);
+		font-size: 2.2rem;
+		color: var(--marquee);
 	}
 
 	.timer-wrap {

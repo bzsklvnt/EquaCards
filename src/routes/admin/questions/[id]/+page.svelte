@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import QuestionForm from '$lib/components/QuestionForm.svelte';
+	import { resolve } from '$app/paths';
+	import QuestionEditor from '$lib/builder/QuestionEditor.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import { withToast } from '$lib/toast-enhance';
 	import { registerPageTour } from '$lib/tours/state.svelte';
@@ -18,26 +19,17 @@
 </svelte:head>
 
 <h1>Kérdés szerkesztése</h1>
-<QuestionForm
-	themes={data.themes}
-	questionTypes={data.questionTypes}
-	action="?/update"
-	error={form?.error}
-	initial={{
-		theme_id: data.question.theme_id,
-		question_type_id: data.question.question_type_id,
-		prompt: data.question.prompt,
-		image_url: data.question.image_url,
-		image_pixelate: data.question.image_pixelate,
-		points: data.question.points ?? 1000,
-		points_multiplier: data.question.points_multiplier ?? 1,
-		time_limit_seconds: data.question.time_limit_seconds ?? 30,
-		points_decay: data.question.points_decay ?? true,
-		choiceOptions: data.choiceOptions,
-		sliderConfig: data.sliderConfig,
-		orderingItems: data.orderingItems
-	}}
-/>
+{#key data.draft.id}
+	<QuestionEditor
+		initial={data.draft}
+		types={data.questionTypes}
+		themes={data.themes}
+		readingDefault={data.readingDefault}
+		action="?/update"
+		error={form?.error}
+		cancelHref={resolve('/admin/questions')}
+	/>
+{/key}
 
 <form
 	method="POST"
