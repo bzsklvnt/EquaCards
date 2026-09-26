@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { registerPageTour } from '$lib/tours/state.svelte';
-	import { resolve } from '$app/paths';
-	import Button from '$lib/components/Button.svelte';
+	import GameTabs from '$lib/components/GameTabs.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -18,10 +17,10 @@
 	<title>Részletes eredmények — {data.game.title} — Kezelőfelület</title>
 </svelte:head>
 
-<Button variant="ghost" href={resolve('/admin/games/[id]', { id: data.game.id })}>← Vissza</Button>
+<h1>{data.game.title}</h1>
+<p class="status">{data.teams.length} csapat</p>
 
-<h1>Részletes eredmények — {data.game.title}</h1>
-<p class="status">Állapot: {data.game.status} · {data.teams.length} csapat</p>
+<GameTabs gameId={data.game.id} />
 
 {#if data.rounds.length === 0}
 	<p class="empty">Ehhez az estéhez még nincs kör/kérdés vagy csapat.</p>
@@ -81,10 +80,10 @@
 
 <style>
 	h1 {
+		margin: 0.5rem 0 0;
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
-		margin-top: 1rem;
+		font-size: 2.1rem;
+		font-weight: 400;
 	}
 
 	h2 {

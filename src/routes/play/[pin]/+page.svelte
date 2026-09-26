@@ -775,6 +775,21 @@
 		>
 			<input type="hidden" name="device_token" value={deviceToken} />
 			<Input label="Csapatnév" name="name" bind:value={joinName} required maxlength={40} />
+			{#if data.registeredNames?.length}
+				<div class="registered">
+					<p>Előre jelentkeztetek? Koppintsatok a nevetekre:</p>
+					<div class="chips">
+						{#each data.registeredNames as name (name)}
+							<button
+								type="button"
+								class="chip"
+								class:selected={joinName === name}
+								onclick={() => (joinName = name)}>{name}</button
+							>
+						{/each}
+					</div>
+				</div>
+			{/if}
 			{#if form?.error}
 				<p class="error">{form.error}</p>
 			{/if}
@@ -792,6 +807,43 @@
 </main>
 
 <style>
+	.registered {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		text-align: left;
+	}
+
+	.registered p {
+		margin: 0;
+		font-size: 0.85rem;
+		color: var(--marquee-dim);
+	}
+
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.chip {
+		min-height: 40px;
+		padding: 0.35rem 0.8rem;
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
+		border-radius: 999px;
+		background: var(--cabinet-2);
+		color: var(--marquee);
+		font: inherit;
+		font-size: 0.9rem;
+		cursor: pointer;
+	}
+
+	.chip.selected {
+		border-color: var(--cyan);
+		color: var(--cyan);
+		font-weight: 600;
+	}
+
 	main.cabinet {
 		max-width: 24rem;
 		margin: 0 auto;
@@ -933,7 +985,7 @@
 	}
 
 	.joker-wrap :global(.btn:hover:not(:disabled):not(.disabled)) {
-		box-shadow: 0 0 16px color-mix(in srgb, var(--magenta) 55%, transparent);
+		box-shadow: 0 0 calc(16px * var(--glow, 1)) color-mix(in srgb, var(--magenta) 55%, transparent);
 	}
 
 	.leaderboard h2 {

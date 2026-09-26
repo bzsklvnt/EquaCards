@@ -16,7 +16,7 @@
 		font-family: var(--font-body);
 		font-size: 0.9rem;
 		background: var(--cabinet-2);
-		border: 1px solid var(--violet);
+		border: 1px solid var(--panel-border, var(--violet));
 		border-radius: 999px;
 		padding: 0.25rem 0.875rem;
 		color: var(--marquee);
@@ -26,6 +26,6 @@
 		border-color: var(--cyan);
 		color: var(--cyan);
 		font-weight: bold;
-		box-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 40%, transparent);
+		box-shadow: 0 0 calc(8px * var(--glow, 1)) color-mix(in srgb, var(--cyan) 40%, transparent);
 	}
 </style>

@@ -28,7 +28,7 @@
 		align-items: center;
 		gap: 1rem;
 		background: var(--cabinet-2);
-		border: 2px solid var(--marquee-dim);
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
 		border-radius: 0.75rem;
 		padding: 0.75rem 1.25rem;
 		font-family: var(--font-body);
@@ -40,7 +40,7 @@
 
 	.podium-card.own {
 		border-color: var(--cyan);
-		box-shadow: 0 0 12px color-mix(in srgb, var(--cyan) 40%, transparent);
+		box-shadow: 0 0 calc(12px * var(--glow, 1)) color-mix(in srgb, var(--cyan) 40%, transparent);
 	}
 
 	.rank {

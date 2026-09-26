@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { registerPageTour } from '$lib/tours/state.svelte';
-	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { getActiveTokens, resolveTokens } from '$lib/theme/tokens';
+	import { defaultTokens } from '$lib/theme/tokens';
 	import ReportChart from '$lib/components/ReportChart.svelte';
 	import type { PageData } from './$types';
 
@@ -12,14 +11,9 @@
 	// renderel, ami már felveszi a témát és a hátteret a saját gyökér
 	// elemén (CSS custom property-k lefelé öröklődnek) — itt csak a
 	// ReportChart-nak kellő tényleges (nem var()) szín-értékekre van
-	// szükség, nincs saját <main>/style wrapper többé.
-	let tokens = $state(resolveTokens(null));
-
-	onMount(() => {
-		getActiveTokens(data.supabase, null).then((resolved) => {
-			tokens = resolved;
-		});
-	});
+	// szükség, nincs saját <main>/style wrapper többé. A kezelői héj mindig
+	// a letisztult alaptémát használja.
+	const tokens = defaultTokens;
 
 	// A vonaldiagram idősorrendben (legrégebbi → legújabb) olvasandó, míg a
 	// lista alul a legfrissebb estét mutatja legfelül — ezért két külön
@@ -149,8 +143,9 @@
 
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.25rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 	}
 
 	.intro {
@@ -159,8 +154,9 @@
 
 	h2 {
 		font-family: var(--font-display);
-		font-size: 1rem;
-		color: var(--coin);
+		font-size: 1.4rem;
+		font-weight: 400;
+		color: var(--marquee);
 		margin-top: 2rem;
 		border-bottom: 2px solid var(--cabinet-3);
 		padding-bottom: 0.5rem;

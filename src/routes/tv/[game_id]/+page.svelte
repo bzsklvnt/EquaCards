@@ -314,7 +314,7 @@
 		font-size: clamp(1.5rem, 5vw, 4rem);
 		color: var(--cyan);
 		line-height: 1.5;
-		text-shadow: 0 0 16px color-mix(in srgb, var(--cyan) 60%, transparent);
+		text-shadow: 0 0 calc(16px * var(--glow, 1)) color-mix(in srgb, var(--cyan) 60%, transparent);
 	}
 
 	h2 {

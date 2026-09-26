@@ -35,8 +35,9 @@
 <style>
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 	}
 
 	.context {

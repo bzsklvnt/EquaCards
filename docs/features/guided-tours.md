@@ -31,7 +31,7 @@ kipróbálhatják az élő lebonyolítást.
   látható elemekhez tartozó lépéseket kihagyja (üres kör, mobilon elrejtett
   oldalsáv, épp nem futó visszaszámlálás), így a „3 / 7” számláló pontos.
 - `src/lib/components/TourButton.svelte` — a gomb és a driver.js buborék
-  Retro Arcade stílusa.
+  letisztult kezelői stílusa (2026-09-26 óta; korábban Retro Arcade).
 
 **Új lépés hozzáadása:** tegyél egy `data-tour="valami"` attribútumot a
 kiemelendő natív elemre (komponens köré egy `<div>`/`<span>` kell, mert a
@@ -43,12 +43,14 @@ komponensek nem adják tovább az attribútumot), és vegyél fel egy lépést a
 
 | Azonosító             | Oldal                               | Lépések |
 | --------------------- | ----------------------------------- | ------- |
-| `dashboard`           | `/admin` — Első lépések, a menü     | 10      |
+| `dashboard`           | `/admin` — Első lépések, a menü     | 11      |
 | `themes`              | `/admin/themes`                     | 3       |
 | `questions`           | `/admin/questions`                  | 5       |
 | `question-form`       | `/admin/questions/new`, `/[id]`     | 9       |
 | `games`               | `/admin/games` (Próbaeste gombbal)  | 5       |
 | `game-setup`          | `/admin/games/[id]`                 | 10      |
+| `game-event`          | `/admin/games/[id]/event`           | 6       |
+| `venues`              | `/admin/venues`                     | 2       |
 | `host-lobby`          | `/host/[game_id]`, várakozás        | 8       |
 | `host-live`           | `/host/[game_id]`, élő játék        | 7       |
 | `results`             | `/admin/games/[id]/results`         | 4       |

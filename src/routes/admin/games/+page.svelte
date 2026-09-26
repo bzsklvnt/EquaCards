@@ -6,6 +6,7 @@
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import { withToast } from '$lib/toast-enhance';
 	import { registerPageTour } from '$lib/tours/state.svelte';
+	import { formatEventDate } from '$lib/datetime';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -81,11 +82,21 @@
 						{#if game.is_practice}<span class="badge practice">Próba</span>{/if}
 					</div>
 					<div class="game-card-meta">
-						<span class="pin">PIN: {game.pin}</span>
-						<span>{teamCount(game)} csapat</span>
-						{#if game.status === 'finished' && game.finished_at}
-							<span>{new Date(game.finished_at).toLocaleDateString('hu-HU')}</span>
+						<span>{game.scheduled_at ? formatEventDate(game.scheduled_at) : 'Nincs időpont'}</span>
+						{#if game.venues?.name}<span>{game.venues.name}</span>{/if}
+					</div>
+					<div class="game-card-meta">
+						{#if game.status === 'lobby' && !game.is_practice}
+							<a href={resolve('/admin/games/[id]/event', { id: game.id })}>
+								{game.confirmedPlayers}{game.max_players ? ` / ${game.max_players}` : ''} fő jelentkezett{game.waitlistTeams
+									? ` · ${game.waitlistTeams} várólistán`
+									: ''}
+							</a>
+							{#if game.is_public}<span class="badge public">Nyilvános</span>{/if}
+						{:else}
+							<span>{teamCount(game)} csapat játszott</span>
 						{/if}
+						<span class="pin">PIN: {game.pin}</span>
 					</div>
 					{#if game.status === 'finished'}
 						<form
@@ -114,8 +125,9 @@
 <style>
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 	}
 
 	form {
@@ -155,8 +167,23 @@
 	}
 
 	.game-title {
-		color: var(--cyan);
+		color: var(--marquee);
+		font-size: 1.1rem;
 		font-weight: 600;
+		text-decoration: none;
+	}
+
+	.game-title:hover {
+		text-decoration: underline;
+	}
+
+	.game-card-meta a {
+		color: var(--cyan);
+	}
+
+	.badge.public {
+		background: color-mix(in srgb, var(--cyan) 12%, var(--cabinet-2));
+		color: var(--cyan);
 	}
 
 	.game-card-meta {
@@ -169,7 +196,7 @@
 
 	.pin {
 		font-family: var(--font-led);
-		color: var(--coin);
+		color: var(--marquee-dim);
 	}
 
 	.badge {
@@ -181,7 +208,7 @@
 
 	.status-lobby {
 		background: var(--cyan);
-		color: var(--cabinet);
+		color: var(--on-primary, var(--cabinet));
 	}
 
 	.status-active {

@@ -288,7 +288,7 @@ export type Database = {
 					host_id: string | null;
 					id: string;
 					is_practice: boolean;
-					max_teams: number | null;
+					max_players: number | null;
 					pin: string;
 					public_note: string | null;
 					is_public: boolean;
@@ -309,7 +309,7 @@ export type Database = {
 					host_id?: string | null;
 					id?: string;
 					is_practice?: boolean;
-					max_teams?: number | null;
+					max_players?: number | null;
 					pin: string;
 					public_note?: string | null;
 					is_public?: boolean;
@@ -330,7 +330,7 @@ export type Database = {
 					host_id?: string | null;
 					id?: string;
 					is_practice?: boolean;
-					max_teams?: number | null;
+					max_players?: number | null;
 					pin?: string;
 					public_note?: string | null;
 					is_public?: boolean;
@@ -872,7 +872,8 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Functions: {
-			admin_cancel_registration: { Args: { p_id: string }; Returns: string };
+			admin_cancel_registration: { Args: { p_id: string }; Returns: string[] };
+			admin_fill_from_waitlist: { Args: { p_game_id: string }; Returns: string[] };
 			admin_promote_registration: { Args: { p_id: string }; Returns: boolean };
 			answer_owner_game_active: {
 				Args: { p_answer_id: string };
@@ -886,7 +887,7 @@ export type Database = {
 				Args: { p_token: string };
 				Returns: {
 					cancelled_id: string;
-					promoted_id: string;
+					promoted_ids: string[];
 				}[];
 			};
 			current_question_state: { Args: { p_game_id: string }; Returns: Json };
@@ -917,7 +918,27 @@ export type Database = {
 			};
 			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
 			game_status: { Args: { p_game_id: string }; Returns: string };
-			promote_from_waitlist: { Args: { p_game_id: string }; Returns: string };
+			promote_from_waitlist: { Args: { p_game_id: string }; Returns: string[] };
+			public_event: {
+				Args: { p_id: string };
+				Returns: {
+					confirmed_players: number;
+					confirmed_teams: number;
+					id: string;
+					is_past: boolean;
+					max_players: number;
+					public_note: string;
+					registration_open: boolean;
+					scheduled_at: string;
+					title: string;
+					venue_address: string;
+					venue_city: string;
+					venue_maps_url: string;
+					venue_name: string;
+					waitlist_teams: number;
+					winner_name: string;
+				}[];
+			};
 			public_past_events: {
 				Args: { p_limit?: number };
 				Returns: {
@@ -930,12 +951,14 @@ export type Database = {
 					winner_name: string;
 				}[];
 			};
+			public_site_info: { Args: never; Returns: Json };
 			public_upcoming_events: {
 				Args: never;
 				Returns: {
+					confirmed_players: number;
 					confirmed_teams: number;
 					id: string;
-					max_teams: number;
+					max_players: number;
 					public_note: string;
 					scheduled_at: string;
 					title: string;
@@ -946,6 +969,7 @@ export type Database = {
 					waitlist_teams: number;
 				}[];
 			};
+			purge_old_registrations: { Args: never; Returns: number };
 			register_team: {
 				Args: {
 					p_contact_email: string;

@@ -9,10 +9,41 @@
 A tényleges design tokenek egyetlen forrása a `design_themes` tábla
 (`docs/architecture/DATA_MODEL.md` 8. szakasz, `docs/features/design-themes.md`)
 — jelen dokumentum és a `docs/design/STYLE_GUIDE.html` a jelenlegi
-alapértelmezett ("Retro Arcade") téma vizuális referenciája, nem egy attól
+korábbi alapértelmezett („Retro Arcade”, most „Arcade (fun)”) téma vizuális referenciája, nem egy attól
 független, kőbe vésett paletta. Ha a seed változik, ezeket is frissíteni kell.
 
 Élő, böngészőben megnyitható referencia: `docs/design/STYLE_GUIDE.html`.
+
+## Letisztult alaptéma és „fun” témák (2026-09-26)
+
+- **Kezelőfelület** (admin, riportok, bejelentkezés, PIN-beíró, hibaoldal):
+  mindig a **Letisztult** téma — a `src/lib/theme/tokens.ts` `defaultTokens`
+  készlete, DB-lekérdezés nélkül (nincs villanás, nem függ a globális
+  beállítástól).
+- **Játékfelületek** (host, csapat, TV): az este `design_theme_id`-ja, ennek
+  hiányában a DB `is_default` témája — ez most a **Letisztult**. Az
+  **Arcade (fun)** (korábban „Retro Arcade”) estenként választható a
+  `/admin/games/[id]/event` oldalon vagy a host lobbyban.
+- **Díszítés-tokenek:** a Letisztult téma kikapcsolja az arcade-os díszítést;
+  a régebbi témákban ezek nincsenek meg, ott a CSS fallback adja az arcade-os
+  értéket (a `resolveTokens()` ezért nem örökíti őket az alapértelmezettből):
+
+| Token                  | Letisztult  | Fallback (arcade)            | Hatás                                |
+| ---------------------- | ----------- | ---------------------------- | ------------------------------------ |
+| `--glow`               | `0`         | `1`                          | ragyogás (`calc(Npx * var(--glow))`) |
+| `--scanline`           | transparent | `rgba(255,255,255,.035)`     | panelek scanline-textúrája           |
+| `--panel-border`       | `#E4DED2`   | `var(--violet)`              | panel/kártya keret színe             |
+| `--panel-border-width` | `1px`       | `2px`                        | panel/kártya keret vastagsága        |
+| `--field-border`       | `#D5CEC0`   | `var(--marquee-dim)`         | beviteli mezők kerete                |
+| `--field-border-width` | `1px`       | `2px`                        |                                      |
+| `--btn-primary`        | `#1E5B4F`   | `--violet` 80% + `--cabinet` | elsődleges gomb kitöltése            |
+| `--btn-primary-hover`  | `#143F37`   | `--violet` 65% + `--cabinet` |                                      |
+| `--on-primary`         | `#FFFFFF`   | `var(--marquee)`             | szöveg az elsődleges gombon          |
+
+- **Nyilvános oldal** (`src/routes/(site)/`): saját, fix paletta a layout
+  gyökerén (`--paper #F6F3EC`, `--ink #1C1B18`, `--accent #1E5B4F`,
+  `--warn #8A4B0B`, Fraunces + Hanken Grotesk) — a design témák nem hatnak rá.
+  A jóváhagyott látványterv alapján készült.
 
 ## Szín-szerepek
 

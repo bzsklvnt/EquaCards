@@ -2178,3 +2178,43 @@ kockázat eddig alacsony volt (az új felhasználók trigger-rel azonnal
 profilt kapnak), de a hiba szerkezeti volt.
 
 Részletek: `docs/features/landing-and-registration.md`.
+
+## 2026-09-26 — Élesítés: nyilvános oldal, létszám főben, letisztult felület, két domain
+
+A jóváhagyott látványterv alapján elkészült a nyilvános oldal (landing,
+eseményoldal jelentkezéssel, lemondás, adatkezelési tájékoztató) és a kezelői
+rész (helyszínek, esemény és jelentkezések fül). A felhasználó kiegészítései:
+
+- **A létszámkorlát főben értendő** (pl. 40 fő egy este): `games.max_teams` →
+  `max_players`. Egy jelentkezés akkor megerősített, ha a csapat létszáma
+  még belefér; különben várólistára kerül. Felszabaduló helynél a várólistát
+  sorrendben nézzük, és mindenki bekerül, aki belefér (first-fit) — így egy
+  nagy csapat nem blokkolja a kisebbeket, de elég hely esetén ő jön először.
+  Élőben, rollback-kal ellenőrizve (10 fős korlát, 5 csapat, lemondás után
+  két csapat lép elő).
+- **A kezdőlap nem ígér fix kérdésszámot.**
+- **Domainek:** `kocsmakvizest.hu` (nyilvános) és `app.kocsmakvizest.hu`
+  (kezelő, host, csapatok, kivetítő), egy Vercel projekten, env-alapú
+  (`PUBLIC_SITE_URL`, `PUBLIC_APP_URL`) 308-as átirányításokkal; Host-fejléces
+  teszttel ellenőrizve.
+- **Adatkezelés:** tájékoztató oldal; az üzemeltető adatai a Beállításokból
+  (`site_*` kulcsok). A vállalt 30 napos megőrzést egy napi pg_cron feladat
+  (`purge_old_registrations`) hajtja végre.
+
+**Design:** a kezelőfelület mindig a Letisztult témát használja (kódból, DB
+nélkül). A játékfelületek alapértelmezett témája is a Letisztult lett (új
+`design_themes` sor, `is_default`), a „Retro Arcade” „Arcade (fun)” néven
+estenként választható. Az arcade-os díszítés (ragyogás, scanline, vastag
+keret, lila gomb) tokenekre került (`--glow`, `--scanline`, `--panel-border*`,
+`--field-border*`, `--btn-primary*`, `--on-primary`); a régi témákban ezek
+hiányoznak, így a CSS fallback változatlanul adja az arcade-os kinézetet —
+egymás mellett renderelve ellenőrizve. Részletek: DESIGN_SYSTEM.md.
+
+**Egyéb:** bejelentkezés után `/admin` (a `/` a nyilvános kezdőlap lett); a
+kvízeste létrehozása után az esemény fül nyílik; a `/play/[pin]` a
+regisztrált csapatneveket koppintható gombként ajánlja fel; a Vezérlőpult a
+következő estéket mutatja létszámmal; két új bemutató (`game-event`,
+`venues`). A felület mock adattal, böngészőben ellenőrizve (asztali, mobil,
+1024 px).
+
+Részletek: `docs/features/landing-and-registration.md`.

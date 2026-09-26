@@ -100,8 +100,8 @@
 		lila, a magenta kizárólag a joker gombnál jelenik meg
 		(src/routes/play/[pin]/+page.svelte .joker-wrap), hogy a szín
 		vizuálisan egyértelműen a jokert jelezze mindenhol. */
-		background: color-mix(in srgb, var(--violet) 80%, var(--cabinet));
-		color: var(--marquee);
+		background: var(--btn-primary, color-mix(in srgb, var(--violet) 80%, var(--cabinet)));
+		color: var(--on-primary, var(--marquee));
 		border-color: var(--violet);
 	}
 
@@ -109,8 +109,8 @@
 		/* Sötétebb lila hover — ugyanaz a kontraszt-logika, csak
 		erősebb --cabinet aránnyal, hogy a hover állapot vizuálisan
 		elüljön az alapállapottól magenta bevonása nélkül. */
-		background: color-mix(in srgb, var(--violet) 65%, var(--cabinet));
-		box-shadow: 0 0 12px color-mix(in srgb, var(--violet) 50%, transparent);
+		background: var(--btn-primary-hover, color-mix(in srgb, var(--violet) 65%, var(--cabinet)));
+		box-shadow: 0 0 calc(12px * var(--glow, 1)) color-mix(in srgb, var(--violet) 50%, transparent);
 	}
 
 	.secondary {

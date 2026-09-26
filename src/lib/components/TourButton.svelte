@@ -78,70 +78,81 @@
 	}
 
 	/* A driver.js buborékja a <body>-ba renderelődik, ezért globális
-	   szelektorok; a színek az app Retro Arcade tokenjeit követik
-	   (fix értékkel, mert a body-n nincsenek CSS változók). */
+	   szelektorok, fix színekkel (a body-n nincsenek CSS változók) — a
+	   letisztult kezelői felület színeit követik. */
 	:global(.driver-popover.equacards-tour) {
-		background: #211640;
-		color: #f5f0ff;
-		border: 2px solid #35e7ff;
+		background: #ffffff;
+		color: #1c1b18;
+		border: 1px solid #e4ded2;
 		border-radius: 12px;
-		box-shadow: 0 0 24px rgb(53 231 255 / 25%);
-		font-family: 'Inter', system-ui, sans-serif;
+		box-shadow: 0 12px 32px rgb(28 27 24 / 16%);
+		font-family: 'Hanken Grotesk', system-ui, sans-serif;
 		max-width: min(360px, calc(100vw - 32px));
 	}
 
 	:global(.equacards-tour .driver-popover-title) {
-		font-family: 'Inter', system-ui, sans-serif;
-		font-size: 1rem;
-		font-weight: 700;
-		color: #35e7ff;
+		font-family: 'Fraunces', Georgia, serif;
+		font-size: 1.15rem;
+		font-weight: 600;
+		color: #1c1b18;
 	}
 
 	:global(.equacards-tour .driver-popover-description) {
-		font-size: 0.9rem;
-		line-height: 1.5;
-		color: #f5f0ff;
+		font-size: 0.95rem;
+		line-height: 1.55;
+		color: #45423b;
 	}
 
 	:global(.equacards-tour .driver-popover-progress-text) {
-		font-family: 'Silkscreen', monospace;
-		color: #a79bc9;
+		font-size: 0.8rem;
+		color: #5e5a52;
 	}
 
 	:global(.equacards-tour .driver-popover-footer button) {
 		text-shadow: none;
-		font-family: 'Inter', system-ui, sans-serif;
+		font-family: 'Hanken Grotesk', system-ui, sans-serif;
 		font-size: 0.85rem;
 		font-weight: 600;
-		padding: 0.4rem 0.8rem;
+		padding: 0.45rem 0.85rem;
 		border-radius: 8px;
-		border: 2px solid #9b5cff;
-		background: #3a2470;
-		color: #f5f0ff;
+		border: 1px solid #d5cec0;
+		background: #ffffff;
+		color: #1c1b18;
+	}
+
+	:global(.equacards-tour .driver-popover-footer .driver-popover-next-btn) {
+		background: #1e5b4f;
+		border-color: #1e5b4f;
+		color: #ffffff;
 	}
 
 	:global(.equacards-tour .driver-popover-footer button:hover),
 	:global(.equacards-tour .driver-popover-footer button:focus) {
-		background: #4b2f8f;
+		background: #efebe3;
+	}
+
+	:global(.equacards-tour .driver-popover-footer .driver-popover-next-btn:hover),
+	:global(.equacards-tour .driver-popover-footer .driver-popover-next-btn:focus) {
+		background: #143f37;
 	}
 
 	:global(.equacards-tour .driver-popover-close-btn) {
-		color: #a79bc9;
+		color: #5e5a52;
 	}
 
 	:global(.equacards-tour .driver-popover-arrow-side-left.driver-popover-arrow) {
-		border-left-color: #35e7ff;
+		border-left-color: #ffffff;
 	}
 
 	:global(.equacards-tour .driver-popover-arrow-side-right.driver-popover-arrow) {
-		border-right-color: #35e7ff;
+		border-right-color: #ffffff;
 	}
 
 	:global(.equacards-tour .driver-popover-arrow-side-top.driver-popover-arrow) {
-		border-top-color: #35e7ff;
+		border-top-color: #ffffff;
 	}
 
 	:global(.equacards-tour .driver-popover-arrow-side-bottom.driver-popover-arrow) {
-		border-bottom-color: #35e7ff;
+		border-bottom-color: #ffffff;
 	}
 </style>

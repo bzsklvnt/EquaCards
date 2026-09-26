@@ -17,6 +17,8 @@ export type TourId =
 	| 'question-form'
 	| 'games'
 	| 'game-setup'
+	| 'game-event'
+	| 'venues'
 	| 'host-lobby'
 	| 'host-live'
 	| 'results'
@@ -32,7 +34,7 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Első lépések',
 		steps: [
 			{
-				title: 'Üdv az EquaCards kezelőfelületén!',
+				title: 'Üdv a kezelőfelületen!',
 				description:
 					'Ez a bemutató végigvezet a menün. Minden oldalnak saját bemutatója van: bármikor újraindíthatod a jobb felső „Bemutató ▶” gombbal.'
 			},
@@ -59,6 +61,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				title: 'Kvízesték',
 				description:
 					'Itt hozod létre az estéket, állítod össze a köröket és a kérdéseket, és innen indítod az élő játékot. Itt találod a Próbaeste gombot is.'
+			},
+			{
+				element: 'nav-venues',
+				title: 'Helyszínek',
+				description:
+					'A kvízesték helyszínei (név, cím, térkép-link). Az estéknél ebből a listából választasz, és a nyilvános oldalon is ez jelenik meg.'
 			},
 			{
 				element: 'nav-users',
@@ -206,13 +214,75 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		]
 	},
 
+	'game-event': {
+		title: 'Esemény és jelentkezések',
+		steps: [
+			{
+				element: 'ev-settings',
+				title: 'Esemény adatai',
+				description:
+					'Időpont (magyar idő szerint), helyszín és létszámkorlát főben. Ha a korlátot megemeled és mentesz, a várólistáról sorban bekerülnek azok, akik beleférnek, és e-mailt kapnak.',
+				side: 'left'
+			},
+			{
+				element: 'ev-public',
+				title: 'Nyilvános',
+				description:
+					'Bekapcsolva az este megjelenik a kezdőlapon, és a kezdésig lehet rá jelentkezni. Időpont nélkül nem lehet nyilvános.',
+				side: 'left'
+			},
+			{
+				element: 'ev-theme',
+				title: 'Megjelenés',
+				description:
+					'Az este vizuális témája a kivetítőn, a host és a csapatok felületén. Alapból Letisztult; buli-hangulathoz válaszd az Arcade (fun) témát.',
+				side: 'left'
+			},
+			{
+				element: 'ev-stats',
+				title: 'Létszám',
+				description:
+					'A megerősített csapatok összlétszáma a korláthoz képest, a várólista és a szabad helyek.'
+			},
+			{
+				element: 'ev-table',
+				title: 'Jelentkezések',
+				description:
+					'A csapatok a kapcsolattartó adataival. Lemondáskor a várólistáról automatikusan bekerül, aki belefér; a „Beenged” a korláttól függetlenül beenged egy várólistás csapatot. Mindkét esetben e-mail megy a csapatnak.'
+			},
+			{
+				element: 'tab-rounds',
+				title: 'Körök és kérdések',
+				description: 'Itt állítod össze az este köreit és kérdéseit.'
+			}
+		]
+	},
+	venues: {
+		title: 'Helyszínek',
+		steps: [
+			{
+				element: 'venues-create',
+				title: 'Új helyszín',
+				description:
+					'Név, cím és város. A térkép-link nem kötelező — ha üres, a nyilvános oldal a címből keres a térképen.',
+				side: 'left'
+			},
+			{
+				element: 'venues-list',
+				title: 'Helyszínek listája',
+				description:
+					'Szerkesztés és törlés. Törléskor a hozzá tartozó esték megmaradnak, csak a helyszínük lesz üres.'
+			}
+		]
+	},
 	games: {
 		title: 'Kvízesték',
 		steps: [
 			{
 				element: 'games-create',
 				title: 'Új kvízeste',
-				description: 'Adj nevet az estének. Létrehozás után a körök összeállítása jön.'
+				description:
+					'Adj nevet az estének. Létrehozás után az esemény adatai jönnek (időpont, helyszín, létszámkorlát), majd a körök összeállítása.'
 			},
 			{
 				element: 'games-practice',
@@ -289,9 +359,10 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				description: 'A kört és a benne lévő kérdés-hozzárendeléseket törli.'
 			},
 			{
-				element: 'gs-results',
-				title: 'Részletes eredmények',
-				description: 'Körönként és kérdésenként, melyik csapat mit válaszolt. Csak a kezelő látja.'
+				element: 'tab-event',
+				title: 'Esemény és jelentkezések',
+				description:
+					'Időpont, helyszín, létszámkorlát, nyilvánosság és megjelenés (Letisztult vagy Arcade), valamint a csapatjelentkezések és a várólista. Az „Eredmények” fülön körönként és kérdésenként látod, melyik csapat mit válaszolt.'
 			},
 			{
 				element: 'gs-open-host',

@@ -5,6 +5,7 @@
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Checkbox from '$lib/components/Checkbox.svelte';
+	import GameTabs from '$lib/components/GameTabs.svelte';
 	import { withToast } from '$lib/toast-enhance';
 	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
@@ -14,6 +15,13 @@
 	let newRoundTitle = $state('');
 
 	registerPageTour(() => 'game-setup');
+
+	const STATUS_LABELS: Record<string, string> = {
+		lobby: 'Váró',
+		active: 'Aktív',
+		paused: 'Szüneteltetve',
+		finished: 'Lezárva'
+	};
 
 	// Fázis O6 — a téma-választás este-szintű (egyszer választod ki, minden
 	// kör ugyanabból húz), a darabszám marad körönkénti — lásd a
@@ -101,20 +109,19 @@
 	<title>{data.game.title} — Kezelőfelület</title>
 </svelte:head>
 
-<h1>{data.game.title}</h1>
-<p class="status">Állapot: {data.game.status}</p>
-<div class="actions">
+<header class="page-head">
+	<div>
+		<h1>{data.game.title}</h1>
+		<p class="status">Állapot: {STATUS_LABELS[data.game.status] ?? data.game.status}</p>
+	</div>
 	<span data-tour="gs-open-host">
 		<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
 			>Élő lebonyolítás megnyitása →</Button
 		>
 	</span>
-	<span data-tour="gs-results">
-		<Button variant="ghost" href={resolve('/admin/games/[id]/results', { id: data.game.id })}
-			>Részletes eredmények →</Button
-		>
-	</span>
-</div>
+</header>
+
+<GameTabs gameId={data.game.id} />
 
 {#if form?.error}
 	<p class="error">{form.error}</p>
@@ -288,10 +295,20 @@
 {/each}
 
 <style>
+	.page-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1rem 1.5rem;
+		margin-top: 0.5rem;
+	}
+
 	h1 {
+		margin: 0;
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
 	}
 
 	h2 {
@@ -301,14 +318,8 @@
 	}
 
 	.status {
+		margin: 0.4rem 0 0;
 		color: var(--marquee-dim);
-	}
-
-	.actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem;
-		margin: 0.75rem 0 1.5rem;
 	}
 
 	.add-round {
@@ -351,7 +362,7 @@
 		align-items: flex-end;
 		flex-wrap: wrap;
 		background: var(--cabinet-2);
-		border: 2px solid var(--violet);
+		border: var(--panel-border-width, 2px) solid var(--panel-border, var(--violet));
 		border-radius: 0.75rem;
 		padding: 1rem;
 		margin-bottom: 1.5rem;
@@ -394,7 +405,7 @@
 		gap: 0.75rem;
 		margin-top: 0.75rem;
 		padding: 1rem;
-		border: 2px solid var(--violet);
+		border: var(--panel-border-width, 2px) solid var(--panel-border, var(--violet));
 		border-radius: 0.75rem;
 		background: var(--cabinet);
 	}

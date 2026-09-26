@@ -1,22 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { onMount } from 'svelte';
-	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { defaultTokens, tokensToCssText } from '$lib/theme/tokens';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
-	import type { PageData } from './$types';
-
-	let { data }: { data: PageData } = $props();
 
 	let pin = $state('');
-	let themeCss = $state(tokensToCssText(defaultTokens));
-
-	onMount(() => {
-		getActiveTokens(data.supabase, null).then((tokens) => {
-			themeCss = tokensToCssText(tokens);
-		});
-	});
+	// A kezelői és belépő felületek mindig a letisztult alaptémát használják.
+	const themeCss = tokensToCssText(defaultTokens);
 
 	function submit(e: SubmitEvent) {
 		e.preventDefault();

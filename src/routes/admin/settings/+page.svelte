@@ -37,6 +37,24 @@
 			label: 'Kérdés-újrafelhasználási türelmi idő',
 			unit: 'hónap',
 			description: 'Ennyi hónapig nem húzható újra ugyanaz a kérdés a "Random húzás" funkcióval.'
+		},
+		site_name: {
+			label: 'Oldal neve',
+			description: 'A nyilvános oldal fejlécében és a böngészőfülön jelenik meg.'
+		},
+		site_city: {
+			label: 'Város',
+			description: 'A kezdőlap felső sorában jelenik meg (pl. „Csapatos kvízestek · Budapest”).'
+		},
+		site_operator_name: {
+			label: 'Üzemeltető neve (adatkezelő)',
+			description:
+				'Az adatkezelési tájékoztatóban szerepel — magánszemély vagy cég neve. Kötelező kitölteni!'
+		},
+		site_contact_email: {
+			label: 'Kapcsolati e-mail',
+			description:
+				'Az adatkezelési tájékoztatóban és a nyilvános oldal láblécében jelenik meg. Kötelező kitölteni!'
 		}
 	};
 
@@ -75,12 +93,12 @@
 
 <section class="setting-row" data-tour="st-default-theme">
 	<div class="setting-info">
-		<span class="setting-label">Globális alapértelmezett design téma</span>
+		<span class="setting-label">Kvízestek alapértelmezett design témája</span>
 		<p class="setting-description">
-			Ez a köntös érvényes minden olyan kvízestén, amihez a host nem választott külön design témát (<a
-				href={resolve('/admin/design-themes')}>Vizuális témák</a
-			>). A választás azonnal, oldal-újratöltés nélkül alkalmazódik minden érintett nyitott
-			felületen.
+			A kivetítőn, a host és a csapatok felületén érvényes minden olyan kvízestén, amihez nem
+			választottak külön témát (<a href={resolve('/admin/design-themes')}>Vizuális témák</a>). A
+			kezelőfelület mindig a letisztult megjelenést használja. A választás azonnal, oldal-újratöltés
+			nélkül alkalmazódik minden érintett nyitott felületen.
 		</p>
 	</div>
 	{#if data.designThemes.length === 0}
@@ -155,8 +173,9 @@
 <style>
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 	}
 
 	.settings-list {

@@ -5,10 +5,21 @@ import { createPracticeGame, generatePin } from '$lib/server/games';
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	const { data: games } = await supabase
 		.from('games')
-		.select('id, title, status, pin, created_at, finished_at, is_practice, teams(count)')
+		.select(
+			'id, title, status, pin, created_at, finished_at, is_practice, scheduled_at, is_public, max_players, venues(name), teams(count), team_registrations(headcount, status)'
+		)
+		.order('scheduled_at', { ascending: false, nullsFirst: true })
 		.order('created_at', { ascending: false });
 
-	return { games: games ?? [] };
+	return {
+		games: (games ?? []).map(({ team_registrations, ...game }) => ({
+			...game,
+			confirmedPlayers: (team_registrations ?? [])
+				.filter((r) => r.status === 'confirmed')
+				.reduce((sum, r) => sum + r.headcount, 0),
+			waitlistTeams: (team_registrations ?? []).filter((r) => r.status === 'waitlist').length
+		}))
+	};
 };
 
 export const actions: Actions = {
@@ -31,7 +42,8 @@ export const actions: Actions = {
 			return fail(400, { error: error?.message ?? 'Nem sikerült létrehozni a kvízestét.' });
 		}
 
-		redirect(303, `/admin/games/${game.id}`);
+		// Létrehozás után először az esemény adatai (időpont, helyszín, létszám).
+		redirect(303, `/admin/games/${game.id}/event`);
 	},
 
 	// Próbaeste: 2 kör mintakérdésekkel a kezelő betanításához (riportokból kiszűrve).

@@ -406,7 +406,7 @@
 	.segmented {
 		display: inline-flex;
 		align-self: flex-start;
-		border: 2px solid var(--marquee-dim);
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
 		border-radius: 0.5rem;
 		overflow: hidden;
 	}

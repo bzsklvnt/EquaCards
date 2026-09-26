@@ -12,7 +12,7 @@
 	.arcade-panel {
 		position: relative;
 		background: var(--cabinet-2);
-		border: 2px solid var(--violet);
+		border: var(--panel-border-width, 2px) solid var(--panel-border, var(--violet));
 		border-radius: 1rem;
 		padding: 1.5rem;
 		overflow: hidden;
@@ -24,8 +24,8 @@
 		inset: 0;
 		background: repeating-linear-gradient(
 			to bottom,
-			rgba(255, 255, 255, 0.035) 0px,
-			rgba(255, 255, 255, 0.035) 1px,
+			var(--scanline, rgba(255, 255, 255, 0.035)) 0px,
+			var(--scanline, rgba(255, 255, 255, 0.035)) 1px,
 			transparent 1px,
 			transparent 3px
 		);

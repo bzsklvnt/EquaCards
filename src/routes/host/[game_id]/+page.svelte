@@ -880,7 +880,7 @@
 		max-width: 100%;
 		max-height: 8rem;
 		border-radius: 0.5rem;
-		border: 2px solid var(--marquee-dim);
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
 		margin: 0 auto;
 		display: block;
 	}

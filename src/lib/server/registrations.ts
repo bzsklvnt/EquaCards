@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database.types';
 import { formatEventDate } from '$lib/datetime';
+import { absoluteSiteUrl } from '$lib/site';
 import { getSupabaseAdmin } from './admin';
 import { escapeHtml, sendEmail, type EmailResult } from './email';
 
@@ -38,8 +39,9 @@ function mapError(message: string | undefined, table: Record<string, string>): s
 	return key ? table[key] : 'Váratlan hiba történt, kérjük, próbáld újra.';
 }
 
+// Az e-mailben mindig a nyilvános (landing) domain szerepel, ha be van állítva.
 export function cancelUrl(origin: string, token: string): string {
-	return `${origin.replace(/\/$/, '')}/lemondas/${token}`;
+	return absoluteSiteUrl(origin, `/lemondas/${token}`);
 }
 
 type EventInfo = {
@@ -173,26 +175,34 @@ export async function registerTeam(
 
 // Az előléptetett csapat elérhetőségét csak service-role klienssel (anonim
 // lemondás) vagy a kezelő saját kliensével (staff RLS) lehet kiolvasni.
-async function notifyPromoted(fallback: Client, origin: string, id: string): Promise<void> {
+async function notifyPromoted(
+	fallback: Client,
+	origin: string,
+	ids: string[] | null | undefined
+): Promise<void> {
+	if (!ids?.length) return;
 	const client = getSupabaseAdmin() ?? fallback;
 	const { data, error } = await client
 		.from('team_registrations')
 		.select('team_name, contact_email, cancel_token, games(title, scheduled_at, venues(name))')
-		.eq('id', id)
-		.maybeSingle();
-	if (error || !data) {
-		if (error) console.error('[notifyPromoted]', error);
+		.in('id', ids);
+	if (error) {
+		console.error('[notifyPromoted]', error);
 		return;
 	}
-	const event: EventInfo = {
-		title: data.games?.title ?? 'Kvízest',
-		scheduledAt: data.games?.scheduled_at ?? null,
-		venue: data.games?.venues?.name ?? null
-	};
-	await sendEmail({
-		to: data.contact_email,
-		...promotedEmail(data.team_name, event, cancelUrl(origin, data.cancel_token))
-	});
+	await Promise.all(
+		(data ?? []).map((row) => {
+			const event: EventInfo = {
+				title: row.games?.title ?? 'Kvízest',
+				scheduledAt: row.games?.scheduled_at ?? null,
+				venue: row.games?.venues?.name ?? null
+			};
+			return sendEmail({
+				to: row.contact_email,
+				...promotedEmail(row.team_name, event, cancelUrl(origin, row.cancel_token))
+			});
+		})
+	);
 }
 
 export async function cancelRegistrationByToken(
@@ -204,33 +214,49 @@ export async function cancelRegistrationByToken(
 	if (error) {
 		return { ok: false, message: mapError(error.message, CANCEL_ERRORS) };
 	}
-	const promotedId = data?.[0]?.promoted_id;
-	if (promotedId) await notifyPromoted(supabase, origin, promotedId);
+	await notifyPromoted(supabase, origin, data?.[0]?.promoted_ids);
 	return { ok: true };
 }
+
+export type AdminResult = { ok: boolean; message?: string; promoted?: number };
 
 export async function adminCancelRegistration(
 	supabase: Client,
 	origin: string,
 	id: string
-): Promise<{ ok: boolean; message?: string }> {
-	const { data: promotedId, error } = await supabase.rpc('admin_cancel_registration', {
+): Promise<AdminResult> {
+	const { data: promoted, error } = await supabase.rpc('admin_cancel_registration', {
 		p_id: id
 	});
 	if (error) return { ok: false, message: 'Nem sikerült lemondani a jelentkezést.' };
-	if (promotedId) await notifyPromoted(supabase, origin, promotedId);
-	return { ok: true };
+	await notifyPromoted(supabase, origin, promoted);
+	return { ok: true, promoted: promoted?.length ?? 0 };
 }
 
+// Kézi beengedés: a kezelő döntése, a létszámkorlátot nem ellenőrzi.
 export async function adminPromoteRegistration(
 	supabase: Client,
 	origin: string,
 	id: string
-): Promise<{ ok: boolean; message?: string }> {
+): Promise<AdminResult> {
 	const { data: promoted, error } = await supabase.rpc('admin_promote_registration', {
 		p_id: id
 	});
-	if (error) return { ok: false, message: 'Nem sikerült előléptetni a csapatot.' };
-	if (promoted) await notifyPromoted(supabase, origin, id);
-	return { ok: true };
+	if (error) return { ok: false, message: 'Nem sikerült beengedni a csapatot.' };
+	if (promoted) await notifyPromoted(supabase, origin, [id]);
+	return { ok: true, promoted: promoted ? 1 : 0 };
+}
+
+// A létszámkorlát emelése után: aki most belefér, sorrendben bekerül.
+export async function adminFillFromWaitlist(
+	supabase: Client,
+	origin: string,
+	gameId: string
+): Promise<AdminResult> {
+	const { data: promoted, error } = await supabase.rpc('admin_fill_from_waitlist', {
+		p_game_id: gameId
+	});
+	if (error) return { ok: false, message: 'Nem sikerült a várólista feldolgozása.' };
+	await notifyPromoted(supabase, origin, promoted);
+	return { ok: true, promoted: promoted?.length ?? 0 };
 }

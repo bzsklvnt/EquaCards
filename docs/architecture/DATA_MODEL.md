@@ -453,7 +453,7 @@ create table games (
   scheduled_at timestamptz,                    -- kezdés (Europe/Budapest szerint bevitt)
   venue_id uuid references venues(id) on delete set null,
   is_public boolean not null default false,    -- megjelenik a landing oldalon
-  max_teams integer,                           -- null = korlátlan; e fölött várólista
+  max_players integer,                         -- létszámkorlát FŐBEN; null = korlátlan; e fölött várólista
   public_note text,
   current_round_id uuid references rounds(id),
   current_question_id uuid references questions(id),
@@ -606,14 +606,18 @@ create table team_registrations (
   Minden nyilvános művelet security definer RPC-n megy:
   `public_upcoming_events()`, `public_past_events(limit)`,
   `register_team(...)`, `registration_by_token(token)`,
-  `cancel_registration(token)`; kezelői: `admin_cancel_registration(id)`,
-  `admin_promote_registration(id)`. A belső `promote_from_waitlist(game_id)`
+  `cancel_registration(token)`, `public_event(id)`, `public_site_info()`;
+  kezelői: `admin_cancel_registration(id)`, `admin_promote_registration(id)`,
+  `admin_fill_from_waitlist(game_id)`. A belső `promote_from_waitlist(game_id)`
+  és a napi `purge_old_registrations()` (pg_cron, 30 napos megőrzés)
   senkinek nincs grantelve.
 - **Kapacitás és várólista:** a `register_team` és a lemondások a `games`
   sort zárolják (`for update`), így egyidejű jelentkezések sem lépik túl a
-  `max_teams`-et. Betelt estén a jelentkezés `waitlist` státuszt kap; egy
-  megerősített csapat lemondásakor a legrégebbi várólistás automatikusan
-  `confirmed` lesz. Részletek: `docs/features/landing-and-registration.md`.
+  `max_players`-t (a megerősített csapatok létszámának összege, fő). Ha egy csapat
+  létszáma már nem fér be, a jelentkezés `waitlist` státuszt kap; egy
+  megerősített csapat lemondásakor (vagy a korlát emelésekor) a várólistát
+  sorrendben végignézve mindenki `confirmed` lesz, akinek a létszáma belefér
+  (first-fit; `20260926150000_headcount_capacity_site.sql`). Részletek: `docs/features/landing-and-registration.md`.
 - **`current_user_role_id()` soha nem NULL** (`20260926130000_role_id_never_null.sql`):
   profil nélküli hívóra 0-t ad, így a `not in (1, 2, 3)` ellenőrzések
   (11 függvényben) nem engednek át — lásd a DECISIONS_LOG 2026-09-26-os
