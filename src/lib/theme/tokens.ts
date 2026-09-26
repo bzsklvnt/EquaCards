@@ -6,24 +6,52 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database.types';
 
-// Ugyanaz a készlet, mint a seed (supabase/migrations/20260808123000_design_themes.sql)
-// — végső biztonsági háló, ha a DB-ből valamiért nem töltődne be egy design téma sem.
+// A "Letisztult" alaptéma — ugyanaz a készlet, mint a seed
+// (supabase/migrations/20260926150000_headcount_capacity_site.sql). A kezelői
+// felület (DashboardShell, bejelentkezés, PIN-beíró) MINDIG ezt használja, a
+// játékfelületek (host/csapat/TV) pedig akkor, ha az estére nincs más téma
+// választva és a DB-ből nem töltődne be alapértelmezett.
 export const defaultTokens: Record<string, string> = {
-	'--cabinet': '#150e2c',
-	'--cabinet-2': '#211640',
-	'--cabinet-3': '#2c1d54',
-	'--marquee': '#f5f0ff',
-	'--marquee-dim': '#a79bc9',
-	'--cyan': '#35e7ff',
-	'--magenta': '#ff3e9a',
-	'--power': '#b6ff3e',
-	'--danger': '#ff5a36',
-	'--coin': '#ffd23e',
-	'--violet': '#9b5cff',
-	font_display: '"Press Start 2P", monospace',
-	font_led: '"Silkscreen", monospace',
-	font_body: '"Inter", sans-serif'
+	'--cabinet': '#F6F3EC',
+	'--cabinet-2': '#FFFFFF',
+	'--cabinet-3': '#F6F3EC',
+	'--marquee': '#1C1B18',
+	'--marquee-dim': '#5E5A52',
+	'--cyan': '#1E5B4F',
+	'--power': '#1F7A4D',
+	'--danger': '#B3261E',
+	'--coin': '#8A4B0B',
+	'--violet': '#1E5B4F',
+	'--magenta': '#A3326B',
+	'--glow': '0',
+	'--scanline': 'transparent',
+	'--panel-border': '#E4DED2',
+	'--panel-border-width': '1px',
+	'--field-border': '#D5CEC0',
+	'--field-border-width': '1px',
+	'--btn-primary': '#1E5B4F',
+	'--btn-primary-hover': '#143F37',
+	'--on-primary': '#FFFFFF',
+	font_display: '"Fraunces", Georgia, serif',
+	font_led: '"Hanken Grotesk", system-ui, sans-serif',
+	font_body: '"Hanken Grotesk", system-ui, sans-serif'
 };
+
+// Díszítés-tokenek (DESIGN_SYSTEM.md): a régebbi témák (pl. "Arcade (fun)")
+// nem tartalmazzák őket — ilyenkor a komponensek CSS fallbackje adja az
+// arcade-os ragyogást/scanline-t, ezért ezeket NEM örökölheti a téma az
+// alapértelmezettből.
+const DECORATION_KEYS = new Set([
+	'--glow',
+	'--scanline',
+	'--panel-border',
+	'--panel-border-width',
+	'--field-border',
+	'--field-border-width',
+	'--btn-primary',
+	'--btn-primary-hover',
+	'--on-primary'
+]);
 
 // A design_tokens kulcsai néha már "--"-vel kezdődnek (színek), néha nem
 // (font_display/font_led/font_body) — ez normalizálja mindkettőt egységes
@@ -37,7 +65,11 @@ function cssVarName(key: string): string {
 export function resolveTokens(
 	themeTokens: Record<string, string> | null | undefined
 ): Record<string, string> {
-	return { ...defaultTokens, ...(themeTokens ?? {}) };
+	if (!themeTokens) return defaultTokens;
+	const base = Object.fromEntries(
+		Object.entries(defaultTokens).filter(([key]) => !DECORATION_KEYS.has(key))
+	);
+	return { ...base, ...themeTokens };
 }
 
 // Inline style attribútumként használható CSS custom property lista — a

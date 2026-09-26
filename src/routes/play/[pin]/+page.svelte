@@ -31,6 +31,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
+	import PixelatedImage from '$lib/components/PixelatedImage.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -197,6 +198,7 @@
 			round_title?: string;
 			prompt?: string;
 			image_url?: string | null;
+			image_pixelate?: boolean;
 			time_limit_seconds?: number;
 			order_index?: number;
 			total_questions?: number;
@@ -221,6 +223,7 @@
 			round_title: s.round_title ?? '',
 			prompt: s.prompt ?? '',
 			image_url: s.image_url ?? null,
+			image_pixelate: s.image_pixelate ?? false,
 			time_limit_seconds: s.time_limit_seconds ?? 30,
 			order_index: s.order_index ?? 1,
 			total_questions: s.total_questions ?? 1,
@@ -639,7 +642,14 @@
 							{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
 						</p>
 						<p class="prompt">{currentQuestion.prompt}</p>
-						{#if currentQuestion.image_url}
+						{#if currentQuestion.image_url && currentQuestion.image_pixelate}
+							<PixelatedImage
+								src={currentQuestion.image_url}
+								startTime={timerInfo?.server_start_time ?? null}
+								duration={timerInfo?.duration ?? 0}
+								sharp={locked}
+							/>
+						{:else if currentQuestion.image_url}
 							<img class="question-image" src={currentQuestion.image_url} alt="" />
 						{/if}
 					</ArcadePanel>
@@ -765,6 +775,21 @@
 		>
 			<input type="hidden" name="device_token" value={deviceToken} />
 			<Input label="Csapatnév" name="name" bind:value={joinName} required maxlength={40} />
+			{#if data.registeredNames?.length}
+				<div class="registered">
+					<p>Előre jelentkeztetek? Koppintsatok a nevetekre:</p>
+					<div class="chips">
+						{#each data.registeredNames as name (name)}
+							<button
+								type="button"
+								class="chip"
+								class:selected={joinName === name}
+								onclick={() => (joinName = name)}>{name}</button
+							>
+						{/each}
+					</div>
+				</div>
+			{/if}
 			{#if form?.error}
 				<p class="error">{form.error}</p>
 			{/if}
@@ -782,6 +807,43 @@
 </main>
 
 <style>
+	.registered {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		text-align: left;
+	}
+
+	.registered p {
+		margin: 0;
+		font-size: 0.85rem;
+		color: var(--marquee-dim);
+	}
+
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.chip {
+		min-height: 40px;
+		padding: 0.35rem 0.8rem;
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
+		border-radius: 999px;
+		background: var(--cabinet-2);
+		color: var(--marquee);
+		font: inherit;
+		font-size: 0.9rem;
+		cursor: pointer;
+	}
+
+	.chip.selected {
+		border-color: var(--cyan);
+		color: var(--cyan);
+		font-weight: 600;
+	}
+
 	main.cabinet {
 		max-width: 24rem;
 		margin: 0 auto;
@@ -923,7 +985,7 @@
 	}
 
 	.joker-wrap :global(.btn:hover:not(:disabled):not(.disabled)) {
-		box-shadow: 0 0 16px color-mix(in srgb, var(--magenta) 55%, transparent);
+		box-shadow: 0 0 calc(16px * var(--glow, 1)) color-mix(in srgb, var(--magenta) 55%, transparent);
 	}
 
 	.leaderboard h2 {

@@ -27,7 +27,7 @@
 		width: 40%;
 		height: 100%;
 		background: var(--cyan, #35e7ff);
-		box-shadow: 0 0 8px var(--cyan, #35e7ff);
+		box-shadow: 0 0 calc(8px * var(--glow, 1)) var(--cyan, #35e7ff);
 		animation: slide 1s ease-in-out infinite;
 	}
 

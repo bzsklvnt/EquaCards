@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { untrack } from 'svelte';
 	import type { Snippet } from 'svelte';
-	import type { SupabaseClient } from '@supabase/supabase-js';
-	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
+	import { defaultTokens, tokensToCssText } from '$lib/theme/tokens';
 	import { Toaster } from 'svelte-sonner';
 	import Button from './Button.svelte';
-	import type { Database } from '$lib/types/database.types';
+	import TourButton from './TourButton.svelte';
+	import { tourState } from '$lib/tours/state.svelte';
 
 	// Fázis O5 — kiemelve /admin/+layout.svelte-ből, hogy a /reports
 	// (role_id in (1,2,3,4)) is meg tudja osztani ugyanazt a vizuális héjat
@@ -17,26 +16,18 @@
 	// volt navigáció/vissza-gomb nélkül.
 	let {
 		profile,
-		supabase,
 		children
 	}: {
 		profile: { display_name: string; role_id: number };
-		supabase: SupabaseClient<Database>;
 		children: Snippet;
 	} = $props();
 
 	let mobileNavOpen = $state(false);
 
-	// A dashboard-héj (admin + riportok) a mindig érvényes alapértelmezett
-	// vizuális témát használja (nincs games sorhoz kötve, mint a
-	// host/csapat/TV) — ugyanaz a token-feloldás, csak design_theme_id
-	// nélkül. Fázis P5 — reaktív hook: ha egy admin a /admin/settings
-	// oldalon átállítja a globális alapértelmezettet, ez a nyitott
-	// admin/riportok fül azonnal, reload nélkül átveszi.
-	const theme = createReactiveThemeTokens(
-		untrack(() => supabase),
-		() => null
-	);
+	// A kezelői héj (admin + riportok) mindig a letisztult alaptémát használja,
+	// függetlenül attól, melyik téma az estek alapértelmezettje — a választható
+	// témák (pl. "Arcade (fun)") csak a játékfelületekre vonatkoznak.
+	const themeCss = tokensToCssText(defaultTokens);
 
 	// A mobil hamburger-menü záródjon be automatikusan navigációkor — a
 	// pathname olvasása regisztrálja a reaktív függőséget az $effect-ben.
@@ -49,27 +40,36 @@
 	const isAdminRole = $derived(profile.role_id === 1 || profile.role_id === 2);
 
 	const navItems = [
-		{ href: resolve('/admin'), label: 'Vezérlőpult' },
-		{ href: resolve('/admin/questions'), label: 'Kérdésbank' },
-		{ href: resolve('/admin/themes'), label: 'Témák' },
-		{ href: resolve('/admin/design-themes'), label: 'Vizuális témák' },
-		{ href: resolve('/admin/games'), label: 'Kvízesték' }
+		{ href: resolve('/admin'), label: 'Vezérlőpult', tour: 'nav-dashboard' },
+		{ href: resolve('/admin/questions'), label: 'Kérdésbank', tour: 'nav-questions' },
+		{ href: resolve('/admin/themes'), label: 'Témák', tour: 'nav-themes' },
+		{ href: resolve('/admin/design-themes'), label: 'Vizuális témák', tour: 'nav-design-themes' },
+		{ href: resolve('/admin/games'), label: 'Kvízesték', tour: 'nav-games' },
+		{ href: resolve('/admin/venues'), label: 'Helyszínek', tour: 'nav-venues' }
 	];
 
 	const superAdminNavItems = [
-		{ href: resolve('/admin/users'), label: 'Felhasználók' },
-		{ href: resolve('/admin/settings'), label: 'Beállítások' }
+		{ href: resolve('/admin/users'), label: 'Felhasználók', tour: 'nav-users' },
+		{ href: resolve('/admin/settings'), label: 'Beállítások', tour: 'nav-settings' }
 	];
 
 	const reportsHref = resolve('/reports');
+
+	// A szekció aloldalain is (pl. /admin/games/123) aktív marad a menüpont.
+	function isActive(href: string): boolean {
+		const path = page.url.pathname;
+		return href === resolve('/admin')
+			? path === href
+			: path === href || path.startsWith(`${href}/`);
+	}
 </script>
 
-<div class="admin-shell" style={theme.css}>
+<div class="admin-shell" style={themeCss}>
 	<Toaster
-		theme="dark"
+		theme="light"
 		toastOptions={{
 			style:
-				'background: var(--cabinet-2); color: var(--marquee); border: 2px solid var(--cyan); font-family: var(--font-body);'
+				'background: var(--cabinet-2); color: var(--marquee); border: 1px solid var(--panel-border); font-family: var(--font-body);'
 		}}
 	/>
 
@@ -94,21 +94,26 @@
 	{/if}
 
 	<aside class="sidebar" id="admin-sidebar" class:open={mobileNavOpen}>
-		<a class="brand" href={resolve('/')}>EquaCards</a>
+		<a class="brand" href={resolve('/admin')}>Kocsmakvízest <span>kezelő</span></a>
 		<nav>
 			{#if isAdminRole}
 				{#each navItems as item (item.href)}
-					<a href={item.href} class:active={page.url.pathname === item.href}>{item.label}</a>
+					<a href={item.href} data-tour={item.tour} class:active={isActive(item.href)}
+						>{item.label}</a
+					>
 				{/each}
 			{/if}
 			{#if profile.role_id === 1}
 				<div class="nav-divider"></div>
 				{#each superAdminNavItems as item (item.href)}
-					<a href={item.href} class:active={page.url.pathname === item.href}>{item.label}</a>
+					<a href={item.href} data-tour={item.tour} class:active={isActive(item.href)}
+						>{item.label}</a
+					>
 				{/each}
 			{/if}
 			<div class="nav-divider"></div>
-			<a href={reportsHref} class:active={page.url.pathname === reportsHref}>Riportok</a>
+			<a href={reportsHref} data-tour="nav-reports" class:active={isActive(reportsHref)}>Riportok</a
+			>
 		</nav>
 
 		<div class="sidebar-footer">
@@ -120,6 +125,9 @@
 	</aside>
 
 	<main class="admin-content">
+		{#if tourState.current}
+			<div class="content-topbar" data-tour="tour-button"><TourButton /></div>
+		{/if}
 		{@render children()}
 	</main>
 </div>
@@ -128,20 +136,20 @@
 	.admin-shell {
 		display: flex;
 		min-height: 100vh;
-		background: var(--cabinet, #150e2c);
-		color: var(--marquee, #f5f0ff);
+		background: var(--cabinet);
+		color: var(--marquee);
 		font-family: var(--font-body, sans-serif);
 	}
 
 	.sidebar {
-		width: 15rem;
+		width: 15.5rem;
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
-		background: var(--cabinet-2, #211640);
-		border-right: 2px solid var(--cabinet-3, #2c1d54);
-		padding: 1.25rem 1rem;
-		gap: 1.5rem;
+		background: var(--cabinet-2);
+		border-right: 1px solid var(--panel-border, var(--cabinet-3));
+		padding: 1.75rem 1rem;
+		gap: 1.75rem;
 		/* P1 — a sidebar saját magasságában (100dvh) rögzítve marad és
 		   belül görget, ha a nav+footer magasabb a viewportnál, így a fő
 		   tartalom görgetésétől függetlenül mindig elérhető marad. */
@@ -152,45 +160,54 @@
 	}
 
 	.brand {
-		font-family: var(--font-display, monospace);
-		font-size: 0.9rem;
-		color: var(--cyan, #35e7ff);
+		padding: 0 0.75rem;
+		font-family: var(--font-display, serif);
+		font-size: 1.3rem;
+		font-weight: 600;
+		color: var(--marquee);
 		text-decoration: none;
+	}
+
+	.brand span {
+		font-family: var(--font-body, sans-serif);
+		font-size: 0.8rem;
+		font-weight: 400;
+		color: var(--marquee-dim);
 	}
 
 	nav {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: 0.15rem;
 	}
 
 	nav a {
-		color: var(--marquee-dim, #a79bc9);
+		color: var(--marquee-dim);
 		text-decoration: none;
-		padding: 0.5rem 0.75rem;
-		border-radius: 0.375rem;
-		font-size: 0.9rem;
+		padding: 0.6rem 0.75rem;
+		border-radius: 0.5rem;
+		font-size: 0.95rem;
 	}
 
 	nav a:hover {
-		color: var(--marquee, #f5f0ff);
-		background: var(--cabinet-3, #2c1d54);
+		color: var(--marquee);
+		background: var(--cabinet);
 	}
 
 	nav a.active {
-		color: var(--cyan, #35e7ff);
-		background: var(--cabinet-3, #2c1d54);
+		color: var(--cyan);
+		background: color-mix(in srgb, var(--cyan) 12%, var(--cabinet-2));
 		font-weight: 600;
 	}
 
 	nav a:focus-visible {
-		outline: 3px solid var(--cyan, #35e7ff);
+		outline: 3px solid var(--cyan);
 		outline-offset: 2px;
 	}
 
 	.nav-divider {
-		border-top: 1px solid var(--cabinet-3, #2c1d54);
-		margin: 0.5rem 0;
+		border-top: 1px solid var(--panel-border, var(--cabinet-3));
+		margin: 0.5rem 0.75rem;
 	}
 
 	.sidebar-footer {
@@ -198,17 +215,25 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		font-size: 0.85rem;
+		padding: 0 0.75rem;
+		font-size: 0.9rem;
 	}
 
 	.user {
-		color: var(--marquee-dim, #a79bc9);
+		color: var(--marquee-dim);
 	}
 
 	.admin-content {
 		flex: 1;
-		padding: 1.5rem 2rem;
+		padding: 2rem 3rem;
 		min-width: 0;
+		max-width: 80rem;
+	}
+
+	.content-topbar {
+		display: flex;
+		justify-content: flex-end;
+		margin-bottom: -0.5rem;
 	}
 
 	.hamburger {
@@ -240,15 +265,15 @@
 			width: 2.75rem;
 			height: 2.75rem;
 			border-radius: 0.5rem;
-			border: 2px solid var(--violet, #9b5cff);
-			background: var(--cabinet-2, #211640);
+			border: 1px solid var(--panel-border, var(--violet));
+			background: var(--cabinet-2);
 		}
 
 		.hamburger span {
 			display: block;
 			width: 1.25rem;
 			height: 2px;
-			background: var(--marquee, #f5f0ff);
+			background: var(--marquee);
 			margin: 0 auto;
 		}
 
@@ -272,7 +297,7 @@
 			z-index: 5;
 			border: none;
 			padding: 0;
-			background: rgb(0 0 0 / 55%);
+			background: rgb(0 0 0 / 35%);
 			cursor: pointer;
 		}
 

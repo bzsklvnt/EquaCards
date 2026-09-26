@@ -115,6 +115,7 @@ create table questions (
   question_type_id smallint references question_types(id) not null,
   prompt text not null,
   image_url text,
+  image_pixelate boolean not null default false, -- pixeles képfelfedés kapcsoló, lásd docs/features/pixel-reveal.md
   points integer default 1000,
   points_multiplier numeric default 1,   -- admin állítja: 2 = dupla pontos kérdés
   time_limit_seconds integer default 30,
@@ -229,6 +230,15 @@ limit 8;
 - ~~`question_choice_options.image_url` a séma óta létezik, de nincs hozzá
   admin UI~~ — **megoldva Fázis Q6-ban** (lásd lent): a kérdés- ÉS
   opció-szintű kép feltöltés/megjelenítés is bekötve.
+
+### Pixeles képfelfedés (`supabase/migrations/20260925150000_question_image_pixelate.sql`)
+
+`questions.image_pixelate` — kérdésenkénti kapcsoló, **nem külön
+kérdéstípus**: a kép megjelenítését szabályozza (pixelesen indul, a
+visszaszámlálás alatt élesedik), a válaszadás módját továbbra is a
+`question_type_id` adja. Kép nélkül mindig `false`-ként mentődik. A
+`current_question_state()` RPC is visszaadja. Részletek:
+`docs/features/pixel-reveal.md`.
 
 ### Kép feltöltés (Fázis Q6, `question-images` Storage bucket)
 
@@ -438,6 +448,13 @@ create table games (
   title text not null,
   status text not null default 'lobby',  -- lobby | active | paused | finished
   design_theme_id uuid references design_themes(id),  -- opcionális, lásd 8. szakasz (migrációs sorrend: design_themes előbb jön létre, lásd supabase_setup.sql)
+  is_practice boolean not null default false,  -- Próbaeste: a reports_* függvények kiszűrik, lásd docs/features/guided-tours.md
+  -- Esemény-adatok (landing + jelentkezés), lásd docs/features/landing-and-registration.md
+  scheduled_at timestamptz,                    -- kezdés (Europe/Budapest szerint bevitt)
+  venue_id uuid references venues(id) on delete set null,
+  is_public boolean not null default false,    -- megjelenik a landing oldalon
+  max_players integer,                         -- létszámkorlát FŐBEN; null = korlátlan; e fölött várólista
+  public_note text,
   current_round_id uuid references rounds(id),
   current_question_id uuid references questions(id),
   current_question_started_at timestamptz,     -- Fázis L, lásd docs/features/timer.md
@@ -553,6 +570,58 @@ execute ... from public` **önmagában nem** veszi el az `anon`/
   nem `true`). A helyes, már a `scoring.sql`-ben (Fázis 5) bevált minta:
   `revoke ... from public` **és** `revoke ... from anon, authenticated`
   **együtt**, mielőtt a tényleges `grant`-ot kiadnánk.
+
+### Helyszínek, események, csapatregisztráció (`20260926100000_landing_events_registrations.sql` + `20260926120000_registration_waitlist.sql`)
+
+```sql
+create table venues (
+  id uuid primary key default gen_random_uuid(),
+  name text not null, address text, city text, maps_url text,
+  created_at timestamptz not null default now()
+);
+
+create table team_registrations (
+  id uuid primary key default gen_random_uuid(),
+  game_id uuid not null references games(id) on delete cascade,
+  team_name text not null,          -- 1–40 karakter; egyedi estén belül (kis/nagybetű nélkül), a lemondottakat kivéve
+  headcount integer not null,       -- 1–12
+  contact_name text not null,
+  contact_email text not null,
+  contact_phone text,
+  note text,
+  consent_at timestamptz not null,
+  status text not null default 'confirmed',  -- confirmed | waitlist | cancelled
+  cancel_token uuid not null unique default gen_random_uuid(),  -- a visszaigazoló e-mail lemondási linkje
+  cancelled_at timestamptz,
+  promoted_at timestamptz,          -- várólistáról előléptetve
+  created_at timestamptz not null default now()
+);
+```
+
+- **Egy csapat = egy jelentkezés** (az „A” opció): nincs játékos-fiók, a
+  csapatot egy kapcsolattartó regisztrálja. Csatlakozáskor a `/play` a
+  `registered_team_names()`-ből a megerősített neveket ajánlja fel.
+- **RLS:** `venues` — admin (1–2) mindent; `team_registrations` — anon
+  semmit (se olvasás, se közvetlen beszúrás), staff (1–3) olvas és töröl.
+  Minden nyilvános művelet security definer RPC-n megy:
+  `public_upcoming_events()`, `public_past_events(limit)`,
+  `register_team(...)`, `registration_by_token(token)`,
+  `cancel_registration(token)`, `public_event(id)`, `public_site_info()`;
+  kezelői: `admin_cancel_registration(id)`, `admin_promote_registration(id)`,
+  `admin_fill_from_waitlist(game_id)`. A belső `promote_from_waitlist(game_id)`
+  és a napi `purge_old_registrations()` (pg_cron, 30 napos megőrzés)
+  senkinek nincs grantelve.
+- **Kapacitás és várólista:** a `register_team` és a lemondások a `games`
+  sort zárolják (`for update`), így egyidejű jelentkezések sem lépik túl a
+  `max_players`-t (a megerősített csapatok létszámának összege, fő). Ha egy csapat
+  létszáma már nem fér be, a jelentkezés `waitlist` státuszt kap; egy
+  megerősített csapat lemondásakor (vagy a korlát emelésekor) a várólistát
+  sorrendben végignézve mindenki `confirmed` lesz, akinek a létszáma belefér
+  (first-fit; `20260926150000_headcount_capacity_site.sql`). Részletek: `docs/features/landing-and-registration.md`.
+- **`current_user_role_id()` soha nem NULL** (`20260926130000_role_id_never_null.sql`):
+  profil nélküli hívóra 0-t ad, így a `not in (1, 2, 3)` ellenőrzések
+  (11 függvényben) nem engednek át — lásd a DECISIONS_LOG 2026-09-26-os
+  bejegyzését.
 
 ### Ismert MVP-korlátok (Fázis M kereszt-ellenőrzés)
 

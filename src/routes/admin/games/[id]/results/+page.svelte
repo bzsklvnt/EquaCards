@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import Button from '$lib/components/Button.svelte';
+	import { registerPageTour } from '$lib/tours/state.svelte';
+	import GameTabs from '$lib/components/GameTabs.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -9,30 +9,34 @@
 		if (ms === null) return '—';
 		return `${(ms / 1000).toFixed(1)} mp`;
 	}
+
+	registerPageTour(() => 'results');
 </script>
 
 <svelte:head>
 	<title>Részletes eredmények — {data.game.title} — Kezelőfelület</title>
 </svelte:head>
 
-<Button variant="ghost" href={resolve('/admin/games/[id]', { id: data.game.id })}>← Vissza</Button>
+<h1>{data.game.title}</h1>
+<p class="status">{data.teams.length} csapat</p>
 
-<h1>Részletes eredmények — {data.game.title}</h1>
-<p class="status">Állapot: {data.game.status} · {data.teams.length} csapat</p>
+<GameTabs gameId={data.game.id} />
 
 {#if data.rounds.length === 0}
 	<p class="empty">Ehhez az estéhez még nincs kör/kérdés vagy csapat.</p>
 {:else}
-	{#each data.rounds as round (round.id)}
-		<section class="round">
+	{#each data.rounds as round, ri (round.id)}
+		<section class="round" data-tour={ri === 0 ? 'res-round' : undefined}>
 			<h2>{round.order_index}. {round.title}</h2>
-			{#each round.questions as question (question.question_id)}
+			{#each round.questions as question, qi (question.question_id)}
 				<div class="question">
 					<p class="prompt">
 						{question.order_index}. {question.prompt}
 					</p>
-					<p class="correct-answer">Helyes válasz: <strong>{question.correct_answer}</strong></p>
-					<div class="table-wrap">
+					<p class="correct-answer" data-tour={ri === 0 && qi === 0 ? 'res-correct' : undefined}>
+						Helyes válasz: <strong>{question.correct_answer}</strong>
+					</p>
+					<div class="table-wrap" data-tour={ri === 0 && qi === 0 ? 'res-table' : undefined}>
 						<table>
 							<thead>
 								<tr>
@@ -76,10 +80,10 @@
 
 <style>
 	h1 {
+		margin: 0.5rem 0 0;
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
-		margin-top: 1rem;
+		font-size: 2.1rem;
+		font-weight: 400;
 	}
 
 	h2 {

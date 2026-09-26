@@ -30,10 +30,10 @@
 		align-items: center;
 		gap: 0.75rem;
 		background: var(--cabinet-2);
-		border: 2px solid var(--violet);
+		border: var(--panel-border-width, 2px) solid var(--panel-border, var(--violet));
 		border-radius: 1rem;
 		padding: clamp(0.75rem, 2.5vh, 1.5rem) clamp(1rem, 3vw, 2rem);
-		box-shadow: 0 0 24px color-mix(in srgb, var(--violet) 35%, transparent);
+		box-shadow: 0 0 calc(24px * var(--glow, 1)) color-mix(in srgb, var(--violet) 35%, transparent);
 		overflow: hidden;
 	}
 
@@ -46,8 +46,8 @@
 		inset: 0;
 		background: repeating-linear-gradient(
 			to bottom,
-			rgba(255, 255, 255, 0.035) 0px,
-			rgba(255, 255, 255, 0.035) 1px,
+			var(--scanline, rgba(255, 255, 255, 0.035)) 0px,
+			var(--scanline, rgba(255, 255, 255, 0.035)) 1px,
 			transparent 1px,
 			transparent 3px
 		);
@@ -70,7 +70,7 @@
 		font-size: clamp(1.75rem, min(8vw, 7vh), 4rem);
 		letter-spacing: 0.4rem;
 		color: var(--coin);
-		text-shadow: 0 0 16px color-mix(in srgb, var(--coin) 50%, transparent);
+		text-shadow: 0 0 calc(16px * var(--glow, 1)) color-mix(in srgb, var(--coin) 50%, transparent);
 	}
 
 	img {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import Select from '$lib/components/Select.svelte';
@@ -17,6 +18,8 @@
 			await update();
 		};
 	};
+
+	registerPageTour(() => 'users');
 </script>
 
 <svelte:head>
@@ -29,7 +32,7 @@
 	<p class="error">{form.error}</p>
 {/if}
 
-<table>
+<table data-tour="us-table">
 	<thead>
 		<tr>
 			<th>Név</th>
@@ -39,11 +42,11 @@
 		</tr>
 	</thead>
 	<tbody>
-		{#each data.users as u (u.id)}
+		{#each data.users as u, i (u.id)}
 			<tr>
 				<td data-label="Név">{u.display_name}</td>
 				<td data-label="Email">{u.email ?? '—'}</td>
-				<td data-label="Jogosultság">
+				<td data-label="Jogosultság" data-tour={i === 0 ? 'us-role' : undefined}>
 					<form method="POST" action="?/updateRole" use:enhance={handleRoleUpdate}>
 						<input type="hidden" name="user_id" value={u.id} />
 						<Select
@@ -73,8 +76,9 @@
 <style>
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 	}
 
 	table {

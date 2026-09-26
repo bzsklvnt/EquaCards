@@ -20,6 +20,7 @@
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
+	import PixelatedImage from '$lib/components/PixelatedImage.svelte';
 	import QuestionRevealVisual from '$lib/components/QuestionRevealVisual.svelte';
 	import QuestionAnswerDisplay from '$lib/components/QuestionAnswerDisplay.svelte';
 	import type { PageData } from './$types';
@@ -234,7 +235,15 @@
 						{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
 					</p>
 					<p class="prompt">{currentQuestion.prompt}</p>
-					{#if currentQuestion.image_url}
+					{#if currentQuestion.image_url && currentQuestion.image_pixelate}
+						<PixelatedImage
+							--pixel-max-height="28rem"
+							src={currentQuestion.image_url}
+							startTime={timerInfo?.server_start_time ?? null}
+							duration={timerInfo?.duration ?? 0}
+							sharp={locked}
+						/>
+					{:else if currentQuestion.image_url}
 						<img class="question-image" src={currentQuestion.image_url} alt="" />
 					{/if}
 				</ArcadePanel>
@@ -305,7 +314,7 @@
 		font-size: clamp(1.5rem, 5vw, 4rem);
 		color: var(--cyan);
 		line-height: 1.5;
-		text-shadow: 0 0 16px color-mix(in srgb, var(--cyan) 60%, transparent);
+		text-shadow: 0 0 calc(16px * var(--glow, 1)) color-mix(in srgb, var(--cyan) 60%, transparent);
 	}
 
 	h2 {

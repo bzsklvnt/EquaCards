@@ -4,6 +4,6 @@
 	let { data, children } = $props();
 </script>
 
-<DashboardShell profile={data.profile} supabase={data.supabase}>
+<DashboardShell profile={data.profile}>
 	{@render children()}
 </DashboardShell>

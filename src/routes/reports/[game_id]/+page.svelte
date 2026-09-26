@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { resolve } from '$app/paths';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	registerPageTour(() => 'report-detail');
 </script>
 
 <svelte:head>
@@ -20,7 +23,7 @@
 		{data.leaderboard.length} csapat
 	</p>
 
-	<div class="podium-list">
+	<div class="podium-list" data-tour="rd-podium">
 		{#each data.leaderboard as row, i (row.team_id)}
 			<PodiumCard rank={i + 1} name={row.name} score={row.total_score} />
 		{:else}
@@ -39,8 +42,9 @@
 
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.25rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 		margin: 0;
 	}
 

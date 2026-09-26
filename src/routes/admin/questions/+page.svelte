@@ -5,6 +5,7 @@
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import { withToast } from '$lib/toast-enhance';
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -12,6 +13,8 @@
 	let deletingId = $state<string | null>(null);
 
 	let themeFilter = $state(untrack(() => data.themeFilter ?? ''));
+
+	registerPageTour(() => 'questions');
 </script>
 
 <svelte:head>
@@ -25,7 +28,7 @@
 {/if}
 
 <div class="toolbar">
-	<form method="GET">
+	<form method="GET" data-tour="q-filter">
 		<Select
 			label="Téma szűrő"
 			name="theme_id"
@@ -38,22 +41,22 @@
 			{/each}
 		</Select>
 	</form>
-	<Button href={resolve('/admin/questions/new')}>+ Új kérdés</Button>
+	<span data-tour="q-new"><Button href={resolve('/admin/questions/new')}>+ Új kérdés</Button></span>
 </div>
 
-<table>
+<table data-tour="q-table">
 	<thead>
 		<tr>
 			<th>Kérdés</th>
 			<th>Téma</th>
 			<th>Típus</th>
 			<th>Pont</th>
-			<th>Utoljára játszva</th>
+			<th data-tour="q-last-used">Utoljára játszva</th>
 			<th></th>
 		</tr>
 	</thead>
 	<tbody>
-		{#each data.questions as q (q.id)}
+		{#each data.questions as q, i (q.id)}
 			<tr>
 				<td data-label="Kérdés">{q.prompt}</td>
 				<td data-label="Téma">{q.themes?.title ?? '—'}</td>
@@ -62,7 +65,7 @@
 				<td data-label="Utoljára játszva"
 					>{q.last_used_at ? new Date(q.last_used_at).toLocaleDateString('hu-HU') : '—'}</td
 				>
-				<td data-label="Műveletek">
+				<td data-label="Műveletek" data-tour={i === 0 ? 'q-row-actions' : undefined}>
 					<a href={resolve(`/admin/questions/[id]`, { id: q.id })}>Szerkesztés</a>
 					<form
 						method="POST"
@@ -95,8 +98,9 @@
 <style>
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 	}
 
 	.toolbar {

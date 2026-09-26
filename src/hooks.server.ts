@@ -1,7 +1,41 @@
 import type { Handle } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/server/supabase';
+import { appBase, isSitePath, siteBase } from '$lib/site';
+
+// Két domain egy deploymentben (src/lib/site.ts): a nyilvános oldal útvonalai
+// csak a landing domainen, minden más csak az app domainen érhető el — a
+// rossz hostra érkező kérés 308-cal átirányul. Más host (Vercel preview,
+// localhost) vagy hiányzó env esetén nincs átirányítás.
+function domainRedirect(url: URL, hasAuthCookie: boolean): string | null {
+	const site = siteBase();
+	const app = appBase();
+	if (!site || !app) return null;
+
+	const path = url.pathname.replace(/\/__data\.json$/, '') || '/';
+	if (path.startsWith('/_app/') || /\.[a-z0-9]+$/i.test(path)) return null;
+
+	const siteHost = new URL(site).host;
+	const appHost = new URL(app).host;
+	if (url.host === siteHost && !isSitePath(path)) {
+		return `${app}${url.pathname}${url.search}`;
+	}
+	if (url.host === appHost && isSitePath(path)) {
+		// Az app gyökere: a kezelő a vezérlőpultra, a játékos a PIN-beíróra megy.
+		if (path === '/') return `${app}${hasAuthCookie ? '/admin' : '/play'}`;
+		return `${site}${url.pathname}${url.search}`;
+	}
+	return null;
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
+	const target = domainRedirect(
+		event.url,
+		event.cookies.getAll().some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'))
+	);
+	if (target) {
+		return new Response(null, { status: 308, headers: { location: target } });
+	}
+
 	event.locals.supabase = createSupabaseServerClient(event);
 
 	// Fázis Q5 — élő tesztelésből: a Vercel logban minden /play kérésnél

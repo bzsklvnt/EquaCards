@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { onMount, untrack } from 'svelte';
-	import { defaultTokens, getActiveTokens, tokensToCssText } from '$lib/theme/tokens';
+	import { untrack } from 'svelte';
+	import { defaultTokens, tokensToCssText } from '$lib/theme/tokens';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
-	import type { ActionData, PageData } from './$types';
+	import type { ActionData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let { form }: { form: ActionData } = $props();
 
 	let mode = $state<'signin' | 'signup'>(
 		untrack(() => (form?.mode === 'signup' ? 'signup' : 'signin'))
@@ -16,13 +16,8 @@
 	let email = $state(untrack(() => form?.email ?? ''));
 	let password = $state('');
 
-	let themeCss = $state(tokensToCssText(defaultTokens));
-
-	onMount(() => {
-		getActiveTokens(data.supabase, null).then((tokens) => {
-			themeCss = tokensToCssText(tokens);
-		});
-	});
+	// A kezelői és belépő felületek mindig a letisztult alaptémát használják.
+	const themeCss = tokensToCssText(defaultTokens);
 </script>
 
 <svelte:head>
@@ -102,8 +97,9 @@
 
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 	}
 
 	form {

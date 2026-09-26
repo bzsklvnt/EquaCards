@@ -2118,3 +2118,103 @@ komponensekkel, mock adattal, ideiglenes preview-route-on renderelve
 ellenőriztük Playwright-tal (a sandbox nem ér el Supabase Auth-ot) —
 kör-hozzáadás/eltávolítás szimulációja, nézetmagasság-mérés több
 felbontáson, képernyőképek. A preview-route-ok nincsenek commitolva.
+
+## 2026-09-25 — Pixeles képfelfedés kapcsolóként
+
+Interaktív demó után a felhasználó a kapcsoló-alapú megoldást választotta
+(nem külön kérdéstípus): `questions.image_pixelate`, `PixelatedImage.svelte`,
+a `question_show` payload és a `current_question_state()` RPC kiegészítve.
+Indoklás: a pixelezés megjelenítési mód, nem válaszforma — így bármely
+típussal kombinálható, és a meglévő pontcsökkenés magától jutalmazza a
+korai tippet, új pontozási logika nélkül. A migráció élőben alkalmazva, az
+RPC viselkedése rollback-kal lezárt SQL-lel ellenőrizve (be/ki állapot), a
+komponens böngészőben tesztelve (induló, félidős, lezárt állapot). Ismert
+korlát (eredeti URL a payload-ban) és részletek: `docs/features/pixel-reveal.md`.
+
+## 2026-09-25 — Oldalankénti bemutatók és Próbaeste (átadás előkészítése)
+
+A felhasználó döntései: a bemutatók csak gombra indulnak (semmi nem indul
+magától, bejelentkezést nem követünk), a „megnézte” jelzés böngészőnként
+(`localStorage`) tárolódik, és legyen Próbaeste. 15 bemutató készült
+(`driver.js`), a lépések `data-tour` jelölésekre mutatnak, a futás idején
+nem látható elemek lépései kimaradnak. A Próbaeste mintakérdései egy saját
+témába kerülnek és újrahasznosulnak (a valódi kérdések türelmi idejét nem
+érintik); a `games.is_practice` jelzés miatt a riportok kiszűrik — élőben,
+rollback-kal ellenőrizve (valódi este listázva, próbaeste nem), és a
+Próbaeste összes beszúrása admin jogosultsággal, RLS alatt is lefut. A
+bemutatók böngészőben végigkattintva ellenőrizve (kvízeste összeállítása,
+host várakozás). Részletek: `docs/features/guided-tours.md`.
+
+## 2026-09-26 — Újrakezdés: adattörlés, várólista, e-mail háttér
+
+**Adattörlés (a felhasználó „a)” opciója):** minden játékadat törölve
+(kérdésbank, témák, kvízesték, körök, csapatok, válaszok, helyszínek,
+jelentkezések). Megmaradt: felhasználói fiókok (`profiles`), design témák
+(az arcade téma is), `app_settings`, `question_types`, `audit_logs`, a
+feltöltött képek. Törlés előtt teljes mentés a `backup_20260926`
+sémába (minden jog visszavonva; darabszámok egyeztetve: 3859 kérdés, 9969
+opció, 16 téma, 6 este, 38 válasz). Ha már nincs rá szükség:
+`drop schema backup_20260926 cascade`.
+
+**Várólista és lemondás:** a jóváhagyott javaslat szerint betelt estére is
+lehet jelentkezni (várólista), a visszaigazoló e-mailben személyes
+lemondási link van, lemondáskor az első várólistás automatikusan bekerül és
+e-mailt kap. A `registration_open` oszlop `is_public` lett: a jelentkezés a
+kezdésig magától nyitva van, külön kapcsoló nem kell. A landing „Legutóbbi
+győztesek” blokkját a `public_past_events` váltja (az elmúlt esték
+inaktívan, győztessel). Élőben, rollback-kal ellenőrizve.
+
+**E-mail:** Resend, SDK nélkül (`fetch`), env-ből konfigurálva, hiányzó
+kulcsnál csendben kihagyva. A domain még nincs meg, ezért egyelőre nem megy
+ki levél.
+
+**Biztonsági javítás:** a tesztelés közben kiderült, hogy a
+`current_user_role_id()` profil nélküli bejelentkezett felhasználóra NULL-t
+ad, és a `not in (1, 2, 3)` ellenőrzés NULL-ra nem dob hibát. 11 függvényt
+érintett (riportok, kezelői műveletek). Javítva a forrásnál: a függvény 0-t
+ad vissza (`20260926130000_role_id_never_null.sql`). Élőben ellenőrizve:
+profil nélkül 42501, superadminnal továbbra is működik. Gyakorlati
+kockázat eddig alacsony volt (az új felhasználók trigger-rel azonnal
+profilt kapnak), de a hiba szerkezeti volt.
+
+Részletek: `docs/features/landing-and-registration.md`.
+
+## 2026-09-26 — Élesítés: nyilvános oldal, létszám főben, letisztult felület, két domain
+
+A jóváhagyott látványterv alapján elkészült a nyilvános oldal (landing,
+eseményoldal jelentkezéssel, lemondás, adatkezelési tájékoztató) és a kezelői
+rész (helyszínek, esemény és jelentkezések fül). A felhasználó kiegészítései:
+
+- **A létszámkorlát főben értendő** (pl. 40 fő egy este): `games.max_teams` →
+  `max_players`. Egy jelentkezés akkor megerősített, ha a csapat létszáma
+  még belefér; különben várólistára kerül. Felszabaduló helynél a várólistát
+  sorrendben nézzük, és mindenki bekerül, aki belefér (first-fit) — így egy
+  nagy csapat nem blokkolja a kisebbeket, de elég hely esetén ő jön először.
+  Élőben, rollback-kal ellenőrizve (10 fős korlát, 5 csapat, lemondás után
+  két csapat lép elő).
+- **A kezdőlap nem ígér fix kérdésszámot.**
+- **Domainek:** `kocsmakvizest.hu` (nyilvános) és `app.kocsmakvizest.hu`
+  (kezelő, host, csapatok, kivetítő), egy Vercel projekten, env-alapú
+  (`PUBLIC_SITE_URL`, `PUBLIC_APP_URL`) 308-as átirányításokkal; Host-fejléces
+  teszttel ellenőrizve.
+- **Adatkezelés:** tájékoztató oldal; az üzemeltető adatai a Beállításokból
+  (`site_*` kulcsok). A vállalt 30 napos megőrzést egy napi pg_cron feladat
+  (`purge_old_registrations`) hajtja végre.
+
+**Design:** a kezelőfelület mindig a Letisztult témát használja (kódból, DB
+nélkül). A játékfelületek alapértelmezett témája is a Letisztult lett (új
+`design_themes` sor, `is_default`), a „Retro Arcade” „Arcade (fun)” néven
+estenként választható. Az arcade-os díszítés (ragyogás, scanline, vastag
+keret, lila gomb) tokenekre került (`--glow`, `--scanline`, `--panel-border*`,
+`--field-border*`, `--btn-primary*`, `--on-primary`); a régi témákban ezek
+hiányoznak, így a CSS fallback változatlanul adja az arcade-os kinézetet —
+egymás mellett renderelve ellenőrizve. Részletek: DESIGN_SYSTEM.md.
+
+**Egyéb:** bejelentkezés után `/admin` (a `/` a nyilvános kezdőlap lett); a
+kvízeste létrehozása után az esemény fül nyílik; a `/play/[pin]` a
+regisztrált csapatneveket koppintható gombként ajánlja fel; a Vezérlőpult a
+következő estéket mutatja létszámmal; két új bemutató (`game-event`,
+`venues`). A felület mock adattal, böngészőben ellenőrizve (asztali, mobil,
+1024 px).
+
+Részletek: `docs/features/landing-and-registration.md`.

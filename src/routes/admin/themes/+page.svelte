@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import { enhance } from '$app/forms';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -10,6 +11,8 @@
 	let newTitle = $state('');
 	let creating = $state(false);
 	let deletingId = $state<string | null>(null);
+
+	registerPageTour(() => 'themes');
 </script>
 
 <svelte:head>
@@ -23,6 +26,7 @@
 {/if}
 
 <form
+	data-tour="theme-create"
 	method="POST"
 	action="?/create"
 	use:enhance={withToast({
@@ -34,7 +38,7 @@
 	<Button type="submit" loading={creating}>Hozzáadás</Button>
 </form>
 
-<ul>
+<ul data-tour="theme-list">
 	{#each data.themes as theme (theme.id)}
 		<li>
 			{theme.title}
@@ -58,8 +62,9 @@
 <style>
 	h1 {
 		font-family: var(--font-display);
-		font-size: 1.1rem;
-		color: var(--cyan);
+		font-size: 2.1rem;
+		font-weight: 400;
+		color: var(--marquee);
 	}
 
 	form {

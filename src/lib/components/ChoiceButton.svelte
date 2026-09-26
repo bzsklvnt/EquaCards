@@ -53,7 +53,7 @@
 		font-family: var(--font-body);
 		font-size: 1rem;
 		padding: 0.875rem;
-		border: 2px solid var(--marquee-dim);
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
 		border-radius: 0.5rem;
 		background: var(--cabinet-2);
 		color: var(--marquee);
@@ -130,7 +130,7 @@
 		}
 		50% {
 			transform: scale(1.03);
-			box-shadow: 0 0 16px color-mix(in srgb, var(--power) 70%, transparent);
+			box-shadow: 0 0 calc(16px * var(--glow, 1)) color-mix(in srgb, var(--power) 70%, transparent);
 		}
 		100% {
 			transform: scale(1);
@@ -154,7 +154,7 @@
 		}
 		50% {
 			transform: scale(1.04);
-			box-shadow: 0 0 12px color-mix(in srgb, var(--cyan) 60%, transparent);
+			box-shadow: 0 0 calc(12px * var(--glow, 1)) color-mix(in srgb, var(--cyan) 60%, transparent);
 		}
 		100% {
 			transform: scale(1);

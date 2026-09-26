@@ -24,6 +24,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import QuestionRevealVisual from '$lib/components/QuestionRevealVisual.svelte';
+	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -37,6 +38,7 @@
 		prompt: string;
 		question_type_id: number;
 		image_url: string | null;
+		image_pixelate: boolean;
 	};
 
 	const rounds = untrack(() => data.rounds);
@@ -61,6 +63,10 @@
 	// felület egyáltalán nem jelenítette meg ezeket, csak a promptot).
 	let currentQuestion = $state<QuestionShowPayload | null>(null);
 	let revealInfo = $state<QuestionRevealPayload | null>(null);
+
+	registerPageTour(() =>
+		game.status === 'lobby' ? 'host-lobby' : game.status === 'active' ? 'host-live' : null
+	);
 
 	let currentIndex = $derived(
 		roundQuestions.findIndex((q) => q.question_id === game.current_question_id)
@@ -207,7 +213,9 @@
 	async function loadRoundQuestions(roundId: string) {
 		const { data: rows } = await data.supabase
 			.from('round_questions')
-			.select('order_index, question_id, questions(prompt, question_type_id, image_url)')
+			.select(
+				'order_index, question_id, questions(prompt, question_type_id, image_url, image_pixelate)'
+			)
 			.eq('round_id', roundId)
 			.order('order_index');
 
@@ -216,7 +224,8 @@
 			question_id: r.question_id,
 			prompt: r.questions?.prompt ?? '',
 			question_type_id: r.questions?.question_type_id ?? 0,
-			image_url: r.questions?.image_url ?? null
+			image_url: r.questions?.image_url ?? null,
+			image_pixelate: r.questions?.image_pixelate ?? false
 		}));
 	}
 
@@ -334,7 +343,7 @@
 
 		const { data: question } = await data.supabase
 			.from('questions')
-			.select('id, prompt, image_url, time_limit_seconds')
+			.select('id, prompt, image_url, image_pixelate, time_limit_seconds')
 			.eq('id', next.question_id)
 			.single();
 
@@ -388,6 +397,7 @@
 			round_title: round?.title ?? '',
 			prompt: question.prompt,
 			image_url: question.image_url,
+			image_pixelate: question.image_pixelate,
 			time_limit_seconds: question.time_limit_seconds ?? 30,
 			order_index: nextIndex + 1,
 			total_questions: roundQuestions.length,
@@ -612,10 +622,10 @@
 		<!-- Élő tesztből: a lobby görgetést igényelt — széles kijelzőn két
 		     oszlop (PIN/QR | vezérlők + csapatok), hogy egy nézetben elférjen. -->
 		<div class="lobby-grid">
-			<PinDisplay pin={game.pin} {qrDataUrl} {joinUrl} />
+			<div data-tour="hl-pin"><PinDisplay pin={game.pin} {qrDataUrl} {joinUrl} /></div>
 
 			<div class="lobby-side">
-				<div class="theme-picker">
+				<div class="theme-picker" data-tour="hl-theme">
 					<Select
 						label="Vizuális köntös"
 						value={game.design_theme_id ?? ''}
@@ -629,28 +639,32 @@
 				</div>
 
 				<div class="actions">
-					<Button onclick={startGame}>Kvíz indítása</Button>
-					<Button
-						variant="secondary"
-						href={resolve('/tv/[game_id]', { game_id: game.id })}
-						target="_blank"
-						rel="noopener"
-					>
-						Kivetítő megnyitása (TV mód) →
-					</Button>
+					<span data-tour="hl-start"><Button onclick={startGame}>Kvíz indítása</Button></span>
+					<span data-tour="hl-tv">
+						<Button
+							variant="secondary"
+							href={resolve('/tv/[game_id]', { game_id: game.id })}
+							target="_blank"
+							rel="noopener"
+						>
+							Kivetítő megnyitása (TV mód) →
+						</Button>
+					</span>
 				</div>
 
-				<h2>Csapatok ({teams.length})</h2>
-				<div class="team-list">
-					{#each teams as team (team.team_id)}
-						<TeamChip name={team.name} />
-					{:else}
-						{#if connectionStatus.status !== 'connected'}
-							<p class="loading">Csapatok betöltése…</p>
+				<div data-tour="hl-teams">
+					<h2>Csapatok ({teams.length})</h2>
+					<div class="team-list">
+						{#each teams as team (team.team_id)}
+							<TeamChip name={team.name} />
 						{:else}
-							<p class="empty">Még senki sem csatlakozott.</p>
-						{/if}
-					{/each}
+							{#if connectionStatus.status !== 'connected'}
+								<p class="loading">Csapatok betöltése…</p>
+							{:else}
+								<p class="empty">Még senki sem csatlakozott.</p>
+							{/if}
+						{/each}
+					</div>
 				</div>
 			</div>
 		</div>
@@ -660,22 +674,29 @@
 		<p class="round-label">{rounds.find((r) => r.id === game.current_round_id)?.title}</p>
 
 		{#if roundQuestions[currentIndex]}
-			<ArcadePanel>
-				<p class="progress">Kérdés {currentIndex + 1} / {roundQuestions.length}</p>
-				{#key roundQuestions[currentIndex].question_id}
-					<p class="prompt" in:fly={{ y: 16, duration: 300 }}>
-						{roundQuestions[currentIndex].prompt}
-					</p>
-					{#if roundQuestions[currentIndex].image_url}
-						<img
-							class="host-image-preview"
-							src={roundQuestions[currentIndex].image_url}
-							alt=""
-							in:fade={{ duration: 200 }}
-						/>
-					{/if}
-				{/key}
-			</ArcadePanel>
+			<div data-tour="hlv-question">
+				<ArcadePanel>
+					<p class="progress">Kérdés {currentIndex + 1} / {roundQuestions.length}</p>
+					{#key roundQuestions[currentIndex].question_id}
+						<p class="prompt" in:fly={{ y: 16, duration: 300 }}>
+							{roundQuestions[currentIndex].prompt}
+						</p>
+						{#if roundQuestions[currentIndex].image_url}
+							<img
+								class="host-image-preview"
+								src={roundQuestions[currentIndex].image_url}
+								alt=""
+								in:fade={{ duration: 200 }}
+							/>
+							{#if roundQuestions[currentIndex].image_pixelate}
+								<p class="pixel-note">
+									A csapatok pixelesen látják, a visszaszámlálás alatt élesedik.
+								</p>
+							{/if}
+						{/if}
+					{/key}
+				</ArcadePanel>
+			</div>
 		{/if}
 
 		<!-- Fázis Q6 — a host saját maga tájékozódására: kis előnézet az
@@ -693,7 +714,7 @@
 		{/if}
 
 		{#if uiStep === 'timing' || uiStep === 'locked'}
-			<div class="timer-wrap">
+			<div class="timer-wrap" data-tour="hlv-timer">
 				{#if uiStep === 'locked'}
 					<p class="locked-label">Lezárva</p>
 				{:else}
@@ -716,9 +737,11 @@
 			{/key}
 		{/if}
 
-		<p class="submissions">Beérkezett válaszok: {submissionCount} / {teams.length}</p>
+		<p class="submissions" data-tour="hlv-submissions">
+			Beérkezett válaszok: {submissionCount} / {teams.length}
+		</p>
 
-		<div class="controls">
+		<div class="controls" data-tour="hlv-controls">
 			{#if uiStep === 'idle'}
 				{#if currentIndex + 1 < roundQuestions.length}
 					<Button onclick={showNextQuestion}>Következő kérdés</Button>
@@ -762,17 +785,19 @@
 			{/if}
 		</div>
 
-		<h2>Csapatok ({teams.length})</h2>
-		<div class="team-list">
-			{#each teams as team (team.team_id)}
-				<TeamChip name={team.name} />
-			{:else}
-				{#if connectionStatus.status !== 'connected'}
-					<p class="loading">Csapatok betöltése…</p>
+		<div data-tour="hlv-teams">
+			<h2>Csapatok ({teams.length})</h2>
+			<div class="team-list">
+				{#each teams as team (team.team_id)}
+					<TeamChip name={team.name} />
 				{:else}
-					<p class="empty">Még senki sem csatlakozott.</p>
-				{/if}
-			{/each}
+					{#if connectionStatus.status !== 'connected'}
+						<p class="loading">Csapatok betöltése…</p>
+					{:else}
+						<p class="empty">Még senki sem csatlakozott.</p>
+					{/if}
+				{/each}
+			</div>
 		</div>
 	{:else if game.status === 'finished'}
 		<p>Ez a kvízeste lezárult.</p>
@@ -855,9 +880,15 @@
 		max-width: 100%;
 		max-height: 8rem;
 		border-radius: 0.5rem;
-		border: 2px solid var(--marquee-dim);
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
 		margin: 0 auto;
 		display: block;
+	}
+
+	.pixel-note {
+		margin: 0.5rem 0 0;
+		font-size: 0.8rem;
+		color: var(--marquee-dim);
 	}
 
 	.host-option-previews {

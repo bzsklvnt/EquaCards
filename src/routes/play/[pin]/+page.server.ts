@@ -22,7 +22,17 @@ export const load: PageServerLoad = async ({ params, locals: { supabase }, getCl
 		.eq('status', 'lobby')
 		.single();
 
-	return { pin: params.pin, game };
+	// A nyilvános oldalon jelentkezett (megerősített) csapatok nevei —
+	// csatlakozáskor egy koppintással kiválaszthatók.
+	const { data: registered } = game
+		? await supabase.rpc('registered_team_names', { p_game_id: game.id })
+		: { data: null };
+
+	return {
+		pin: params.pin,
+		game,
+		registeredNames: (registered ?? []).map((r) => r.team_name)
+	};
 };
 
 export const actions: Actions = {

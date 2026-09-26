@@ -137,7 +137,7 @@
 		min-height: 44px;
 		padding: 0.5rem 1rem;
 		box-sizing: border-box;
-		border: 2px solid var(--marquee-dim);
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
 		border-radius: 0.5rem;
 		background: var(--cabinet-2);
 		color: var(--marquee);
@@ -199,7 +199,7 @@
 		height: 4rem;
 		object-fit: cover;
 		border-radius: 0.375rem;
-		border: 2px solid var(--marquee-dim);
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
 	}
 
 	.error {

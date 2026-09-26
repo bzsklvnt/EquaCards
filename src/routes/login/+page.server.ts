@@ -4,7 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals: { safeGetSession } }) => {
 	const { session } = await safeGetSession();
 	if (session) {
-		redirect(303, '/');
+		redirect(303, '/admin');
 	}
 };
 
@@ -19,7 +19,7 @@ export const actions: Actions = {
 			return fail(400, { error: error.message, email, mode: 'signin' as const });
 		}
 
-		redirect(303, '/');
+		redirect(303, '/admin');
 	},
 
 	signup: async ({ request, locals: { supabase } }) => {
@@ -38,7 +38,7 @@ export const actions: Actions = {
 		}
 
 		if (data.session) {
-			redirect(303, '/');
+			redirect(303, '/admin');
 		}
 
 		return {

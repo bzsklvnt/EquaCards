@@ -45,7 +45,7 @@
 		font-size: 1rem;
 		padding: 0.5rem 0.75rem;
 		border-radius: 0.375rem;
-		border: 2px solid var(--marquee-dim);
+		border: var(--field-border-width, 2px) solid var(--field-border, var(--marquee-dim));
 		background: var(--cabinet-2);
 		color: var(--marquee);
 		resize: vertical;

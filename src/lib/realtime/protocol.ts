@@ -11,6 +11,9 @@ export type QuestionShowPayload = {
 	round_title: string;
 	prompt: string;
 	image_url: string | null;
+	// Pixeles képfelfedés — a kép a visszaszámlálás alatt élesedik
+	// (docs/features/pixel-reveal.md). Hiányzó érték = kikapcsolva.
+	image_pixelate?: boolean;
 	time_limit_seconds: number;
 	order_index: number;
 	total_questions: number;

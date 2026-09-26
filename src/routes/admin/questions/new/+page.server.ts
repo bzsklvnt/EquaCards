@@ -67,6 +67,7 @@ export const actions: Actions = {
 				question_type_id: parsed.question_type_id,
 				prompt: parsed.prompt,
 				image_url: parsed.image_url,
+				image_pixelate: parsed.image_pixelate,
 				points: parsed.points,
 				points_multiplier: parsed.points_multiplier,
 				time_limit_seconds: parsed.time_limit_seconds,

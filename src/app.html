@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="hu">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
 		<!--
-			A design_themes seed ("Retro Arcade") ezt a három betűtípust várja el
+			A két beépített design téma ("Letisztult": Fraunces + Hanken Grotesk,
+			"Arcade (fun)": Press Start 2P + Silkscreen + Inter) betűtípusai
 			(docs/architecture/DATA_MODEL.md 8. szakasz). Statikusan betöltve gyors
 			első betöltéshez (nincs villanás alapértelmezett betűtípusra); a
 			src/lib/theme/tokens.ts loadThemeFonts()-a ugyanezt dinamikusan is
@@ -16,21 +17,21 @@
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 		<link
 			rel="stylesheet"
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&family=Inter:wght@400;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap"
 		/>
 		<!--
 			Overscroll/rubber-band villanás elleni védelem: minden oldal saját
 			.cabinet gyökere dinamikus style={themeCss}-ből kapja a hátterét
 			(var(--cabinet)), de a <html>/<body> maga sosem — trackpad "bounce"
 			scroll-nál vagy rövid tartalomnál emiatt átvillanhat a böngésző
-			alapértelmezett fehér háttere. Statikus, a defaultTokens-szel
-			megegyező színérték (nem var(), mert az csak lejjebb, a .cabinet
+			alapértelmezett fehér háttere. Statikus érték, a "Letisztult"
+			alaptéma háttérszíne (nem var(), mert az csak lejjebb, a .cabinet
 			elemen van definiálva, a <body> nem örökölhetné felfelé).
 		-->
 		<style>
 			html,
 			body {
-				background: #150e2c;
+				background: #f6f3ec;
 				min-height: 100%;
 			}
 			/* Élő tesztből: a böngésző alapértelmezett 8px-es body margója miatt
