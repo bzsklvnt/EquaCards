@@ -2296,3 +2296,17 @@ engedte volna — ez most szétválasztva: a DELETE csak role 1. A felületen
 rendszergazdának látszik, megerősítést kér, és felsorolja, mi törlődik.
 Futó estét nem lehet törölni. A jelentkezett csapatok nem kapnak
 automatikus értesítést (ezt a megerősítés jelzi). Részletek: DATA_MODEL.md 4. szakasz.
+
+## 2026-09-26 — Kérdésenkénti állás a körön belül
+
+A felhasználó kérése: a körön belül is legyen kérdésenként eredménytábla.
+A kérdés feltárása után a host „Állás a körben” gombbal Kahoot-szerű köztes
+állást mutat (új `question_standings_reveal` esemény): a kör eddigi pontjai
+alapján minden csapat helyezése (holtversenyben azonos), a helyezés-változás
+(▲/▼) és a kérdésnél szerzett pont. TV: top 8; csapat: saját helyezés
+kiemelve + top 3. Kihagyható („Következő kérdés (állás nélkül)”), a kör
+utolsó kérdése után pedig a meglévő kör-végi Top 3 jön. Az esti össz-
+pontszám továbbra is csak a végeredménynél látszik — a korábbi „nincs
+folyamatos összpont” elv így körön belül enyhül. Nincs séma-változás, a
+meglévő `round_leaderboard` RPC-t használja. Részletek:
+REALTIME_PROTOCOL.md.

@@ -68,6 +68,29 @@ export type RoundLeaderboardRevealPayload = {
 	top3: { team_id: string; name: string; round_score: number; rank: number }[];
 };
 
+// Kérdésenkénti állás a körön belül (a kör utolsó kérdése után a
+// round_leaderboard_reveal jön helyette) — docs/architecture/REALTIME_PROTOCOL.md.
+export type QuestionStandingsRow = {
+	team_id: string;
+	name: string;
+	/** A körben eddig szerzett pont */
+	score: number;
+	/** Holtversenyben azonos helyezés (1, 2, 2, 4, …) */
+	rank: number;
+	/** Az előző kérdés utáni helyezés ebben a körben (null: még nem volt) */
+	prev_rank: number | null;
+	/** Ennél a kérdésnél szerzett pont */
+	gained: number;
+};
+
+export type QuestionStandingsRevealPayload = {
+	round_id: string;
+	round_title: string;
+	question_number: number;
+	total_questions: number;
+	standings: QuestionStandingsRow[];
+};
+
 export type FinalLeaderboardRevealPayload = {
 	standings: { team_id: string; name: string; total_score: number; rank: number }[];
 };

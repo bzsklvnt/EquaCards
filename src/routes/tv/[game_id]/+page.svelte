@@ -8,7 +8,8 @@
 		TimerStartPayload,
 		QuestionRevealPayload,
 		RoundLeaderboardRevealPayload,
-		FinalLeaderboardRevealPayload
+		FinalLeaderboardRevealPayload,
+		QuestionStandingsRevealPayload
 	} from '$lib/realtime/protocol';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
@@ -17,6 +18,7 @@
 	import PinDisplay from '$lib/components/PinDisplay.svelte';
 	import TeamChip from '$lib/components/TeamChip.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
+	import StandingsBoard from '$lib/components/StandingsBoard.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
@@ -48,6 +50,7 @@
 	let locked = $state(false);
 	let revealInfo = $state<QuestionRevealPayload | null>(null);
 	let roundLeaderboard = $state<RoundLeaderboardRevealPayload | null>(null);
+	let questionStandings = $state<QuestionStandingsRevealPayload | null>(null);
 	let finalLeaderboard = $state<FinalLeaderboardRevealPayload | null>(null);
 
 	let joinUrl = $derived(
@@ -107,6 +110,7 @@
 			locked = false;
 			revealInfo = null;
 			roundLeaderboard = null;
+			questionStandings = null;
 		});
 
 		channel.on('broadcast', { event: 'timer_start' }, ({ payload }) => {
@@ -122,8 +126,14 @@
 			playReveal();
 		});
 
+		channel.on('broadcast', { event: 'question_standings_reveal' }, ({ payload }) => {
+			questionStandings = payload as QuestionStandingsRevealPayload;
+			playLeaderboard();
+		});
+
 		channel.on('broadcast', { event: 'round_leaderboard_reveal' }, ({ payload }) => {
 			roundLeaderboard = payload as RoundLeaderboardRevealPayload;
+			questionStandings = null;
 			currentQuestion = null;
 			revealInfo = null;
 			playLeaderboard();
@@ -207,6 +217,15 @@
 					</div>
 				{/each}
 			</div>
+		</div>
+	{:else if questionStandings}
+		<div class="screen standings" in:fade={{ duration: 250 }}>
+			<h1>Állás a körben</h1>
+			<p class="round-title">
+				{questionStandings.round_title} — {questionStandings.question_number}/{questionStandings.total_questions}.
+				kérdés után
+			</p>
+			<StandingsBoard rows={questionStandings.standings} limit={8} size="lg" />
 		</div>
 	{:else if revealInfo}
 		<div class="screen" in:fade={{ duration: 250 }}>

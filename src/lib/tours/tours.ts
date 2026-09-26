@@ -496,6 +496,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 					'Mindig az aktuális lépés gombja látszik: „Következő kérdés”, vészhelyzetre „Zárás most” és „Megoldás feltárása”, a kör végén „Kör eredményének feltárása”, a legvégén „Végeredmény feltárása” és „Játék lezárása”.'
 			},
 			{
+				element: 'hlv-standings',
+				title: 'Állás a körben',
+				description:
+					'A megoldás feltárása után megmutathatod a kör aktuális állását a kivetítőn és a telefonokon: helyezés, előre-/hátralépés, a kérdésnél szerzett pont. Kihagyható — a kör végén a Top 3 ugyanúgy jön.'
+			},
+			{
 				element: 'hlv-teams',
 				title: 'Csapatok',
 				description:

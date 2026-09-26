@@ -9,7 +9,8 @@
 		TimerStartPayload,
 		QuestionRevealPayload,
 		RoundLeaderboardRevealPayload,
-		FinalLeaderboardRevealPayload
+		FinalLeaderboardRevealPayload,
+		QuestionStandingsRevealPayload
 	} from '$lib/realtime/protocol';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
@@ -20,6 +21,7 @@
 	import TeamChip from '$lib/components/TeamChip.svelte';
 	import JoinCodesPanel from '$lib/components/JoinCodesPanel.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
+	import StandingsBoard from '$lib/components/StandingsBoard.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -50,13 +52,26 @@
 	let questionTypes = $state<{ id: number; code: string }[]>([]);
 	let roundQuestions = $state<RoundQuestionRow[]>([]);
 	let uiStep = $state<
-		'idle' | 'timing' | 'locked' | 'revealed' | 'round_summary' | 'final_summary'
+		| 'idle'
+		| 'timing'
+		| 'locked'
+		| 'revealed'
+		| 'question_standings'
+		| 'round_summary'
+		| 'final_summary'
 	>('idle');
 	let timerInfo = $state<TimerStartPayload | null>(null);
 	let secondsLeft = $state(0);
 	let statusMessage = $state('');
 	let submissionCount = $state(0);
 	let roundTop3 = $state<RoundLeaderboardRevealPayload['top3']>([]);
+	// Kérdésenkénti állás a körön belül: az előző feltárt állás (helyezés-
+	// változáshoz és a kérdésnél szerzett ponthoz), körönként újrakezdve.
+	let questionStandings = $state<QuestionStandingsRevealPayload['standings']>([]);
+	let previousStandings = $state<{
+		roundId: string;
+		byTeam: Record<string, { rank: number; score: number }>;
+	} | null>(null);
 	let finalStandings = $state<FinalLeaderboardRevealPayload['standings']>([]);
 	// Fázis P6 — a host is megtartja a saját maga által elküldött
 	// question_show payload-ot, hogy a megoldás-feltáráskor meg tudja
@@ -524,6 +539,58 @@
 		playReveal();
 	}
 
+	// Kahoot-szerű köztes állás: a kör eddigi pontjai alapján (round_leaderboard,
+	// minden csapat), holtversenyben azonos helyezéssel. A helyezés-változást
+	// és a kérdésnél szerzett pontot az előző feltárt álláshoz képest számolja.
+	async function revealQuestionStandings() {
+		const roundId = game.current_round_id;
+		if (!roundId) return;
+		const { data: rows, error } = await data.supabase.rpc('round_leaderboard', {
+			p_round_id: roundId,
+			p_limit: 500
+		});
+		if (error) {
+			statusMessage = error.message;
+			return;
+		}
+
+		const previous = previousStandings?.roundId === roundId ? previousStandings.byTeam : {};
+		const sorted = [...(rows ?? [])].sort((a, b) => Number(b.round_score) - Number(a.round_score));
+		const standings = sorted.map((row) => {
+			const score = Number(row.round_score);
+			const rank = 1 + sorted.filter((other) => Number(other.round_score) > score).length;
+			const before = previous[row.team_id];
+			return {
+				team_id: row.team_id,
+				name: row.name,
+				score,
+				rank,
+				prev_rank: before?.rank ?? null,
+				gained: score - (before?.score ?? 0)
+			};
+		});
+
+		questionStandings = standings;
+		previousStandings = {
+			roundId,
+			byTeam: Object.fromEntries(
+				standings.map((r) => [r.team_id, { rank: r.rank, score: r.score }])
+			)
+		};
+
+		const round = rounds.find((r) => r.id === roundId);
+		const payload: QuestionStandingsRevealPayload = {
+			round_id: roundId,
+			round_title: round?.title ?? '',
+			question_number: currentIndex + 1,
+			total_questions: roundQuestions.length,
+			standings
+		};
+		await channel?.send({ type: 'broadcast', event: 'question_standings_reveal', payload });
+		uiStep = 'question_standings';
+		playLeaderboard();
+	}
+
 	async function revealRoundLeaderboard() {
 		if (!game.current_round_id) return;
 		const { data: rows, error } = await data.supabase.rpc('round_leaderboard', {
@@ -759,12 +826,22 @@
 				<Button onclick={revealAnswer}>Megoldás feltárása</Button>
 			{:else if uiStep === 'revealed'}
 				{#if currentIndex + 1 < roundQuestions.length}
-					<Button onclick={showNextQuestion}>Következő kérdés</Button>
+					<span data-tour="hlv-standings"
+						><Button onclick={revealQuestionStandings}>Állás a körben</Button></span
+					>
+					<Button variant="ghost" onclick={showNextQuestion}>Következő kérdés (állás nélkül)</Button
+					>
 				{:else if nextRoundAfterCurrent()}
 					<Button onclick={revealRoundLeaderboard}>Kör eredményének feltárása</Button>
 				{:else}
 					<Button onclick={revealFinalLeaderboard}>Végeredmény feltárása</Button>
 				{/if}
+			{:else if uiStep === 'question_standings'}
+				<div class="leaderboard" in:fade={{ duration: 200 }}>
+					<h3>Állás a körben — {currentIndex + 1}. kérdés után</h3>
+					<StandingsBoard rows={questionStandings} limit={10} />
+					<Button onclick={showNextQuestion}>Következő kérdés</Button>
+				</div>
 			{:else if uiStep === 'round_summary'}
 				<div class="leaderboard" in:fade={{ duration: 200 }}>
 					<h3>Kör vége — Top 3</h3>

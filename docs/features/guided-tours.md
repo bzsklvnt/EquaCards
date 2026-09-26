@@ -52,7 +52,7 @@ komponensek nem adják tovább az attribútumot), és vegyél fel egy lépést a
 | `game-event`          | `/admin/games/[id]/event`           | 9       |
 | `venues`              | `/admin/venues`                     | 2       |
 | `host-lobby`          | `/host/[game_id]`, várakozás        | 9       |
-| `host-live`           | `/host/[game_id]`, élő játék        | 7       |
+| `host-live`           | `/host/[game_id]`, élő játék        | 8       |
 | `results`             | `/admin/games/[id]/results`         | 5       |
 | `design-themes`       | `/admin/design-themes`              | 4       |
 | `design-theme-editor` | `/admin/design-themes/new`, `/[id]` | 4       |

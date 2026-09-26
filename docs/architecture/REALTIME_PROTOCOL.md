@@ -185,6 +185,41 @@ kérdés végleges (esetleg "mindenki válaszolt") értéke egy pillanatra
 átcsúszhatott volna az új kérdésre, és tévesen kiválthatta volna az
 automatikus lezárást, mielőtt bárki válaszolt volna az újra.
 
+### `question_standings_reveal` (2026-09-26)
+
+- **Küldő:** host, „Állás a körben” gomb — egy kérdés feltárása után (a kör
+  utolsó kérdése kivételével, ott a `round_leaderboard_reveal` jön). A
+  „Következő kérdés (állás nélkül)” gombbal kihagyható.
+- **Payload** (`QuestionStandingsRevealPayload`):
+  ```ts
+  {
+  	round_id: string;
+  	round_title: string;
+  	question_number: number;
+  	total_questions: number;
+  	standings: Array<{
+  		team_id: string;
+  		name: string;
+  		score: number; // a körben eddig szerzett pont
+  		rank: number; // holtversenyben azonos (1, 2, 2, 4…)
+  		prev_rank: number | null; // az előző feltárt állásban (körönként újraindul)
+  		gained: number; // ennél a kérdésnél szerzett pont
+  	}>;
+  }
+  ```
+  A `round_leaderboard(round_id, 500)` RPC-ből (minden csapat), a
+  helyezés-változást és a szerzett pontot a host az előző feltárt álláshoz
+  képest számolja (memóriában; oldal-újratöltés után az első állásnál nincs
+  változás-jelzés).
+- **Kliens teendő:** TV — top 8 teljes képernyőn (helyezés, ▲/▼ változás,
+  +pont, köri összpont). Csapat — saját helyezés és pont kiemelve, alatta a
+  top 3 (ha a csapat nincs benne, a saját sora külön alul). A következő
+  `question_show` elrejti.
+- **Tervezési elv módosítása:** a korábbi „összpontszám csak a kör végén”
+  elv körön belül enyhítve (a felhasználó kérése, Kahoot-mintára): a köri
+  állás kérdésenként megmutatható; a teljes, esti összpont továbbra is csak
+  a végeredménynél látszik.
+
 ### `round_leaderboard_reveal` (Fázis 5)
 
 - **Küldő:** host, "Kör eredményének feltárása" gomb — csak a kör utolsó

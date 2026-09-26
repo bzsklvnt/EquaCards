@@ -9,7 +9,8 @@
 		QuestionShowPayload,
 		TimerStartPayload,
 		RoundLeaderboardRevealPayload,
-		FinalLeaderboardRevealPayload
+		FinalLeaderboardRevealPayload,
+		QuestionStandingsRevealPayload
 	} from '$lib/realtime/protocol';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
@@ -27,6 +28,7 @@
 	import ChoiceButton from '$lib/components/ChoiceButton.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
+	import StandingsBoard from '$lib/components/StandingsBoard.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
@@ -53,6 +55,12 @@
 	let revealInfo = $state<QuestionRevealPayload | null>(null);
 	let myResult = $state<{ is_correct: boolean; points_awarded: number } | null>(null);
 	let roundLeaderboard = $state<RoundLeaderboardRevealPayload | null>(null);
+	let questionStandings = $state<QuestionStandingsRevealPayload | null>(null);
+	const myStanding = $derived(
+		questionStandings && joined
+			? (questionStandings.standings.find((r) => r.team_id === joined?.teamId) ?? null)
+			: null
+	);
 	let finalLeaderboard = $state<FinalLeaderboardRevealPayload | null>(null);
 	let submitted = $state(false);
 	let submitting = $state(false);
@@ -244,6 +252,7 @@
 		submitting = false;
 		jokerError = '';
 		roundLeaderboard = null;
+		questionStandings = null;
 
 		timerInfo = s.server_start_time
 			? {
@@ -286,6 +295,7 @@
 		revealInfo = null;
 		myResult = null;
 		roundLeaderboard = null;
+		questionStandings = null;
 		submitted = false;
 		submitError = '';
 		submitting = false;
@@ -358,8 +368,14 @@
 				});
 		});
 
+		channel.on('broadcast', { event: 'question_standings_reveal' }, ({ payload }) => {
+			questionStandings = payload as QuestionStandingsRevealPayload;
+			playLeaderboard();
+		});
+
 		channel.on('broadcast', { event: 'round_leaderboard_reveal' }, ({ payload }) => {
 			roundLeaderboard = payload as RoundLeaderboardRevealPayload;
+			questionStandings = null;
 			playLeaderboard();
 			if (roundLeaderboard.top3[0]?.team_id === info.teamId) fireWinnerConfetti();
 		});
@@ -620,6 +636,29 @@
 				</div>
 				<p>Várj a következő körre…</p>
 			</div>
+		{:else if questionStandings}
+			<div class="leaderboard" in:fade={{ duration: 200 }}>
+				<h2>Állás a körben</h2>
+				{#if myStanding}
+					<div class="my-standing" in:scale={{ start: 0.8, duration: 300 }}>
+						<span class="my-rank">{myStanding.rank}. hely</span>
+						<span class="my-score"
+							>{myStanding.score} pont{myStanding.gained > 0
+								? ` (+${myStanding.gained})`
+								: ''}</span
+						>
+						{#if myStanding.prev_rank !== null && myStanding.prev_rank !== myStanding.rank}
+							<span class="my-move" class:up={myStanding.prev_rank > myStanding.rank}>
+								{myStanding.prev_rank > myStanding.rank
+									? `▲ ${myStanding.prev_rank - myStanding.rank} helyet léptetek előre`
+									: `▼ ${myStanding.rank - myStanding.prev_rank} helyet csúsztatok vissza`}
+							</span>
+						{/if}
+					</div>
+				{/if}
+				<StandingsBoard rows={questionStandings.standings} limit={3} ownTeamId={joined.teamId} />
+				<p>Várj a következő kérdésre…</p>
+			</div>
 		{:else if revealInfo}
 			<div class="reveal" in:fade={{ duration: 200 }}>
 				<p>Helyes válasz: <strong>{revealInfo.correct_answer}</strong></p>
@@ -842,6 +881,35 @@
 </main>
 
 <style>
+	.my-standing {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.2rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.my-rank {
+		font-family: var(--font-display);
+		font-size: 2.2rem;
+		color: var(--cyan);
+	}
+
+	.my-score {
+		font-family: var(--font-led);
+		font-size: 1.1rem;
+	}
+
+	.my-move {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--danger);
+	}
+
+	.my-move.up {
+		color: var(--power);
+	}
+
 	.code-hint {
 		margin: 0;
 		font-size: 0.85rem;
