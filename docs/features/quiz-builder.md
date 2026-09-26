@@ -22,7 +22,11 @@ terv (9 képernyő) a „Kvízösszerakó – koncepció” artifactban van.
 - **Beállítások (jobb):** típus (T), válaszidő (10/20/30/45/60/90 + **egyéni
   mező**, 5–600 mp), **olvasási idő** (Alap / Egyéni), pont, Normál/Dupla,
   gyorsasági pontcsökkenés, „Állás a kérdés után (kivetítő)”, pixeles
-  felfedés, téma, Duplikálás, Eltávolítás a körből.
+  felfedés, **YouTube-videó**, **Megjelenés** (elrendezés, időzítő,
+  számláló, betűméret, telefonos lapok, „Alkalmazás a kör összes
+  kérdésére”), téma, Duplikálás, Eltávolítás a körből. Magyarázó diánál
+  (Info dia típus) csak a megjelenés és a téma állítható — lásd
+  `docs/features/question-layout.md`.
 - **Áttekintés (O):** körönként egy sáv, húzással / Alt+nyilakkal
   átrendezhető (körök között is), becsült játékidő, „Random töltés minden
   körbe”, és az **indulás előtti ellenőrzés**: hiba (hiányos kérdés) esetén
@@ -32,7 +36,10 @@ terv (9 képernyő) a „Kvízösszerakó – koncepció” artifactban van.
   keresés, téma/típus szűrő, „Csak még nem játszott” (más, már elindított
   estén szerepelt-e), „Van kép”, többes kijelölés, hozzáadás az aktuális
   kérdés után; random húzás a témából (a pihentetési idő szerint).
-- **Előnézet (P):** kivetítő-nézet, a helyes válasz jelölése nélkül.
+- **Előnézet (P):** kivetítő-nézet a kérdés saját megjelenésével (ugyanaz a
+  `QuestionStage` komponens, mint a kivetítőn), a helyes válasz jelölése
+  nélkül. A magyarázó dia a menetrendben „i” jelet kap, a sorszámozásba nem
+  számít bele.
 
 A kérdésbank (`/admin/questions`) ugyanazt a vásznat és beállításpanelt
 használja, a lista mellett, automatikus mentéssel — nincs külön új/szerkesztő

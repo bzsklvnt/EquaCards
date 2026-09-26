@@ -10,8 +10,10 @@
 		RoundLeaderboardRevealPayload,
 		FinalLeaderboardRevealPayload,
 		QuestionStandingsRevealPayload,
-		TvSoundPayload
+		TvSoundPayload,
+		VideoReplayPayload
 	} from '$lib/realtime/protocol';
+	import type { QuestionLayout, QuestionVideo } from '$lib/questions/layout';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
 	// Hang CSAK a kivetítőn szól (a host és a csapatok telefonja néma) —
@@ -31,12 +33,9 @@
 	import TeamChip from '$lib/components/TeamChip.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import StandingsBoard from '$lib/components/StandingsBoard.svelte';
-	import TimerRing from '$lib/components/TimerRing.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
-	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
-	import PixelatedImage from '$lib/components/PixelatedImage.svelte';
 	import QuestionRevealVisual from '$lib/components/QuestionRevealVisual.svelte';
-	import QuestionAnswerDisplay from '$lib/components/QuestionAnswerDisplay.svelte';
+	import QuestionStage from '$lib/components/QuestionStage.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -61,6 +60,11 @@
 	let secondsLeft = $state(0);
 	let readingLeft = $state(0);
 	let locked = $state(false);
+	// Videós kérdés: a klip ettől az (szerveridő szerinti) pillanattól megy;
+	// a host R-rel újraindíthatja (docs/features/question-layout.md).
+	let videoAnchor = $state<number | null>(null);
+	let videoElapsed = $state<number | null>(null);
+	let videoReplay = $state(0);
 	// A böngésző csak kattintás után enged hangot — addig egy sáv kéri.
 	let audioReady = $state(false);
 	let soundMuted = $state(false);
@@ -110,6 +114,9 @@
 			reading_seconds?: number | null;
 			revealed?: boolean;
 			correct_answer?: string | null;
+			layout?: QuestionLayout | null;
+			info_text?: string | null;
+			video?: QuestionVideo | null;
 		} | null;
 		if (!s?.question_id || roundLeaderboard || finalLeaderboard || questionStandings) return;
 		if (currentQuestion?.question_id !== s.question_id) {
@@ -125,11 +132,15 @@
 				total_questions: s.total_questions ?? 1,
 				options: s.options ?? undefined,
 				slider: s.slider ?? undefined,
-				ordering_items: s.ordering_items ?? undefined
+				ordering_items: s.ordering_items ?? undefined,
+				layout: s.layout ?? null,
+				info_text: s.info_text ?? null,
+				video: s.video ?? null
 			};
 			locked = false;
 			revealInfo = null;
 			timerInfo = null;
+			videoAnchor = null;
 		}
 		if (s.revealed) {
 			if (!revealInfo) {
@@ -171,6 +182,7 @@
 		channel.on('broadcast', { event: 'question_show' }, ({ payload }) => {
 			currentQuestion = payload as QuestionShowPayload;
 			timerInfo = null;
+			videoAnchor = null;
 			locked = false;
 			revealInfo = null;
 			roundLeaderboard = null;
@@ -183,6 +195,12 @@
 
 		channel.on('broadcast', { event: 'answer_locked' }, () => {
 			locked = true;
+		});
+
+		channel.on('broadcast', { event: 'video_replay' }, ({ payload }) => {
+			if ((payload as VideoReplayPayload).question_id !== currentQuestion?.question_id) return;
+			videoAnchor = serverNow();
+			videoReplay += 1;
 		});
 
 		channel.on('broadcast', { event: 'tv_sound' }, ({ payload }) => {
@@ -245,6 +263,25 @@
 
 	// Helyi visszaszámlálás — ugyanaz a minta, mint a csapat felületen, csak
 	// itt nincs "önzáró" input, pusztán a nagy kijelzős számláló.
+	// A videó a kérdés (olvasási idejének) kezdetétől megy.
+	$effect(() => {
+		if (!timerInfo || videoAnchor !== null) return;
+		videoAnchor =
+			new Date(timerInfo.server_start_time).getTime() - (timerInfo.reading_seconds ?? 0) * 1000;
+	});
+
+	$effect(() => {
+		const anchor = videoAnchor;
+		if (anchor === null || !currentQuestion?.video) {
+			videoElapsed = null;
+			return;
+		}
+		const tick = () => (videoElapsed = Math.max(0, (serverNow() - anchor) / 1000));
+		tick();
+		const interval = setInterval(tick, 500);
+		return () => clearInterval(interval);
+	});
+
 	$effect(() => {
 		if (!timerInfo) {
 			secondsLeft = 0;
@@ -347,51 +384,20 @@
 		</div>
 	{:else if currentQuestion}
 		{#key currentQuestion.question_id}
-			<div class="screen" in:fly={{ y: 24, duration: 350 }}>
-				<ArcadePanel>
-					<p class="round-title">
-						{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
-					</p>
-					<p class="prompt" class:reading={readingLeft > 0}>{currentQuestion.prompt}</p>
-					{#if currentQuestion.image_url && currentQuestion.image_pixelate}
-						<PixelatedImage
-							--pixel-max-height="28rem"
-							src={currentQuestion.image_url}
-							startTime={timerInfo?.server_start_time ?? null}
-							duration={timerInfo?.duration ?? 0}
-							sharp={locked}
-						/>
-					{:else if currentQuestion.image_url}
-						<img class="question-image" src={currentQuestion.image_url} alt="" />
-					{/if}
-				</ArcadePanel>
-				<!-- Fázis P7 — a kérdés-prompt ÉS az opciók/csúszka/sorrendező
-				     lista is ugyanabban a formátumban jelenik meg, mint a
-				     csapatok /play oldalán (docs/features/tv-mode.md). -->
-				{#if readingLeft > 0}
-					<div class="reading" role="status" in:fade={{ duration: 200 }}>
-						<span class="reading-count">{readingLeft}</span>
-						<span>Olvassátok el — a válaszadás mindjárt indul</span>
-					</div>
-				{/if}
-				<QuestionAnswerDisplay
-					questionType={currentQuestion.question_type}
-					options={currentQuestion.options}
-					slider={currentQuestion.slider}
-					orderingItems={currentQuestion.ordering_items}
-					veiled={!timerInfo || readingLeft > 0}
+			<div class="screen stage-screen" in:fly={{ y: 24, duration: 350 }}>
+				<QuestionStage
+					question={currentQuestion}
+					{readingLeft}
+					{secondsLeft}
+					duration={timerInfo?.duration ?? null}
+					{locked}
+					startTime={timerInfo?.server_start_time ?? null}
+					{videoElapsed}
+					videoMuted={!audioReady || soundMuted}
+					{videoReplay}
 				/>
 			</div>
 		{/key}
-		{#if timerInfo && readingLeft === 0}
-			<div class="timer-wrap">
-				{#if locked}
-					<p class="locked-label">Lezárva</p>
-				{:else}
-					<TimerRing {secondsLeft} duration={timerInfo.duration} size={200} />
-				{/if}
-			</div>
-		{/if}
 	{:else if gameStatus === 'lobby'}
 		<div class="screen lobby">
 			<h1>{game.title}</h1>
@@ -453,19 +459,6 @@
 		font-size: clamp(1rem, 2.5vw, 1.75rem);
 	}
 
-	.prompt {
-		font-size: clamp(1.5rem, 6vw, 4.5rem);
-		margin: 1.5rem 0;
-	}
-
-	.question-image {
-		max-width: 100%;
-		max-height: 28rem;
-		border-radius: 0.75rem;
-		margin: 0 auto 1rem;
-		display: block;
-	}
-
 	.answer {
 		font-size: clamp(1.5rem, 5vw, 3.5rem);
 		font-weight: bold;
@@ -515,43 +508,10 @@
 		font-size: 0.85rem;
 	}
 
-	.prompt.reading {
-		font-size: clamp(1.8rem, 7vw, 5rem);
-	}
-
-	.reading {
+	.stage-screen {
+		max-width: 96rem;
+		min-height: calc(100vh - 2 * clamp(1rem, 4vh, 3rem));
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 1rem;
-		margin: 0.5rem 0 0;
-		font-size: clamp(1rem, 2.4vw, 1.6rem);
-		color: var(--marquee-dim);
-	}
-
-	.reading-count {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 4.5rem;
-		height: 4.5rem;
-		border-radius: 50%;
-		border: 5px solid var(--cyan);
-		font-family: var(--font-display);
-		font-size: 2.2rem;
-		color: var(--marquee);
-	}
-
-	.timer-wrap {
-		display: flex;
-		justify-content: center;
-		margin-top: 1rem;
-	}
-
-	.locked-label {
-		font-family: var(--font-display);
-		font-size: clamp(1rem, 2.5vw, 1.5rem);
-		color: var(--danger);
 	}
 
 	/* Élő tesztből: a lobby-képernyőnek görgetés nélkül, egy nézetben kell

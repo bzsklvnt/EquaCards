@@ -168,14 +168,15 @@ export const load: PageServerLoad = async ({ depends, params, locals: { supabase
 		id: round.id,
 		title: round.title,
 		order_index: round.order_index,
+		// A magyarázó dia (info) nem kérdés: nincs rá válasz, a számozásba sem számít.
 		questions: (roundQuestions ?? [])
-			.filter((rq) => rq.round_id === round.id)
-			.map((rq) => {
+			.filter((rq) => rq.round_id === round.id && rq.questions?.question_types?.code !== 'info')
+			.map((rq, index) => {
 				const questionType = rq.questions?.question_types?.code ?? '';
 				const questionAnswers = answersByQuestion.get(rq.question_id) ?? [];
 				return {
 					question_id: rq.question_id,
-					order_index: rq.order_index,
+					order_index: index + 1,
 					prompt: rq.questions?.prompt ?? '',
 					question_type: questionType,
 					correct_answer: correctAnswerText(rq.question_id, questionType),

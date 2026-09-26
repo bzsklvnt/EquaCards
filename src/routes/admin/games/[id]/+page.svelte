@@ -19,7 +19,9 @@
 		draftSignature,
 		effectiveReading,
 		emptyDraft,
+		draftSeconds,
 		newLocalKey,
+		questionNumbers,
 		TYPE_ORDER,
 		TYPE_SHORT,
 		type BankItem,
@@ -88,6 +90,12 @@
 	const currentDraft = $derived(currentKey ? drafts[currentKey] : undefined);
 	const currentIndex = $derived(
 		currentRound && currentKey ? currentRound.keys.indexOf(currentKey) : -1
+	);
+	const currentNumbering = $derived(
+		currentRound ? questionNumbers(currentRound.keys, drafts) : { numbers: {}, total: 0 }
+	);
+	const currentNumber = $derived(
+		currentKey ? (currentNumbering.numbers[currentKey] ?? null) : null
 	);
 	const currentRoundIndex = $derived(rounds.findIndex((r) => r.id === selected?.roundId));
 	const playedCount = (id: string) => bank.find((b) => b.id === id)?.played_count ?? 0;
@@ -213,6 +221,7 @@
 						theme_id: snapshot.theme_id,
 						type_code: snapshot.type_code,
 						has_image: !!snapshot.image_url,
+						has_video: !!snapshot.video,
 						created_at: new Date().toISOString(),
 						played_count: 0,
 						played_last: null
@@ -228,7 +237,8 @@
 								prompt: snapshot.prompt,
 								type_code: snapshot.type_code,
 								theme_id: snapshot.theme_id,
-								has_image: !!snapshot.image_url
+								has_image: !!snapshot.image_url,
+								has_video: !!snapshot.video
 							}
 						: b
 				);
@@ -481,6 +491,31 @@
 		const i = TYPE_ORDER.indexOf(currentDraft.type_code);
 		const next = types.find((t) => t.code === TYPE_ORDER[(i + 1) % TYPE_ORDER.length]);
 		if (next) drafts[currentKey] = convertDraft(currentDraft, next);
+	}
+
+	/** Az aktuális kérdés megjelenése a kör többi kérdésére (docs/features/question-layout.md).
+	 * Az info diák és a videós kérdések saját elrendezés-készletüket megtartják. */
+	function applyLayoutToRound() {
+		if (!currentRound || !currentDraft) return;
+		const source = $state.snapshot(currentDraft.layout) as Draft['layout'];
+		const ownPreset = (d: Draft) => d.type_code === 'info' || !!d.video;
+		const sourceOwn = ownPreset(currentDraft);
+		let changed = 0;
+		for (const key of currentRound.keys) {
+			const d = drafts[key];
+			if (!d || key === currentKey) continue;
+			const keepPreset = ownPreset(d) || sourceOwn;
+			const next = { ...source, preset: keepPreset ? d.layout.preset : source.preset };
+			if (JSON.stringify(next) === JSON.stringify(d.layout)) continue;
+			d.layout = next;
+			changed += 1;
+			if (!draftError(d, types)) schedule(key, 200);
+		}
+		toast.success(
+			changed > 0
+				? `Megjelenés átvéve ${changed} további kérdésre.`
+				: 'A kör többi kérdése már így jelenik meg.'
+		);
 	}
 
 	async function setStandings(value: boolean) {
@@ -881,7 +916,7 @@
 		Math.round(
 			round.keys.reduce((sum, key) => {
 				const d = drafts[key];
-				return d ? sum + d.time_limit_seconds + effectiveReading(d, data.readingDefault) + 20 : sum;
+				return d ? sum + draftSeconds(d, data.readingDefault) : sum;
 			}, 0) / 60
 		);
 </script>
@@ -1041,8 +1076,9 @@
 								>
 							</div>
 							{#if !collapsed[round.id]}
+								{@const numbering = questionNumbers(round.keys, drafts)}
 								<ol class="rail-questions">
-									{#each round.keys as key, qi (key)}
+									{#each round.keys as key (key)}
 										{@const d = drafts[key]}
 										{@const err = d ? draftError(d, types) : null}
 										<li>
@@ -1056,13 +1092,17 @@
 													? 'true'
 													: undefined}
 											>
-												<span class="num">{qi + 1}</span>
+												<span class="num">{numbering.numbers[key] ?? 'i'}</span>
 												<span class="text">
 													<span class="prompt">{d?.prompt || '— új kérdés —'}</span>
 													<span class="meta"
-														>{TYPE_SHORT[d?.type_code ?? ''] ?? ''} · {d?.time_limit_seconds} mp{d?.image_url
-															? ' · kép'
-															: ''}</span
+														>{TYPE_SHORT[d?.type_code ?? ''] ?? ''}{d?.type_code === 'info'
+															? ''
+															: ` · ${d?.time_limit_seconds} mp`}{d?.video
+															? ' · videó'
+															: d?.image_url
+																? ' · kép'
+																: ''}</span
 													>
 												</span>
 												<span class="flags">
@@ -1115,18 +1155,27 @@
 					<div class="crumbs">
 						<span>{currentRoundIndex + 1}. kör · {currentRound?.title}</span>
 						<span>›</span>
-						<strong>{currentIndex + 1}. kérdés / {currentRound?.keys.length}</strong>
-						<span class="crumb-chips">
-							<span
-								>{effectiveReading(currentDraft, data.readingDefault)} mp olvasás · {currentDraft.time_limit_seconds}
-								mp válasz</span
-							>
-							<span
-								>{currentDraft.points} pont{currentDraft.points_multiplier !== 1
-									? ` ×${currentDraft.points_multiplier}`
-									: ''}{currentDraft.points_decay ? ' · csökkenő' : ''}</span
-							>
-						</span>
+						<strong
+							>{currentNumber === null
+								? 'Magyarázó dia'
+								: `${currentNumber}. kérdés / ${currentNumbering.total}`}</strong
+						>
+						{#if currentNumber !== null}
+							<span class="crumb-chips">
+								<span
+									>{effectiveReading(currentDraft, data.readingDefault)} mp {currentDraft.video
+										?.gate
+										? 'videó'
+										: 'olvasás'} · {currentDraft.time_limit_seconds}
+									mp válasz</span
+								>
+								<span
+									>{currentDraft.points} pont{currentDraft.points_multiplier !== 1
+										? ` ×${currentDraft.points_multiplier}`
+										: ''}{currentDraft.points_decay ? ' · csökkenő' : ''}</span
+								>
+							</span>
+						{/if}
 					</div>
 					{#if currentError}
 						<p class="draft-error" role="status">Még nem menthető: {currentError}</p>
@@ -1166,6 +1215,7 @@
 						onstandingschange={(v) => void setStandings(v)}
 						onduplicate={() => void duplicateCurrent()}
 						onremove={() => void removeCurrent()}
+						onapplyround={currentRound.keys.length > 1 ? applyLayoutToRound : undefined}
 					/>
 				{:else}
 					<p class="dim">Válassz egy kérdést a menetrendből.</p>
@@ -1216,8 +1266,8 @@
 		<QuestionPreview
 			draft={currentDraft}
 			roundTitle={currentRound?.title ?? ''}
-			position={currentIndex + 1}
-			total={currentRound?.keys.length ?? 0}
+			position={currentNumber ?? 0}
+			total={currentNumbering.total}
 			readingSeconds={effectiveReading(currentDraft, data.readingDefault)}
 		/>
 		<button type="button" class="close-preview" onclick={() => (previewOpen = false)}

@@ -2390,3 +2390,22 @@ a kód előtt, a szigorító (`20260927090500_audit_lockdown.sql`) az új kliens
 kiélesítése után, hogy a futó verzió ne álljon le. Szándékosan nem változott:
 a kvízösszerakó továbbra is az oldal betöltésekor kapja a kérdésbankot (a
 „már játszott” jelzések miatt), és a `backup_20260926` séma érintetlen.
+
+## 2026-09-27 — Kérdés-megjelenés, magyarázó dia, YouTube-videó
+
+Kérdésenként állítható megjelenés (`questions.layout`: elrendezés, időzítő
+helye, kör/kérdésszám, betűméret, telefonos oszlopok, kérdésszöveg a
+telefonon), új `info` kérdéstípus (magyarázó dia: nincs válasz, időzítő és
+pont, nem számít a sorszámba), és YouTube-részlet bármely kérdéshez
+(`video_id`, `video_start`, `video_end`, `video_gate`). A válaszlapok a
+Kahoot-szerű színes csempék helyett kártyalapok: betű + kártyaszín a
+sarokban, a válasz szövege a telefonon is mindig látszik.
+
+Döntések: a megjelenés kérdésenként tárolódik (nem körönként), a körre
+alkalmazás egy gomb, ami a kör kérdéseire másolja. A `null` megjelenés a
+korábbi kinézet, így a meglévő kérdések nem változnak. A videó csak a
+kivetítőn szól (youtube-nocookie lejátszó); kérdésenként választható, hogy a
+válaszidő a klip végén induljon (olvasási idő = klip hossza), vagy a
+szokásos olvasási idővel párhuzamosan menjen. A beágyazhatóságot a
+szerkesztő mentés előtt ellenőrzi (oEmbed). A pontszámítás nem változott.
+Részletek: `docs/features/question-layout.md`.

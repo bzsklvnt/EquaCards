@@ -219,7 +219,7 @@
 					<span class="meta"
 						>{TYPE_SHORT[q.type_code] ?? q.type_code} · {themeTitle(q.theme_id)}{q.has_image
 							? ' · kép'
-							: ''}</span
+							: ''}{q.has_video ? ' · videó' : ''}</span
 					>
 				</span>
 				<span class="used" class:fresh={q.played_count === 0}>

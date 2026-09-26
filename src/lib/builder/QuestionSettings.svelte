@@ -9,9 +9,13 @@
 		type Draft,
 		type QuestionTypeInfo
 	} from './model';
+	import LayoutSettings from './LayoutSettings.svelte';
+	import VideoSettings from './VideoSettings.svelte';
 
 	// A kérdés beállításai (jobb oldali panel): típus, válaszidő (gyors
-	// választók + egyéni mező), olvasási idő (alap / egyéni), pontozás, téma.
+	// választók + egyéni mező), olvasási idő (alap / egyéni), pontozás,
+	// megjelenés, YouTube-videó, téma. Magyarázó diánál (info) csak a
+	// megjelenés és a téma állítható.
 	let {
 		draft = $bindable(),
 		types,
@@ -21,6 +25,7 @@
 		onstandingschange,
 		onduplicate,
 		onremove,
+		onapplyround,
 		removeLabel = 'Eltávolítás a körből'
 	}: {
 		draft: Draft;
@@ -32,6 +37,7 @@
 		onstandingschange?: (value: boolean) => void;
 		onduplicate?: () => void;
 		onremove?: () => void;
+		onapplyround?: () => void;
 		removeLabel?: string;
 	} = $props();
 
@@ -55,6 +61,8 @@
 	}
 
 	const readingCustom = $derived(draft.reading_seconds !== null);
+	const info = $derived(draft.type_code === 'info');
+	const videoGate = $derived(!!draft.video?.gate);
 </script>
 
 <div class="settings">
@@ -74,114 +82,132 @@
 		</div>
 	</section>
 
-	<section data-tour="qb-time">
-		<h3>Válaszidő</h3>
-		<div class="chips" role="radiogroup" aria-label="Válaszidő (mp)">
-			{#each TIME_PRESETS as preset (preset)}
-				<button
-					type="button"
-					role="radio"
-					aria-checked={draft.time_limit_seconds === preset}
-					class:active={draft.time_limit_seconds === preset}
-					onclick={() => (draft.time_limit_seconds = preset)}>{preset}</button
-				>
-			{/each}
-		</div>
-		<label class="inline">
-			<span>Egyéni</span>
-			<input
-				type="number"
-				inputmode="numeric"
-				min={MIN_TIME_LIMIT}
-				max={MAX_TIME_LIMIT}
-				placeholder="pl. 25"
-				value={customTime}
-				oninput={(e) => onCustomTime(e.currentTarget.value)}
-				class:active={!isPreset}
-			/>
-			<span class="dim">mp · {MIN_TIME_LIMIT}–{MAX_TIME_LIMIT}</span>
-		</label>
-
-		<h3 class="sub">Olvasási idő a válasz előtt</h3>
-		<div class="inline">
-			<div class="segmented" role="radiogroup" aria-label="Olvasási idő">
-				<button
-					type="button"
-					role="radio"
-					aria-checked={!readingCustom}
-					class:active={!readingCustom}
-					onclick={() => (draft.reading_seconds = null)}>Alap · {readingDefault} mp</button
-				>
-				<button
-					type="button"
-					role="radio"
-					aria-checked={readingCustom}
-					class:active={readingCustom}
-					onclick={() => (draft.reading_seconds = draft.reading_seconds ?? readingDefault)}
-					>Egyéni</button
-				>
+	{#if info}
+		<p class="dim info-note">
+			Magyarázó dia: csak a kivetítőn jelenik meg, nincs válasz, időzítő és pont. A telefonokon
+			„Nézd a kivetítőt” látszik; a host Szóközzel lép tovább.
+		</p>
+	{:else}
+		<section data-tour="qb-time">
+			<h3>Válaszidő</h3>
+			<div class="chips" role="radiogroup" aria-label="Válaszidő (mp)">
+				{#each TIME_PRESETS as preset (preset)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={draft.time_limit_seconds === preset}
+						class:active={draft.time_limit_seconds === preset}
+						onclick={() => (draft.time_limit_seconds = preset)}>{preset}</button
+					>
+				{/each}
 			</div>
-			{#if readingCustom}
+			<label class="inline">
+				<span>Egyéni</span>
 				<input
 					type="number"
 					inputmode="numeric"
-					min="0"
-					max="120"
-					aria-label="Olvasási idő (mp)"
-					value={draft.reading_seconds ?? ''}
-					oninput={(e) => {
-						const n = Number.parseInt(e.currentTarget.value, 10);
-						draft.reading_seconds = Number.isFinite(n) ? n : 0;
-					}}
+					min={MIN_TIME_LIMIT}
+					max={MAX_TIME_LIMIT}
+					placeholder="pl. 25"
+					value={customTime}
+					oninput={(e) => onCustomTime(e.currentTarget.value)}
+					class:active={!isPreset}
 				/>
-				<span class="dim">mp</span>
-			{/if}
-		</div>
-	</section>
+				<span class="dim">mp · {MIN_TIME_LIMIT}–{MAX_TIME_LIMIT}</span>
+			</label>
 
-	<section data-tour="qb-scoring">
-		<h3>Pontozás</h3>
-		<div class="inline">
-			<label class="stack">
-				<span class="dim">Pont</span>
-				<input type="number" min="0" step="50" bind:value={draft.points} />
-			</label>
-			<div class="segmented" role="radiogroup" aria-label="Szorzó">
-				<button
-					type="button"
-					role="radio"
-					aria-checked={draft.points_multiplier === 1}
-					class:active={draft.points_multiplier === 1}
-					onclick={() => (draft.points_multiplier = 1)}>Normál</button
-				>
-				<button
-					type="button"
-					role="radio"
-					aria-checked={draft.points_multiplier === 2}
-					class:active={draft.points_multiplier === 2}
-					onclick={() => (draft.points_multiplier = 2)}>Dupla</button
-				>
+			<h3 class="sub">Olvasási idő a válasz előtt</h3>
+			{#if videoGate && draft.video}
+				<p class="dim">
+					A videó hossza: {Math.max(0, draft.video.end - draft.video.start)} mp (a válaszidő a klip végén
+					indul).
+				</p>
+			{:else}
+				<div class="inline">
+					<div class="segmented" role="radiogroup" aria-label="Olvasási idő">
+						<button
+							type="button"
+							role="radio"
+							aria-checked={!readingCustom}
+							class:active={!readingCustom}
+							onclick={() => (draft.reading_seconds = null)}>Alap · {readingDefault} mp</button
+						>
+						<button
+							type="button"
+							role="radio"
+							aria-checked={readingCustom}
+							class:active={readingCustom}
+							onclick={() => (draft.reading_seconds = draft.reading_seconds ?? readingDefault)}
+							>Egyéni</button
+						>
+					</div>
+					{#if readingCustom}
+						<input
+							type="number"
+							inputmode="numeric"
+							min="0"
+							max="120"
+							aria-label="Olvasási idő (mp)"
+							value={draft.reading_seconds ?? ''}
+							oninput={(e) => {
+								const n = Number.parseInt(e.currentTarget.value, 10);
+								draft.reading_seconds = Number.isFinite(n) ? n : 0;
+							}}
+						/>
+						<span class="dim">mp</span>
+					{/if}
+				</div>
+			{/if}
+		</section>
+
+		<section data-tour="qb-scoring">
+			<h3>Pontozás</h3>
+			<div class="inline">
+				<label class="stack">
+					<span class="dim">Pont</span>
+					<input type="number" min="0" step="50" bind:value={draft.points} />
+				</label>
+				<div class="segmented" role="radiogroup" aria-label="Szorzó">
+					<button
+						type="button"
+						role="radio"
+						aria-checked={draft.points_multiplier === 1}
+						class:active={draft.points_multiplier === 1}
+						onclick={() => (draft.points_multiplier = 1)}>Normál</button
+					>
+					<button
+						type="button"
+						role="radio"
+						aria-checked={draft.points_multiplier === 2}
+						class:active={draft.points_multiplier === 2}
+						onclick={() => (draft.points_multiplier = 2)}>Dupla</button
+					>
+				</div>
 			</div>
-		</div>
-		<label class="toggle">
-			<span>Gyorsasági pontcsökkenés</span>
-			<input type="checkbox" bind:checked={draft.points_decay} />
-		</label>
-		{#if showStandings !== undefined}
-			<label class="toggle" data-tour="qb-standings">
-				<span>Állás a kérdés után (kivetítő)</span>
-				<input
-					type="checkbox"
-					checked={showStandings}
-					onchange={(e) => onstandingschange?.(e.currentTarget.checked)}
-				/>
+			<label class="toggle">
+				<span>Gyorsasági pontcsökkenés</span>
+				<input type="checkbox" bind:checked={draft.points_decay} />
 			</label>
-		{/if}
-		<label class="toggle" class:disabled={!draft.image_url}>
-			<span>Pixeles képfelfedés{draft.image_url ? '' : ' (nincs kép)'}</span>
-			<input type="checkbox" disabled={!draft.image_url} bind:checked={draft.image_pixelate} />
-		</label>
-	</section>
+			{#if showStandings !== undefined}
+				<label class="toggle" data-tour="qb-standings">
+					<span>Állás a kérdés után (kivetítő)</span>
+					<input
+						type="checkbox"
+						checked={showStandings}
+						onchange={(e) => onstandingschange?.(e.currentTarget.checked)}
+					/>
+				</label>
+			{/if}
+			<label class="toggle" class:disabled={!draft.image_url}>
+				<span>Pixeles képfelfedés{draft.image_url ? '' : ' (nincs kép)'}</span>
+				<input type="checkbox" disabled={!draft.image_url} bind:checked={draft.image_pixelate} />
+			</label>
+		</section>
+
+		<VideoSettings bind:draft {readingDefault} />
+	{/if}
+
+	<LayoutSettings bind:draft {onapplyround} />
 
 	<section>
 		<label class="stack">
@@ -236,6 +262,14 @@
 
 	h3.sub {
 		margin-top: 0.5rem;
+	}
+
+	.info-note {
+		margin: 0;
+		padding: 0.6rem 0.7rem;
+		border-radius: 0.55rem;
+		background: var(--cabinet);
+		line-height: 1.45;
 	}
 
 	kbd {

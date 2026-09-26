@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database.types';
 import type { BankItem, Draft, QuestionUsage } from '$lib/builder/model';
+import { normalizeLayout } from '$lib/questions/layout';
 
 type Client = SupabaseClient<Database>;
 
@@ -24,7 +25,7 @@ export async function fetchAllRows<T>(
 }
 
 const DRAFT_COLUMNS =
-	'id, theme_id, prompt, image_url, image_pixelate, points, points_multiplier, time_limit_seconds, points_decay, reading_seconds, question_types(code), question_choice_options(option_text, image_url, is_correct, order_index), question_slider_config(min_value, max_value, step, correct_value, tolerance), question_ordering_items(item_text, correct_position)';
+	'id, theme_id, prompt, image_url, image_pixelate, points, points_multiplier, time_limit_seconds, points_decay, reading_seconds, layout, info_text, video_id, video_start, video_end, video_gate, question_types(code), question_choice_options(option_text, image_url, is_correct, order_index), question_slider_config(min_value, max_value, step, correct_value, tolerance), question_ordering_items(item_text, correct_position)';
 
 type DraftRow = {
 	id: string;
@@ -37,6 +38,12 @@ type DraftRow = {
 	time_limit_seconds: number | null;
 	points_decay: boolean | null;
 	reading_seconds: number | null;
+	layout: unknown;
+	info_text: string | null;
+	video_id: string | null;
+	video_start: number | null;
+	video_end: number | null;
+	video_gate: boolean;
 	question_types: { code: string } | null;
 	question_choice_options:
 		| { option_text: string; image_url: string | null; is_correct: boolean; order_index: number }[]
@@ -81,7 +88,17 @@ function toDraft(q: DraftRow): Draft {
 					tolerance: Number(slider.tolerance)
 				}
 			: { min_value: 0, max_value: 100, step: 1, correct_value: 50, tolerance: 0 },
-		ordering: ordering.length > 0 ? ordering : ['', '', '']
+		ordering: ordering.length > 0 ? ordering : ['', '', ''],
+		layout: normalizeLayout(q.layout),
+		info_text: q.info_text ?? '',
+		video: q.video_id
+			? {
+					id: q.video_id,
+					start: q.video_start ?? 0,
+					end: q.video_end ?? 0,
+					gate: q.video_gate
+				}
+			: null
 	};
 }
 
@@ -126,7 +143,7 @@ export async function loadBank(supabase: Client, gameId?: string): Promise<BankI
 		fetchAllRows((from, to) =>
 			supabase
 				.from('questions')
-				.select('id, prompt, theme_id, image_url, created_at, question_types(code)')
+				.select('id, prompt, theme_id, image_url, video_id, created_at, question_types(code)')
 				.is('archived_at', null)
 				.order('created_at', { ascending: false })
 				.order('id')
@@ -165,6 +182,7 @@ export async function loadBank(supabase: Client, gameId?: string): Promise<BankI
 		theme_id: q.theme_id,
 		type_code: q.question_types?.code ?? '',
 		has_image: !!q.image_url,
+		has_video: !!q.video_id,
 		created_at: q.created_at,
 		played_count: played.get(q.id)?.count ?? 0,
 		played_last: played.get(q.id)?.last ?? null

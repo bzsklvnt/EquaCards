@@ -1,6 +1,8 @@
 // Broadcast/presence esemény típusok a `game:{game_id}` csatornához.
 // Séma forrás: docs/architecture/REALTIME_PROTOCOL.md — tartsd szinkronban.
 
+import type { QuestionLayout, QuestionVideo } from '$lib/questions/layout';
+
 export type PresenceTeam = { team_id: string; name: string };
 
 export type TeamJoinedPayload = { team_id: string; name: string };
@@ -25,7 +27,20 @@ export type QuestionShowPayload = {
 	options?: { id: string; option_text: string; image_url: string | null }[]; // single_choice | multi_choice | true_false
 	slider?: { min_value: number; max_value: number; step: number };
 	ordering_items?: { id: string; item_text: string }[]; // véletlenszerűen összekevert sorrendben
+	// Kérdésenkénti megjelenés (docs/features/question-layout.md). Hiányzó /
+	// null = az alapértelmezett (Klasszikus) megjelenés.
+	layout?: QuestionLayout | null;
+	// Magyarázó dia (question_type = 'info'): a dia szövege. Nincs időzítő,
+	// nincs timer_start, a sorszámozásba nem számít bele.
+	info_text?: string | null;
+	// YouTube-részlet — csak a kivetítő játssza le. gate = a válaszidő a klip
+	// végén indul (az olvasási idő a klip hossza).
+	video?: QuestionVideo | null;
 };
+
+// A host újrajátszatja a kérdés videóját a kivetítőn (R billentyű). A
+// válaszidőt nem érinti.
+export type VideoReplayPayload = { question_id: string };
 
 export type TimerStartPayload = {
 	question_id: string;

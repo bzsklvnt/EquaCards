@@ -2,9 +2,12 @@
 // (kérdésbank, kvízösszerakó mentése) és a klienssel (az összerakó ugyanezzel
 // dönti el, hogy egy piszkozat menthető-e). docs/features/quiz-builder.md.
 
+import { normalizeLayout, videoError, type QuestionLayout, type QuestionVideo } from './layout';
+
 export const MIN_TIME_LIMIT = 5;
 export const MAX_TIME_LIMIT = 600;
 export const MAX_READING = 120;
+export const MAX_INFO_TEXT = 2000;
 
 function parseOptionalInt(value: FormDataEntryValue | null): number | null {
 	if (typeof value !== 'string' || value.trim() === '') return null;
@@ -29,6 +32,10 @@ export type ParsedQuestionForm = {
 	points_decay: boolean;
 	/** null = a globális alapérték (app_settings.question_reading_seconds). */
 	reading_seconds: number | null;
+	/** null = alapértelmezett megjelenés. */
+	layout: QuestionLayout | null;
+	info_text: string | null;
+	video: QuestionVideo | null;
 	choiceOptions?: {
 		option_text: string;
 		image_url: string | null;
@@ -45,6 +52,26 @@ export type ParsedQuestionForm = {
 	orderingItems?: { item_text: string; correct_position: number }[];
 };
 
+function parseLayout(value: FormDataEntryValue | null): QuestionLayout | null {
+	if (typeof value !== 'string' || !value.trim()) return null;
+	try {
+		return normalizeLayout(JSON.parse(value));
+	} catch {
+		return null;
+	}
+}
+
+function parseVideo(formData: FormData): QuestionVideo | null {
+	const id = formData.get('video_id');
+	if (typeof id !== 'string' || !id.trim()) return null;
+	return {
+		id: id.trim(),
+		start: Number(formData.get('video_start')),
+		end: Number(formData.get('video_end')),
+		gate: formData.get('video_gate') !== 'false'
+	};
+}
+
 export function parseQuestionForm(
 	formData: FormData,
 	questionTypeCode: string
@@ -60,7 +87,13 @@ export function parseQuestionForm(
 		points_multiplier: Number(formData.get('points_multiplier')),
 		time_limit_seconds: Number(formData.get('time_limit_seconds')),
 		points_decay: formData.get('points_decay') === 'true',
-		reading_seconds: parseOptionalInt(formData.get('reading_seconds'))
+		reading_seconds: parseOptionalInt(formData.get('reading_seconds')),
+		layout: parseLayout(formData.get('layout')),
+		info_text:
+			questionTypeCode === 'info'
+				? ((formData.get('info_text') as string) ?? '').trim() || null
+				: null,
+		video: questionTypeCode === 'info' ? null : parseVideo(formData)
 	};
 
 	if (
@@ -110,9 +143,18 @@ export function validateQuestionForm(
 	parsed: ParsedQuestionForm,
 	type: QuestionTypeRow
 ): string | null {
+	if (type.code === 'info') {
+		if (!parsed.prompt) return 'A dia címe kötelező.';
+		if ((parsed.info_text?.length ?? 0) > MAX_INFO_TEXT) {
+			return `A magyarázat legfeljebb ${MAX_INFO_TEXT} karakter lehet.`;
+		}
+		return null;
+	}
 	if (!parsed.prompt) {
 		return 'A kérdés szövege kötelező.';
 	}
+	const video = videoError(parsed.video);
+	if (video) return video;
 	if (
 		!Number.isInteger(parsed.time_limit_seconds) ||
 		parsed.time_limit_seconds < MIN_TIME_LIMIT ||

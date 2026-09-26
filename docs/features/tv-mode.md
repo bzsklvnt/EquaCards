@@ -32,8 +32,10 @@ legmagasabb prioritású esemény dönt):
 2. **`round_leaderboard_reveal`** — kör-specifikus top 3.
 3. **`question_reveal`** — a helyes válasz szövege (nagy betűkkel, nincs
    pontszám — a TV nem "tartozik" egyik csapathoz sem).
-4. **`question_show`** + **`timer_start`** — nagy betűs prompt + nagy
-   visszaszámláló szám (nincs válasz-UI, a TV csak megjelenít).
+4. **`question_show`** + **`timer_start`** — a kérdés a saját megjelenése
+   szerint (`QuestionStage`: elrendezés, időzítő helye, számláló, betűméret),
+   kártyalapokkal; videós kérdésnél YouTube-lejátszó, magyarázó diánál cím,
+   szöveg és kép időzítő nélkül (`docs/features/question-layout.md`).
 5. **lobby** (`game.status === 'lobby'`, amíg `game_started` be nem érkezik)
    — PIN + QR nagy méretben, élő csatlakozott-csapat lista Presence-szel.
 6. Egyéb (aktív játék, de még nincs kérdés kiválasztva — pl. kör váltás

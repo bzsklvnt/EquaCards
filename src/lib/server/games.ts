@@ -55,7 +55,10 @@ const base = {
 	points_multiplier: 1,
 	time_limit_seconds: 20,
 	points_decay: true,
-	reading_seconds: null
+	reading_seconds: null,
+	layout: null,
+	info_text: null,
+	video: null
 };
 
 const choices = (texts: string[], correct: number[]) =>
@@ -96,6 +99,24 @@ const SEEDS: Seed[] = [
 				['Golyóstoll', 'Holográfia', 'Rubik-kocka', 'Telefon', 'Villanykörte', 'Gőzmozdony'],
 				[0, 1, 2]
 			)
+		}
+	},
+	{
+		type: 'info',
+		round: 1,
+		form: {
+			...base,
+			prompt: 'Tudtad?',
+			info_text:
+				'A golyóstollat Bíró László József szabadalmaztatta 1938-ban, a holográfiáért Gábor Dénes kapott Nobel-díjat 1971-ben. A telefont viszont nem magyar találta fel — Puskás Tivadar a telefonközpontot alkotta meg.',
+			layout: {
+				preset: 'info_split',
+				timer: 'big',
+				counter: 'top',
+				size: 'normal',
+				phone_cols: 1,
+				phone_prompt: true
+			}
 		}
 	},
 	{
@@ -154,22 +175,35 @@ async function practiceQuestionIds(
 		theme = data;
 	}
 
+	const { data: types } = await supabase.from('question_types').select('id, code');
+	const typeId = new Map((types ?? []).map((t) => [t.code, t.id]));
+
 	const { data: existing } = await supabase
 		.from('questions')
-		.select('id')
+		.select('id, question_type_id')
 		.eq('theme_id', theme.id)
 		.is('archived_at', null)
 		.order('created_at');
 	if (existing && existing.length > 0) {
-		const half = Math.ceil(existing.length / 2);
+		// A korábban létrehozott mintakérdések mellé a magyarázó dia utólag kerül.
+		const infoTypeId = typeId.get('info');
+		const questions = existing.filter((q) => q.question_type_id !== infoTypeId);
+		let infoIds = existing.filter((q) => q.question_type_id === infoTypeId).map((q) => q.id);
+		const infoSeed = SEEDS.find((s) => s.type === 'info');
+		if (infoIds.length === 0 && infoTypeId && infoSeed) {
+			const saved = await saveParsedQuestion(supabase, null, {
+				...infoSeed.form,
+				theme_id: theme.id,
+				question_type_id: infoTypeId
+			});
+			if ('id' in saved) infoIds = [saved.id];
+		}
+		const half = Math.ceil(questions.length / 2);
 		return {
-			round1: existing.slice(0, half).map((q) => q.id),
-			round2: existing.slice(half).map((q) => q.id)
+			round1: [...questions.slice(0, half).map((q) => q.id), ...infoIds],
+			round2: questions.slice(half).map((q) => q.id)
 		};
 	}
-
-	const { data: types } = await supabase.from('question_types').select('id, code');
-	const typeId = new Map((types ?? []).map((t) => [t.code, t.id]));
 	const result = { round1: [] as string[], round2: [] as string[] };
 
 	for (const seed of SEEDS) {

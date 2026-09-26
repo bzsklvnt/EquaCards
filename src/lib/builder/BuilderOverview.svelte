@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Issue, BuilderRound } from './issues';
-	import { effectiveReading, suit, TYPE_SHORT, type Draft } from './model';
+	import { draftSeconds, questionNumbers, suit, TYPE_SHORT, type Draft } from './model';
 
 	// Áttekintés: az egész este körönként egy sávban, húzással vagy
 	// Alt+←/→ (körök között Alt+↑/↓) átrendezhető; jobb oldalt az ellenőrzés.
@@ -32,20 +32,19 @@
 		ondrawall: (themeId: string, count: number) => void;
 	} = $props();
 
-	const REVEAL_OVERHEAD = 20;
-
 	function roundMinutes(round: BuilderRound): number {
 		const seconds = round.keys.reduce((sum, key) => {
 			const d = drafts[key];
-			return d
-				? sum + d.time_limit_seconds + effectiveReading(d, readingDefault) + REVEAL_OVERHEAD
-				: sum;
+			return d ? sum + draftSeconds(d, readingDefault) : sum;
 		}, 0);
 		return Math.round(seconds / 60);
 	}
 
-	const totalQuestions = $derived(rounds.reduce((n, r) => n + r.keys.length, 0));
+	const totalQuestions = $derived(
+		rounds.reduce((n, r) => n + questionNumbers(r.keys, drafts).total, 0)
+	);
 	const totalMinutes = $derived(rounds.reduce((n, r) => n + roundMinutes(r), 0));
+	const numbering = (keys: string[]) => questionNumbers(keys, drafts).numbers;
 	const errors = $derived(issues.filter((i) => i.level === 'error'));
 	const flagFor = (roundId: string, key: string) => {
 		const own = issues.filter((i) => i.roundId === roundId && i.key === key);
@@ -151,7 +150,9 @@
 			<section class="lane" aria-label="{ri + 1}. kör · {round.title}">
 				<div class="lane-head">
 					<strong>{ri + 1}. kör · {round.title}</strong>
-					<span>{round.keys.length} kérdés · ~{roundMinutes(round)} perc</span>
+					<span
+						>{questionNumbers(round.keys, drafts).total} kérdés · ~{roundMinutes(round)} perc</span
+					>
 				</div>
 				<div
 					class="cards"
@@ -185,7 +186,9 @@
 							onfocus={() => onselect(round.id, key)}
 						>
 							<div class="card-top">
-								<span>{qi + 1}.</span>
+								<span
+									>{d?.type_code === 'info' ? 'Info' : `${numbering(round.keys)[key] ?? ''}.`}</span
+								>
 								<span class="flag"
 									>{flag === 'error'
 										? '!'
@@ -202,7 +205,9 @@
 									></span>{/each}
 							</div>
 							<span class="meta"
-								>{TYPE_SHORT[d?.type_code ?? ''] ?? ''} · {d?.time_limit_seconds} mp</span
+								>{TYPE_SHORT[d?.type_code ?? ''] ?? ''}{d?.type_code === 'info'
+									? ''
+									: ` · ${d?.time_limit_seconds} mp`}{d?.video ? ' · videó' : ''}</span
 							>
 						</div>
 					{/each}

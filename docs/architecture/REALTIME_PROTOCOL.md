@@ -29,6 +29,7 @@ importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
 | `game_finished`            | host        | `{}`                                         | 4     |
 | `round_leaderboard_reveal` | host        | `RoundLeaderboardRevealPayload` (lásd lent)  | 5     |
 | `final_leaderboard_reveal` | host        | `FinalLeaderboardRevealPayload` (lásd lent)  | 5     |
+| `video_replay`             | host        | `{question_id}`                              | 2026  |
 
 ### `team_joined` (Fázis 3)
 
@@ -67,8 +68,15 @@ importálja őket, hogy a payload-alak ne duplikálódjon/csússzon szét.
     options?: { id: string; option_text: string; image_url: string | null }[]; // single_choice | multi_choice | true_false
     slider?: { min_value: number; max_value: number; step: number };
     ordering_items?: { id: string; item_text: string }[]; // véletlenszerűen összekevert sorrendben
+    layout?: QuestionLayout | null; // kérdésenkénti megjelenés, null = alapértelmezett
+    info_text?: string | null; // magyarázó dia szövege (question_type = 'info')
+    video?: { id: string; start: number; end: number; gate: boolean } | null; // YouTube-részlet
   }
   ```
+  **Kérdés-megjelenés (2026-09-27):** a `layout`, `info_text`, `video` mezők
+  leírása: `docs/features/question-layout.md`. Magyarázó diánál
+  (`question_type = 'info'`) nem jön `timer_start`; az `order_index` /
+  `total_questions` az info diák nélkül számol.
   **FONTOS:** szándékosan nincs benne `is_correct` / `correct_value` /
   `correct_position` — ezek csak a `question_reveal`-ben jelennek meg. Az
   `ordering_items` sorrendjét a host kliense Fisher-Yates-sel megkeveri,
@@ -262,6 +270,13 @@ total_questions, standings}` — a `standings` ugyanaz a sor-formátum, mint a
   szól** (visszaszámlálás utolsó 5 mp, gong, felfedés, állás, joker); a host
   és a csapatok telefonja néma. A kivetítő az első kattintásig „Kattints a
   hang bekapcsolásához” sávot mutat (böngészői autoplay-szabály).
+
+### `video_replay` (2026-09-27)
+
+- **Küldő:** host, R billentyű (videós kérdésnél, válaszidő alatt vagy lezárás után).
+- **Payload** (`VideoReplayPayload`): `{question_id: string}`.
+- **Kliens teendő:** TV — a kérdés YouTube-részletét elölről lejátssza. A
+  válaszidőt nem érinti; a telefonok figyelmen kívül hagyják.
 
 ### `round_leaderboard_reveal` (Fázis 5)
 
