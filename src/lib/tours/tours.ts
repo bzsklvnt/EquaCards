@@ -165,51 +165,50 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 					'Ezt az űrlapot egy kvízeste köréből nyitottad meg: mentés után a kérdés a kérdésbankba és a kör végére is bekerül, majd visszavisz az estére.'
 			},
 			{
-				element: 'qf-theme',
-				title: 'Téma',
+				title: 'Ugyanaz a vászon, mint a kvízösszerakóban',
 				description:
-					'A kérdésbank szűréséhez és a random húzáshoz kell. Téma nélküli kérdés is menthető, de azt a random húzás nem választja ki.'
+					'A kérdést úgy szerkeszted, ahogy a kivetítőn megjelenik: középen a kérdés, a kép és a kártyaszínes válaszlapok (♠ ♥ ♦ ♣), jobb oldalt a beállítások.'
 			},
 			{
-				element: 'qf-type',
-				title: 'Kérdéstípus',
-				description:
-					'<b>Feleletválasztós:</b> 4 opció, 1 helyes.<br><b>Több helyes:</b> 6–8 opció, több is helyes lehet.<br><b>Igaz/Hamis.</b><br><b>Csúszka:</b> szám becslése tűréshatárral.<br><b>Sorrendbe állítás.</b><br>A típustól függően változik az űrlap alsó része.'
-			},
-			{
-				element: 'qf-prompt',
+				element: 'qb-prompt',
 				title: 'A kérdés szövege',
-				description: 'Ez jelenik meg a kivetítőn és a csapatok telefonján.'
+				description: 'Ez jelenik meg a kivetítőn és a csapatok telefonján. Enter a mezőbe ugrik.'
 			},
 			{
-				element: 'qf-image',
+				element: 'qb-image',
 				title: 'Kép a kérdéshez',
 				description:
-					'Opcionális. JPG, PNG vagy WebP, legfeljebb 5 MB; feltöltés előtt automatikusan tömörítjük.'
+					'Opcionális: húzd be, tallózd ki, vagy illeszd be (Ctrl+V). JPG, PNG vagy WebP, legfeljebb 5 MB; feltöltés előtt automatikusan tömörítjük.'
 			},
 			{
-				element: 'qf-pixelate',
-				title: 'Pixeles felfedés',
+				element: 'qb-answers',
+				title: 'Válaszlapok',
 				description:
-					'Bekapcsolva a kép erősen pixelesen indul, és a visszaszámlálás alatt élesedik. Aki korábban felismeri, több pontot kap (ha a pontcsökkenés be van kapcsolva).'
+					'Az 1–8 billentyű (vagy a kör a lap sarkában) jelöli a helyes választ, Alt+1–8 a lap szövegébe ugrik. Több helyesnél 6–8 lap van, több is helyes lehet; lapokhoz kép is tehető. Csúszkánál a helyes érték és a tűrés, sorrendnél a helyes sorrend (felülről lefelé) számít.'
 			},
 			{
-				element: 'qf-scoring',
-				title: 'Pontozás és idő',
+				element: 'qb-type',
+				title: 'Kérdéstípus',
 				description:
-					'<b>Pontszám:</b> ennyit ér a helyes válasz.<br><b>Pont-szorzó:</b> 2 = dupla pontos kérdés.<br><b>Időlimit:</b> ennyi idő van válaszolni.<br><b>Pontcsökkenés:</b> az azonnali helyes válasz a teljes pontot, a limit végén adott már csak a felét éri.<br>A csapatok egyszeri „Duplázás” jokere erre még rászoroz.'
+					'<b>Egy helyes:</b> 4 lap.<br><b>Több helyes:</b> 6–8 lap.<br><b>Igaz / hamis.</b><br><b>Csúszka:</b> szám becslése tűréssel.<br><b>Sorrend.</b><br>Típusváltáskor a kérdés szövege és a kép megmarad.'
 			},
 			{
-				element: 'qf-answers',
-				title: 'Válaszok',
+				element: 'qb-time',
+				title: 'Válaszidő és olvasási idő',
 				description:
-					'Feleletválasztósnál jelöld be a „Helyes” opció(ka)t, és opciónként képet is tehetsz („+ Kép”). Csúszkánál a helyes érték és a tűréshatár, sorrendnél a helyes sorrend (felülről lefelé) számít.'
+					'A gyors választók mellett egyéni válaszidő is megadható (5–600 mp). Előtte olvasási idő jár: alapból a Beállításokban megadott érték (5 mp), kérdésenként „Egyéni”-re állítható — ez alatt csak a kérdés látszik, a gombok utána aktiválódnak.'
+			},
+			{
+				element: 'qb-scoring',
+				title: 'Pontozás',
+				description:
+					'<b>Pont:</b> ennyit ér a helyes válasz.<br><b>Dupla:</b> dupla pontos kérdés.<br><b>Gyorsasági pontcsökkenés:</b> az azonnali helyes válasz a teljes pontot, a válaszidő végén adott a felét éri (az olvasási idő nem számít bele).'
 			},
 			{
 				element: 'qf-save',
 				title: 'Mentés',
 				description:
-					'Mentés előtt ellenőrizzük, hogy minden kötelező mező ki van-e töltve és van-e helyes válasz. A Mégse visszavisz mentés nélkül.'
+					'A Mentés addig inaktív, amíg valami hiányzik (a gomb mellett látod, mi). A Mégse visszavisz mentés nélkül.'
 			}
 		]
 	},
@@ -338,57 +337,59 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 	},
 
 	'game-setup': {
-		title: 'Kvízeste összeállítása',
+		title: 'Kvízösszerakó',
 		steps: [
 			{
 				title: 'Így épül fel egy este',
 				description:
-					'Egy este körökből áll, minden körben kérdésekkel. A kérdéseket húzhatod véletlenszerűen egy témából, válogathatod kézzel a kérdésbankból, vagy létrehozhatsz újat helyben.'
+					'Bal oldalt a menetrend (körök és kérdések), középen a kérdés úgy, ahogy a kivetítőn látszik, jobb oldalt a beállításai. Minden változás automatikusan mentődik, amint a kérdés teljes. Szinte minden billentyűzettel is megy — a ? megmutatja az összes parancsot.'
+			},
+			{
+				element: 'qb-rail',
+				title: 'Menetrend',
+				description:
+					'↑/↓ (vagy J/K) lépked a kérdések között, Ctrl+↑/↓ a körök között, Alt+↑/↓ áthelyezi a kérdést (körök között is). A kör nevére kattintva átnevezheted, a ✕ törli a kört. A ● jelzi, hogy a kérdés után alapból megjelenik a köri állás.'
 			},
 			{
 				element: 'gs-add-round',
 				title: 'Új kör',
-				description: 'Adj nevet a körnek (pl. „Sport”), majd „+ Kör hozzáadása”.'
+				description: 'Írd be a kör nevét és „+ Kör” (vagy Shift+N a mezőbe ugrik).'
 			},
 			{
-				element: 'gs-draw-all',
-				title: 'Random kérdések minden körbe',
+				element: 'qb-new',
+				title: 'Új kérdés',
 				description:
-					'Válassz témát, és minden kör megkapja a saját darabszámának megfelelő véletlen kérdést. Ha újra megnyomod, további kérdéseket ad hozzá, nem cseréli le a meglévőket.'
-			},
-			{
-				element: 'gs-count',
-				title: 'Darabszám',
-				description: 'Hány kérdést húzzon ebbe a körbe a random betöltés.'
+					'N: új kérdés az aktuális után. Addig nem kerül a kérdésbankba, amíg nem teljes (szöveg + helyes válasz) — a hiányzót a vászon felett látod.'
 			},
 			{
 				element: 'gs-pick',
-				title: 'Kézi válogatás vagy új kérdés',
+				title: 'Kérdésbank',
 				description:
-					'„+ Kérdés a kérdésbankból”: téma és keresés alapján több kérdést is kijelölhetsz.<br>„+ Új kérdés ehhez a körhöz”: felugró ablakban új kérdést írsz, mentéskor egyből a kör végére kerül, és az oldalon maradsz.'
+					'B: a kérdésbank a szerkesztő fölött nyílik. Keresés, téma- és típusszűrő, „Csak még nem játszott”, többes kijelölés (Szóköz, Shift+↑↓), Enter hozzáadja az aktuális kérdés után. Random húzás is innen megy (R), a pihentetési idő figyelembevételével.'
 			},
 			{
-				element: 'gs-question-list',
-				title: 'A kör kérdései',
+				element: 'qb-prompt',
+				title: 'A vászon',
 				description:
-					'Ebben a sorrendben kerülnek sorra. Az „Eltávolítás” csak a körből veszi ki a kérdést, a kérdésbankban megmarad.'
+					'Enter: kérdésszöveg. 1–8: helyes válasz jelölése, Alt+1–8: a lap szövege. Esc visszavisz a menetrendbe. Képet be is illeszthetsz (Ctrl+V).'
 			},
 			{
-				element: 'gs-clear',
-				title: 'Összes kérdés törlése',
+				element: 'qb-settings',
+				title: 'Beállítások',
 				description:
-					'Egy mozdulattal kiüríti a kört (a kérdések a kérdésbankban maradnak). Utána újratöltheted.'
+					'T: típusváltás. Válaszidő (gyors választók + egyéni mező), olvasási idő (alap vagy egyéni), pontozás, „Állás a kérdés után”, téma. Ctrl+D duplikál, Del kiveszi a körből (Ctrl+Z visszahozza).'
 			},
 			{
-				element: 'gs-delete-round',
-				title: 'Kör törlése',
-				description: 'A kört és a benne lévő kérdés-hozzárendeléseket törli.'
+				element: 'qb-overview',
+				title: 'Áttekintés',
+				description:
+					'O: az egész este egy nézetben, húzással átrendezhető, és itt a „Random töltés minden körbe”. Jobb oldalt az indulás előtti ellenőrzés: amíg hiba van, az élő indítás nem enged tovább. F8 a következő hibára ugrik.'
 			},
 			{
 				element: 'tab-event',
-				title: 'Esemény és jelentkezések',
+				title: 'Esemény és eredmények',
 				description:
-					'Időpont, helyszín, létszámkorlát, nyilvánosság és megjelenés (Letisztult vagy Arcade), valamint a csapatjelentkezések és a várólista. Az „Eredmények” fülön körönként és kérdésenként látod, melyik csapat mit válaszolt.'
+					'Időpont, helyszín, létszámkorlát, nyilvánosság, megjelenés és a jelentkezések — az „Eredmények” fülön körönként és kérdésenként látod, melyik csapat mit válaszolt.'
 			},
 			{
 				element: 'game-reopen',
@@ -472,6 +473,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				description: 'Az aktuális kör és kérdés sorszáma.'
 			},
 			{
+				element: 'hlv-steps',
+				title: 'A kérdés lépései',
+				description:
+					'Olvasás → Válaszidő → Felfedés → Állás a körben → Következő. A kiemelt lépés mindig látszik; a Space billentyű mindig a kiemelt gombot nyomja meg.'
+			},
+			{
 				element: 'hlv-question',
 				title: 'Az aktuális kérdés',
 				description:
@@ -479,9 +486,9 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 			},
 			{
 				element: 'hlv-timer',
-				title: 'Visszaszámlálás',
+				title: 'Olvasás és visszaszámlálás',
 				description:
-					'A kérdéssel együtt automatikusan indul, és egy közös szerveridőhöz igazodik, ezért a kivetítőn és a telefonokon is ugyanannyit mutat.'
+					'Először az olvasási idő fut (alapból 5 mp, kérdésenként állítható): ilyenkor csak a kérdés látszik, a csapatok gombjai tiltva. Utána indul a válaszidő, egy közös szerveridőhöz igazítva. Space-szel az olvasás átugorható.'
 			},
 			{
 				element: 'hlv-submissions',
@@ -493,7 +500,19 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				element: 'hlv-controls',
 				title: 'Vezérlés',
 				description:
-					'Mindig az aktuális lépés gombja látszik: „Következő kérdés”, vészhelyzetre „Zárás most” és „Megoldás feltárása”, a kör végén „Kör eredményének feltárása”, a legvégén „Végeredmény feltárása” és „Játék lezárása”.'
+					'Mindig az aktuális lépés gombja a kiemelt (Space): „Következő kérdés”, „Olvasás átugrása”, „Válaszok lezárása most” (L), „Megoldás feltárása”, a kör végén „Kör eredményének feltárása”, a legvégén „Végeredmény feltárása”. A „Játék lezárása” csak gombbal megy. Dupla lenyomás ellen 0,8 mp-es védelem van.'
+			},
+			{
+				element: 'hlv-standings',
+				title: 'Állás a körben',
+				description:
+					'Felfedés után a kör állása a kivetítőn: helyezés, előre-/hátralépés, a kérdésnél szerzett pont. Hogy ez a kiemelt lépés-e, a kvízösszerakóban kérdésenként állítod; S-sel kihagyható. A csapatok telefonja minden kérdés után mutatja a saját helyüket és a szomszédaikat, akkor is, ha a kivetítős állás kimarad.'
+			},
+			{
+				element: 'hlv-keys',
+				title: 'Billentyűk és hang',
+				description:
+					'Hang csak a kivetítőn szól (visszaszámlálás, gong, felfedés, állás, joker); M-mel innen távolról némíthatod. C: csapatkódok késve érkezőknek. ?: az összes parancs.'
 			},
 			{
 				element: 'hlv-teams',

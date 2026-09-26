@@ -244,3 +244,29 @@ egymástól — nem az eszközök óráinak akár többmásodperces eltérésén
 `start_question_timer()` UPDATE...RETURNING logikája helyesen írja be és
 adja vissza a szerver `now()`-ját; a `server_now()` sikeresen hívható
 `anon` szerepkörből is.
+
+## 9. Olvasási idő (2026-09-26, kvízösszerakó)
+
+A felhasználó kérése: minden kérdés előtt legyen egy fix, alapból 5 mp-es
+olvasási idő, szabadon állíthatóan. Döntés: **globális alap + kérdésenkénti
+felülírás** (két szint, estére szóló szint nincs).
+
+- `app_settings.question_reading_seconds` (alap 5, 0–120, a Beállításokban
+  szerkeszthető; 0 = nincs olvasási idő) és `questions.reading_seconds`
+  (NULL = alap; a kvízösszerakóban „Alap / Egyéni”).
+- `start_question(game_id, duration)` (role 1–3): feloldja az olvasási időt,
+  és `current_question_started_at = now() + olvasás` — a válaszidő tehát az
+  olvasás végén indul, a gyorsasági pontozás (`answer_time_ms` a
+  `server_start_time`-hoz mérve) az olvasást nem számolja bele.
+  `games.current_question_reading_seconds` őrzi az újracsatlakozáshoz.
+- Az olvasás alatt csak a kérdés látszik: a kivetítőn a válaszlapok
+  halványan, szöveg nélkül, nagy visszaszámlálóval; a telefonon a gombok
+  tiltva, nyugodt (nem piros) számlálóval; utána aktiválódnak a gombok és
+  indul a válaszidő.
+- `answer_within_timer()` kiegészítve: `now() >= started_at - 1 mp` — az
+  olvasási idő alatt a szerver is elutasítja a választ (1 mp óraeltérés-tűrés).
+- `skip_question_reading(game_id)`: a host Space-szel átugorja; az új
+  `timer_start` (`reading_seconds: 0`) felülírja a korábbit minden kliensen.
+- Élőben tesztelve (rollback-kal lezárt tranzakció): olvasás alatt
+  `answer_within_timer` = false, átugrás után true; `reading_seconds = 0`
+  kérdésnél azonnal indul; anon nem hívhatja (42501).

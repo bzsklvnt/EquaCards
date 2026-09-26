@@ -54,6 +54,7 @@ nem funkcionális követelmény egy új beállítás megjelenéséhez.
 | Kulcs                            | Típus  | Jelentés                                                                                                                |
 | -------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------- |
 | `question_reuse_cooldown_months` | number | Ennyi hónapig nem húzható újra ugyanaz a kérdés a `draw_random_questions_for_round` RPC-nél (DATA_MODEL.md 2. szakasz). |
+| `question_reading_seconds`       | number | Olvasási idő minden kérdés előtt (alap 5, 0–120 egész; kérdésenként felülírható) — `docs/features/timer.md` 9.          |
 
 ## Visszajelzés
 

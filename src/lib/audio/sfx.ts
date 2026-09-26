@@ -24,6 +24,17 @@ function getContext(): AudioContext | null {
 	return audioContext;
 }
 
+/** Böngészői autoplay-szabály: a hang csak egy felhasználói gesztus után
+ * indulhat. A kivetítő az első kattintáskor/billentyűnél ezt hívja. */
+export function unlockAudio(): boolean {
+	const ctx = getContext();
+	return !!ctx;
+}
+
+export function isAudioRunning(): boolean {
+	return audioContext?.state === 'running';
+}
+
 export function setMuted(value: boolean) {
 	muted = value;
 }

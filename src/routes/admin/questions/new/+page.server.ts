@@ -1,12 +1,13 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { appendQuestionsToRound, createQuestionFromForm } from '$lib/server/questions';
+import { readingDefault } from '$lib/server/builder';
 
 // "+ Új kérdés ehhez a körhöz" (/admin/games/[id]) — ?round_id=… esetén a
 // mentett kérdés azonnal a kör végére kerül, és visszairányítunk az estére.
 export const load: PageServerLoad = async ({ url, locals: { supabase } }) => {
 	const roundId = url.searchParams.get('round_id');
-	const [{ data: themes }, { data: questionTypes }, { data: round }] = await Promise.all([
+	const [{ data: themes }, { data: questionTypes }, { data: round }, reading] = await Promise.all([
 		supabase.from('themes').select('id, title').order('title'),
 		supabase.from('question_types').select('id, code, label, min_options, max_options').order('id'),
 		roundId
@@ -15,12 +16,14 @@ export const load: PageServerLoad = async ({ url, locals: { supabase } }) => {
 					.select('id, title, game_id, games(title)')
 					.eq('id', roundId)
 					.maybeSingle()
-			: Promise.resolve({ data: null })
+			: Promise.resolve({ data: null }),
+		readingDefault(supabase)
 	]);
 
 	return {
 		themes: themes ?? [],
 		questionTypes: questionTypes ?? [],
+		readingDefault: reading,
 		defaultThemeId: url.searchParams.get('theme_id') ?? undefined,
 		round: round?.game_id
 			? {

@@ -3,11 +3,14 @@
 		secondsLeft,
 		duration,
 		size = 120,
+		calm = false,
 		inactive = false
 	}: {
 		secondsLeft: number;
 		duration: number;
 		size?: number;
+		/** Olvasási idő: nincs sürgető (piros, pulzáló) utolsó 5 mp. */
+		calm?: boolean;
 		inactive?: boolean;
 	} = $props();
 
@@ -16,7 +19,7 @@
 	let fraction = $derived(
 		inactive ? 0.25 : duration > 0 ? Math.max(0, Math.min(1, secondsLeft / duration)) : 0
 	);
-	let low = $derived(!inactive && secondsLeft <= 5 && secondsLeft > 0);
+	let low = $derived(!calm && !inactive && secondsLeft <= 5 && secondsLeft > 0);
 </script>
 
 <div class="timer-ring" style="width: {size}px; height: {size}px" class:low class:inactive>

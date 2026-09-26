@@ -13,23 +13,31 @@
 		questionType,
 		options,
 		slider,
-		orderingItems
+		orderingItems,
+		veiled = false
 	}: {
 		questionType: string;
 		options?: { id: string; option_text: string; image_url: string | null }[];
 		slider?: { min_value: number; max_value: number; step: number };
 		orderingItems?: { id: string; item_text: string }[];
+		/** Olvasási idő alatt: a lapok halványan, szöveg nélkül látszanak. */
+		veiled?: boolean;
 	} = $props();
 </script>
 
 {#if questionType === 'single_choice' || questionType === 'multi_choice' || questionType === 'true_false'}
-	<div class="answer-options">
-		{#each options ?? [] as option (option.id)}
-			<ChoiceButton text={option.option_text} imageUrl={option.image_url} disabled />
+	<div class="answer-options" class:veiled>
+		{#each options ?? [] as option, i (option.id)}
+			<ChoiceButton
+				text={veiled ? '' : option.option_text}
+				imageUrl={veiled ? null : option.image_url}
+				suit={i}
+				display
+			/>
 		{/each}
 	</div>
 {:else if questionType === 'slider' && slider}
-	<div class="answer-slider">
+	<div class="answer-slider" class:veiled>
 		<span class="bound">{slider.min_value}</span>
 		<input
 			type="range"
@@ -42,20 +50,30 @@
 		<span class="bound">{slider.max_value}</span>
 	</div>
 {:else if questionType === 'ordering'}
-	<ol class="answer-ordering">
+	<ol class="answer-ordering" class:veiled>
 		{#each orderingItems ?? [] as item (item.id)}
-			<li>{item.item_text}</li>
+			<li>{veiled ? '\u00a0' : item.item_text}</li>
 		{/each}
 	</ol>
 {/if}
 
 <style>
+	.veiled {
+		opacity: 0.35;
+	}
+
+	/* Kahoot-szerű 2×2 (8 lapnál 4×2) rács a kártyaszín-lapokkal. */
 	.answer-options {
 		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 0.75rem;
 		margin: 1.5rem auto;
-		max-width: 48rem;
+		max-width: 64rem;
 		font-size: clamp(1rem, 2.2vw, 1.5rem);
+	}
+
+	.answer-options:has(> :global(:nth-child(5))) {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 
 	.answer-options :global(.choice) {

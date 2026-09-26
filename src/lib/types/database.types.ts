@@ -280,6 +280,7 @@ export type Database = {
 				Row: {
 					created_at: string | null;
 					current_question_duration_seconds: number | null;
+					current_question_reading_seconds: number | null;
 					current_question_id: string | null;
 					current_question_started_at: string | null;
 					current_round_id: string | null;
@@ -302,6 +303,7 @@ export type Database = {
 				Insert: {
 					created_at?: string | null;
 					current_question_duration_seconds?: number | null;
+					current_question_reading_seconds?: number | null;
 					current_question_id?: string | null;
 					current_question_started_at?: string | null;
 					current_round_id?: string | null;
@@ -324,6 +326,7 @@ export type Database = {
 				Update: {
 					created_at?: string | null;
 					current_question_duration_seconds?: number | null;
+					current_question_reading_seconds?: number | null;
 					current_question_id?: string | null;
 					current_question_started_at?: string | null;
 					current_round_id?: string | null;
@@ -552,6 +555,7 @@ export type Database = {
 					points_multiplier: number | null;
 					prompt: string;
 					question_type_id: number;
+					reading_seconds: number | null;
 					theme_id: string | null;
 					time_limit_seconds: number | null;
 				};
@@ -567,6 +571,7 @@ export type Database = {
 					points_multiplier?: number | null;
 					prompt: string;
 					question_type_id: number;
+					reading_seconds?: number | null;
 					theme_id?: string | null;
 					time_limit_seconds?: number | null;
 				};
@@ -582,6 +587,7 @@ export type Database = {
 					points_multiplier?: number | null;
 					prompt?: string;
 					question_type_id?: number;
+					reading_seconds?: number | null;
 					theme_id?: string | null;
 					time_limit_seconds?: number | null;
 				};
@@ -632,18 +638,21 @@ export type Database = {
 					order_index: number;
 					question_id: string;
 					round_id: string;
+					show_standings: boolean;
 					used_at: string | null;
 				};
 				Insert: {
 					order_index: number;
 					question_id: string;
 					round_id: string;
+					show_standings?: boolean;
 					used_at?: string | null;
 				};
 				Update: {
 					order_index?: number;
 					question_id?: string;
 					round_id?: string;
+					show_standings?: boolean;
 					used_at?: string | null;
 				};
 				Relationships: [
@@ -887,8 +896,16 @@ export type Database = {
 			};
 			admin_cancel_registration: { Args: { p_id: string }; Returns: string[] };
 			admin_delete_game: { Args: { p_game_id: string }; Returns: string };
+			admin_duplicate_question: {
+				Args: { p_question_id: string };
+				Returns: string;
+			};
 			admin_fill_from_waitlist: { Args: { p_game_id: string }; Returns: string[] };
 			admin_promote_registration: { Args: { p_id: string }; Returns: boolean };
+			admin_set_round_questions: {
+				Args: { p_question_ids: string[]; p_round_id: string };
+				Returns: undefined;
+			};
 			answer_owner_game_active: {
 				Args: { p_answer_id: string };
 				Returns: boolean;
@@ -905,6 +922,14 @@ export type Database = {
 				}[];
 			};
 			current_question_state: { Args: { p_game_id: string }; Returns: Json };
+			current_round_standings: {
+				Args: { p_game_id: string };
+				Returns: {
+					name: string;
+					score: number;
+					team_id: string;
+				}[];
+			};
 			current_user_role_id: { Args: never; Returns: number };
 			draw_random_questions_for_round: {
 				Args: { p_count?: number; p_round_id: string; p_theme_id: string };
@@ -920,6 +945,7 @@ export type Database = {
 					points_multiplier: number | null;
 					prompt: string;
 					question_type_id: number;
+					reading_seconds: number | null;
 					theme_id: string | null;
 					time_limit_seconds: number | null;
 				}[];
@@ -1079,6 +1105,11 @@ export type Database = {
 				}[];
 			};
 			server_now: { Args: never; Returns: string };
+			skip_question_reading: { Args: { p_game_id: string }; Returns: Json };
+			start_question: {
+				Args: { p_duration: number; p_game_id: string };
+				Returns: Json;
+			};
 			start_question_timer: {
 				Args: { p_duration: number; p_game_id: string };
 				Returns: string;

@@ -1,6 +1,10 @@
 <script lang="ts">
+	import { suit as suitFor } from '$lib/builder/model';
+
 	let {
 		text,
+		suit,
+		display = false,
 		imageUrl = null,
 		selected = false,
 		disabled = false,
@@ -26,7 +30,14 @@
 		 * választ. */
 		correct?: boolean;
 		onclick?: () => void;
+		/** Kártyaszín-lap (♠ ♥ ♦ ♣, 5–8. lapnál számmal) — a kvízösszerakóval,
+		 * a kivetítővel és a csapatok telefonjával azonos jelölés. */
+		suit?: number;
+		/** Csak megjelenítés (kivetítő): nem kattintható, de nem is halványul. */
+		display?: boolean;
 	} = $props();
+
+	const s = $derived(suit === undefined ? null : suitFor(suit));
 </script>
 
 <button
@@ -36,9 +47,15 @@
 	class:pulse
 	class:correct
 	class:has-image={!!imageUrl}
-	{disabled}
+	class:suited={!!s}
+	class:display
+	style={s ? `--suit: ${s.color}` : undefined}
+	disabled={disabled || display}
 	{onclick}
 >
+	{#if s}
+		<span class="suit" aria-hidden="true">{s.label}</span>
+	{/if}
 	{#if imageUrl}
 		<img class="choice-image" src={imageUrl} alt="" />
 	{/if}
@@ -121,6 +138,65 @@
 		color: var(--power);
 		font-weight: bold;
 		flex-shrink: 0;
+	}
+
+	/* Kártyaszín-lapok: telt színes háttér, fehér szöveg. A kijelölés
+	   fehér gyűrű, a helyes lap pipát kap, a többi halványul (disabled). */
+	.choice.suited {
+		border: 0;
+		background: var(--suit);
+		color: #fff;
+		font-weight: 700;
+		font-size: 1.05rem;
+		min-height: 3.5rem;
+		padding: 0.75rem 1rem;
+		justify-content: flex-start;
+	}
+
+	.choice.suited:hover:not(:disabled) {
+		filter: brightness(1.08);
+	}
+
+	.choice.suited.selected {
+		background: var(--suit);
+		box-shadow:
+			0 0 0 3px var(--cabinet-2),
+			0 0 0 6px var(--suit);
+	}
+
+	.choice.suited:disabled {
+		opacity: 0.45;
+	}
+
+	.choice.suited.display:disabled {
+		opacity: 1;
+		cursor: default;
+	}
+
+	.choice.suited.correct {
+		background: var(--suit);
+		color: #fff;
+		opacity: 1;
+		box-shadow:
+			0 0 0 3px var(--cabinet-2),
+			0 0 0 6px var(--power);
+	}
+
+	.choice.suited .check {
+		margin-left: auto;
+		color: #fff;
+		font-size: 1.3rem;
+	}
+
+	.suit {
+		font-family: Georgia, serif;
+		font-size: 1.5rem;
+		line-height: 1;
+		flex-shrink: 0;
+	}
+
+	.choice.suited.has-image .suit {
+		align-self: flex-start;
 	}
 
 	@keyframes choice-correct-in {

@@ -5,55 +5,26 @@ import {
 	replaceQuestionTypeData,
 	validateQuestionForm
 } from '$lib/server/questions';
+import { loadDrafts, readingDefault } from '$lib/server/builder';
 
 export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
-	const [{ data: themes }, { data: questionTypes }, { data: question }] = await Promise.all([
+	const [{ data: themes }, { data: questionTypes }, drafts, reading] = await Promise.all([
 		supabase.from('themes').select('id, title').order('title'),
 		supabase.from('question_types').select('id, code, label, min_options, max_options').order('id'),
-		supabase.from('questions').select('*').eq('id', params.id).single()
+		loadDrafts(supabase, [params.id]),
+		readingDefault(supabase)
 	]);
 
-	if (!question) {
+	const draft = drafts[0];
+	if (!draft) {
 		kitError(404, 'A kérdés nem található.');
-	}
-
-	const type = questionTypes?.find((t) => t.id === question.question_type_id);
-
-	let choiceOptions, sliderConfig, orderingItems;
-	if (
-		type?.code === 'single_choice' ||
-		type?.code === 'multi_choice' ||
-		type?.code === 'true_false'
-	) {
-		const { data } = await supabase
-			.from('question_choice_options')
-			.select('option_text, image_url, is_correct')
-			.eq('question_id', question.id)
-			.order('order_index');
-		choiceOptions = data ?? [];
-	} else if (type?.code === 'slider') {
-		const { data } = await supabase
-			.from('question_slider_config')
-			.select('min_value, max_value, step, correct_value, tolerance')
-			.eq('question_id', question.id)
-			.single();
-		sliderConfig = data ?? undefined;
-	} else if (type?.code === 'ordering') {
-		const { data } = await supabase
-			.from('question_ordering_items')
-			.select('item_text, correct_position')
-			.eq('question_id', question.id)
-			.order('correct_position');
-		orderingItems = data ?? [];
 	}
 
 	return {
 		themes: themes ?? [],
 		questionTypes: questionTypes ?? [],
-		question,
-		choiceOptions,
-		sliderConfig,
-		orderingItems
+		draft,
+		readingDefault: reading
 	};
 };
 
@@ -89,7 +60,8 @@ export const actions: Actions = {
 				points: parsed.points,
 				points_multiplier: parsed.points_multiplier,
 				time_limit_seconds: parsed.time_limit_seconds,
-				points_decay: parsed.points_decay
+				points_decay: parsed.points_decay,
+				reading_seconds: parsed.reading_seconds
 			})
 			.eq('id', params.id);
 

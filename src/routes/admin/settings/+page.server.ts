@@ -114,6 +114,14 @@ export const actions: Actions = {
 			return fail(400, { error: 'Érvénytelen érték formátum.', key });
 		}
 
+		// Az élő lebonyolítás (start_question RPC) egész másodpercet vár.
+		if (
+			key === 'question_reading_seconds' &&
+			!(typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 120)
+		) {
+			return fail(400, { error: 'Az olvasási idő 0–120 közötti egész szám (mp).', key });
+		}
+
 		const { user } = await safeGetSession();
 		const { error } = await supabase
 			.from('app_settings')

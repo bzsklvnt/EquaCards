@@ -9,24 +9,23 @@
 		QuestionShowPayload,
 		TimerStartPayload,
 		RoundLeaderboardRevealPayload,
-		FinalLeaderboardRevealPayload
+		FinalLeaderboardRevealPayload,
+		QuestionStandingsRevealPayload,
+		QuestionStandingsRow,
+		RoundStandingsUpdatePayload
 	} from '$lib/realtime/protocol';
+	import { rankRows } from '$lib/realtime/standings';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
-	import {
-		playTick,
-		playCountdownEnd,
-		playCorrect,
-		playIncorrect,
-		playJokerActivate,
-		playLeaderboard
-	} from '$lib/audio/sfx';
+	// Hang csak a kivetítőn szól (docs/features/tv-mode.md) — a telefon néma.
 	import { fireWinnerConfetti } from '$lib/effects/confetti';
 	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';
 	import ChoiceButton from '$lib/components/ChoiceButton.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
+	import StandingsBoard from '$lib/components/StandingsBoard.svelte';
+	import RoundStanding from '$lib/components/RoundStanding.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
@@ -53,6 +52,18 @@
 	let revealInfo = $state<QuestionRevealPayload | null>(null);
 	let myResult = $state<{ is_correct: boolean; points_awarded: number } | null>(null);
 	let roundLeaderboard = $state<RoundLeaderboardRevealPayload | null>(null);
+	let questionStandings = $state<QuestionStandingsRevealPayload | null>(null);
+	// A kör aktuális állása (minden felfedés után frissül, a kivetítős
+	// állástól függetlenül) — a felső sáv és a részletes kártya forrása.
+	let roundStandings = $state<QuestionStandingsRow[]>([]);
+	const myStanding = $derived(
+		questionStandings && joined
+			? (questionStandings.standings.find((r) => r.team_id === joined?.teamId) ?? null)
+			: null
+	);
+	// Olvasási idő: amíg tart, csak a kérdés látszik, a gombok nem nyomhatók.
+	let readingLeft = $state(0);
+	const reading = $derived(readingLeft > 0);
 	let finalLeaderboard = $state<FinalLeaderboardRevealPayload | null>(null);
 	let submitted = $state(false);
 	let submitting = $state(false);
@@ -208,6 +219,7 @@
 			ordering_items?: { id: string; item_text: string }[] | null;
 			server_start_time?: string | null;
 			duration?: number | null;
+			reading_seconds?: number | null;
 			revealed?: boolean;
 			correct_answer?: string | null;
 		};
@@ -244,12 +256,14 @@
 		submitting = false;
 		jokerError = '';
 		roundLeaderboard = null;
+		questionStandings = null;
 
 		timerInfo = s.server_start_time
 			? {
 					question_id: s.question_id,
 					duration: s.duration ?? 30,
-					server_start_time: s.server_start_time
+					server_start_time: s.server_start_time,
+					reading_seconds: s.reading_seconds ?? 0
 				}
 			: null;
 
@@ -275,6 +289,15 @@
 		}
 	}
 
+	async function restoreRoundStandings(info: JoinedInfo) {
+		const { data: rows } = await data.supabase.rpc('current_round_standings', {
+			p_game_id: info.gameId
+		});
+		if (rows && rows.length > 0) {
+			roundStandings = rankRows(rows.map((r) => ({ ...r, score: Number(r.score) })));
+		}
+	}
+
 	function resetAnswerState(payload: QuestionShowPayload) {
 		selectedOptionId = null;
 		selectedOptionIds = [];
@@ -286,6 +309,7 @@
 		revealInfo = null;
 		myResult = null;
 		roundLeaderboard = null;
+		questionStandings = null;
 		submitted = false;
 		submitError = '';
 		submitting = false;
@@ -317,6 +341,7 @@
 		// egy (újra)betöltés ne üres/hibás képernyőt mutasson, ha a host
 		// időközben már elindított/lezárt/feltárt egy kérdést.
 		restoreLiveState(info);
+		restoreRoundStandings(info);
 
 		channel = data.supabase.channel(`game:${info.gameId}`, {
 			config: { presence: { key: info.teamId } }
@@ -351,22 +376,28 @@
 				})
 				.then(({ data: rows }) => {
 					myResult = rows?.[0] ?? null;
-					if (myResult) {
-						if (myResult.is_correct) playCorrect();
-						else playIncorrect();
-					}
 				});
+		});
+
+		channel.on('broadcast', { event: 'round_standings_update' }, ({ payload }) => {
+			roundStandings = (payload as RoundStandingsUpdatePayload).standings;
+		});
+
+		channel.on('broadcast', { event: 'question_standings_reveal' }, ({ payload }) => {
+			questionStandings = payload as QuestionStandingsRevealPayload;
+			roundStandings = questionStandings.standings;
 		});
 
 		channel.on('broadcast', { event: 'round_leaderboard_reveal' }, ({ payload }) => {
 			roundLeaderboard = payload as RoundLeaderboardRevealPayload;
-			playLeaderboard();
+			questionStandings = null;
+			// Új kör jön: a köri állás nulláról indul.
+			roundStandings = [];
 			if (roundLeaderboard.top3[0]?.team_id === info.teamId) fireWinnerConfetti();
 		});
 
 		channel.on('broadcast', { event: 'final_leaderboard_reveal' }, ({ payload }) => {
 			finalLeaderboard = payload as FinalLeaderboardRevealPayload;
-			playLeaderboard();
 			if (finalLeaderboard.standings[0]?.team_id === info.teamId) fireWinnerConfetti();
 		});
 
@@ -395,18 +426,18 @@
 	// a csapat kliense saját magát zárja le (nem kell megvárni egy külön
 	// answer_locked broadcastot).
 	$effect(() => {
-		if (!timerInfo) return;
-		const endTime = new Date(timerInfo.server_start_time).getTime() + timerInfo.duration * 1000;
+		if (!timerInfo) {
+			readingLeft = 0;
+			return;
+		}
+		const startTime = new Date(timerInfo.server_start_time).getTime();
+		const endTime = startTime + timerInfo.duration * 1000;
 
-		let lastWholeSecond = -1;
 		const tick = () => {
-			const remaining = Math.max(0, Math.round((endTime - serverNow()) / 1000));
-			secondsLeft = remaining;
-			if (remaining !== lastWholeSecond) {
-				lastWholeSecond = remaining;
-				if (remaining > 0 && remaining <= 5) playTick();
-				else if (remaining === 0) playCountdownEnd();
-			}
+			const now = serverNow();
+			readingLeft = Math.max(0, Math.ceil((startTime - now) / 1000));
+			const remaining = Math.max(0, Math.round((endTime - now) / 1000));
+			secondsLeft = Math.min(remaining, timerInfo?.duration ?? remaining);
 			if (remaining <= 0) {
 				locked = true;
 			}
@@ -460,7 +491,7 @@
 		// futott le előbb (ekkor submitted=true felülírta/eltüntette a
 		// hibaágat). A `submitting` flag ezt eleve kizárja: a második
 		// koppintás egyszerűen nem indít új beküldést.
-		if (!currentQuestion || !joined || submitted || submitting) return;
+		if (!currentQuestion || !joined || submitted || submitting || reading) return;
 		submitting = true;
 
 		try {
@@ -529,7 +560,7 @@
 	// a hívás pillanatában olvassa ki, tehát a késleltetés nélkül is helyes
 	// adatot küldene, ez tisztán vizuális visszajelzés.
 	async function selectAndSubmit(optionId: string) {
-		if (!currentQuestion || submitted || locked || submitting) return;
+		if (!currentQuestion || submitted || locked || submitting || reading) return;
 		selectedOptionId = optionId;
 		await new Promise((resolve) => setTimeout(resolve, 200));
 		await submitAnswer();
@@ -559,7 +590,6 @@
 
 		jokerUsed = true;
 		jokerError = '';
-		playJokerActivate();
 
 		// A broadcast megmarad, de mostantól csak a host UI-visszajelzésére
 		// szolgál ("Joker aktiválva egy csapat által."), nem az adatírásra.
@@ -586,6 +616,10 @@
 
 	{#if joined}
 		<h1>{gameTitle}</h1>
+
+		{#if !finalLeaderboard && !roundLeaderboard && (currentQuestion || revealInfo || questionStandings)}
+			<RoundStanding rows={roundStandings} teamId={joined.teamId} />
+		{/if}
 
 		{#if finalLeaderboard}
 			<div class="leaderboard" in:fade={{ duration: 200 }}>
@@ -620,6 +654,30 @@
 				</div>
 				<p>Várj a következő körre…</p>
 			</div>
+		{:else if questionStandings}
+			<div class="leaderboard" in:fade={{ duration: 200 }}>
+				<h2>Állás a körben</h2>
+				<RoundStanding rows={questionStandings.standings} teamId={joined.teamId} variant="card" />
+				{#if myStanding}
+					<div class="my-standing" in:scale={{ start: 0.8, duration: 300 }}>
+						<span class="my-rank">{myStanding.rank}. hely</span>
+						<span class="my-score"
+							>{myStanding.score} pont{myStanding.gained > 0
+								? ` (+${myStanding.gained})`
+								: ''}</span
+						>
+						{#if myStanding.prev_rank !== null && myStanding.prev_rank !== myStanding.rank}
+							<span class="my-move" class:up={myStanding.prev_rank > myStanding.rank}>
+								{myStanding.prev_rank > myStanding.rank
+									? `▲ ${myStanding.prev_rank - myStanding.rank} helyet léptetek előre`
+									: `▼ ${myStanding.rank - myStanding.prev_rank} helyet csúsztatok vissza`}
+							</span>
+						{/if}
+					</div>
+				{/if}
+				<StandingsBoard rows={questionStandings.standings} limit={3} ownTeamId={joined.teamId} />
+				<p>Várj a következő kérdésre…</p>
+			</div>
 		{:else if revealInfo}
 			<div class="reveal" in:fade={{ duration: 200 }}>
 				<p>Helyes válasz: <strong>{revealInfo.correct_answer}</strong></p>
@@ -633,6 +691,9 @@
 					</p>
 				{:else}
 					<p>{submitted ? 'A válaszod elküldve.' : 'Nem küldtél választ időben.'}</p>
+				{/if}
+				{#if roundStandings.length > 0}
+					<RoundStanding rows={roundStandings} teamId={joined.teamId} variant="card" />
 				{/if}
 			</div>
 		{:else if currentQuestion}
@@ -660,6 +721,15 @@
 				<div class="timer-wrap">
 					{#if locked}
 						<p class="locked-label">Lezárva</p>
+					{:else if reading}
+						<div class="reading" role="status">
+							<TimerRing
+								calm
+								secondsLeft={readingLeft}
+								duration={timerInfo.reading_seconds || readingLeft}
+							/>
+							<p>Olvassátok a kérdést — a gombok mindjárt aktívak.</p>
+						</div>
 					{:else}
 						<TimerRing {secondsLeft} duration={timerInfo.duration} />
 					{/if}
@@ -673,10 +743,12 @@
 			{:else}
 				{#if currentQuestion.question_type === 'single_choice' || currentQuestion.question_type === 'true_false'}
 					<div class="options">
-						{#each currentQuestion.options ?? [] as option (option.id)}
+						{#each currentQuestion.options ?? [] as option, i (option.id)}
 							<ChoiceButton
 								text={option.option_text}
 								imageUrl={option.image_url}
+								suit={i}
+								disabled={reading}
 								selected={selectedOptionId === option.id}
 								pulse={selectedOptionId === option.id}
 								onclick={() => selectAndSubmit(option.id)}
@@ -685,10 +757,12 @@
 					</div>
 				{:else if currentQuestion.question_type === 'multi_choice'}
 					<div class="options">
-						{#each currentQuestion.options ?? [] as option (option.id)}
+						{#each currentQuestion.options ?? [] as option, i (option.id)}
 							<ChoiceButton
 								text={option.option_text}
 								imageUrl={option.image_url}
+								suit={i}
+								disabled={reading}
 								selected={selectedOptionIds.includes(option.id)}
 								onclick={() => toggleMultiOption(option.id)}
 							/>
@@ -701,6 +775,7 @@
 							min={currentQuestion.slider?.min_value}
 							max={currentQuestion.slider?.max_value}
 							step={currentQuestion.slider?.step}
+							disabled={reading}
 							bind:value={sliderValue}
 						/>
 						<p class="slider-value">{sliderValue}</p>
@@ -742,7 +817,9 @@
 				{/if}
 
 				{#if currentQuestion.question_type !== 'single_choice' && currentQuestion.question_type !== 'true_false'}
-					<Button onclick={submitAnswer} loading={submitting}>Válasz elküldése</Button>
+					<Button onclick={submitAnswer} loading={submitting} disabled={reading}
+						>Válasz elküldése</Button
+					>
 				{/if}
 
 				{#if !jokerUsed}
@@ -842,6 +919,35 @@
 </main>
 
 <style>
+	.my-standing {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.2rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.my-rank {
+		font-family: var(--font-display);
+		font-size: 2.2rem;
+		color: var(--cyan);
+	}
+
+	.my-score {
+		font-family: var(--font-led);
+		font-size: 1.1rem;
+	}
+
+	.my-move {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--danger);
+	}
+
+	.my-move.up {
+		color: var(--power);
+	}
+
 	.code-hint {
 		margin: 0;
 		font-size: 0.85rem;
@@ -952,8 +1058,21 @@
 
 	.options {
 		display: grid;
-		gap: 0.5rem;
+		gap: 0.6rem;
 		margin: 1rem 0;
+	}
+
+	.reading {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.reading p {
+		margin: 0;
+		color: var(--marquee-dim);
+		font-size: 0.9rem;
 	}
 
 	.slider {
