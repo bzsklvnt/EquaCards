@@ -36,6 +36,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 	if (!game) kitError(404, 'A kvízeste nem található.');
 
 	return {
+		workspace: true,
 		game,
 		venues: venues ?? [],
 		themes: (themes ?? []).map((t) => {

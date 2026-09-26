@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 		.order('name');
 
 	if (roundIds.length === 0 || !teams || teams.length === 0) {
-		return { game, rounds: [], teams: teams ?? [] };
+		return { workspace: true, game, rounds: [], teams: teams ?? [] };
 	}
 
 	const { data: roundQuestions } = await supabase
@@ -207,7 +207,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 			})
 	}));
 
-	return { game, rounds: roundsDetail, teams: teams ?? [] };
+	return { workspace: true, game, rounds: roundsDetail, teams: teams ?? [] };
 };
 
 export const actions: Actions = {

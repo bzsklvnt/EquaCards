@@ -14,7 +14,6 @@ export type TourId =
 	| 'dashboard'
 	| 'themes'
 	| 'questions'
-	| 'question-form'
 	| 'games'
 	| 'game-setup'
 	| 'game-event'
@@ -23,7 +22,6 @@ export type TourId =
 	| 'host-live'
 	| 'results'
 	| 'design-themes'
-	| 'design-theme-editor'
 	| 'users'
 	| 'settings'
 	| 'reports'
@@ -36,48 +34,36 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 			{
 				title: 'Üdv a kezelőfelületen!',
 				description:
-					'Ez a bemutató végigvezet a menün. Minden oldalnak saját bemutatója van: bármikor újraindíthatod a jobb felső „Bemutató ▶” gombbal.'
-			},
-			{
-				element: 'nav-themes',
-				title: 'Témák',
-				description:
-					'Tartalmi kategóriák, például Sport vagy Zene. A kérdéseket ezekhez rendeled, és egy estére témánként lehet random kérdéseket húzni. Érdemes ezzel kezdeni.'
-			},
-			{
-				element: 'nav-questions',
-				title: 'Kérdésbank',
-				description:
-					'Az összes kérdés egy helyen, öt kérdéstípussal. Egy kérdést több estén is fel lehet használni.'
-			},
-			{
-				element: 'nav-design-themes',
-				title: 'Vizuális témák',
-				description:
-					'A kinézet (színek, betűtípusok) a host, a kivetítő és a telefonok felületén. Független a tartalmi témáktól.'
+					'Minden oldal ugyanúgy épül fel: bal oldalt a lista, középen a kijelölt elem részletei, jobb oldalt a műveletek, alul a billentyű-súgó. A változások automatikusan mentődnek.'
 			},
 			{
 				element: 'nav-games',
 				title: 'Kvízesték',
 				description:
-					'Itt hozod létre az estéket, állítod össze a köröket és a kérdéseket, és innen indítod az élő játékot. Itt találod a Próbaeste gombot is.'
+					'Itt hozod létre az estéket, innen jutsz az összerakóba, az eseményhez (jelentkezések) és az élő játékhoz. Itt a Próbaeste gomb is.'
+			},
+			{
+				element: 'nav-questions',
+				title: 'Kérdésbank',
+				description:
+					'Az összes kérdés egy helyen — a lista mellett ugyanazon a vásznon szerkeszted őket, mint az összerakóban.'
+			},
+			{
+				element: 'nav-themes',
+				title: 'Témák',
+				description:
+					'Tartalmi kategóriák (pl. Sport, Zene) a kérdésekhez és a random húzáshoz. Érdemes ezzel kezdeni.'
 			},
 			{
 				element: 'nav-venues',
 				title: 'Helyszínek',
-				description:
-					'A kvízesték helyszínei (név, cím, térkép-link). Az estéknél ebből a listából választasz, és a nyilvános oldalon is ez jelenik meg.'
+				description: 'A kvízesték helyszínei — a nyilvános oldalon is ezek jelennek meg.'
 			},
 			{
-				element: 'nav-users',
-				title: 'Felhasználók',
-				description: 'Ki mit érhet el: itt osztod ki a szerepköröket. Csak a Rendszergazda látja.'
-			},
-			{
-				element: 'nav-settings',
-				title: 'Beállítások',
+				element: 'nav-design-themes',
+				title: 'Vizuális témák',
 				description:
-					'Globális alapértékek, például az alapértelmezett kinézet. Csak a Rendszergazda látja.'
+					'A kinézet a host, a kivetítő és a telefonok felületén, élő előnézettel. Független a tartalmi témáktól.'
 			},
 			{
 				element: 'nav-reports',
@@ -85,15 +71,27 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				description: 'A lezárult esték eredményei és összesített statisztikái.'
 			},
 			{
+				element: 'nav-settings',
+				title: 'Felhasználók és beállítások',
+				description:
+					'Jogosultságok, olvasási idő, alap válaszidő, impresszum, e-mail — csak a Rendszergazda látja.'
+			},
+			{
+				element: 'cmd-palette',
+				title: 'Keresés és parancsok (Ctrl+K)',
+				description:
+					'Bárhonnan megkereshetsz egy estét, kérdést, helyszínt vagy témát, és parancsot is indíthatsz (pl. „Új kvízeste”). Oldalra ugrás: G, majd egy betű (G E Kvízesték, G K Kérdésbank…). A ? billentyű minden oldalon megmutatja a parancsokat.'
+			},
+			{
 				element: 'tour-button',
 				title: 'Bemutató gomb',
 				description:
-					'Minden oldalon itt indítod az adott oldal bemutatóját. A rózsaszín pont azt jelzi, hogy ebben a böngészőben még nem nézted meg.'
+					'Minden oldalon itt indítod az adott oldal bemutatóját. A pötty azt jelzi, hogy ebben a böngészőben még nem nézted meg.'
 			},
 			{
 				title: 'Javasolt sorrend egy új estéhez',
 				description:
-					'1. Témák → 2. Kérdésbank → 3. Kvízesték: körök és kérdések → 4. Élő lebonyolítás → 5. Riportok.<br><br>Tipp: először hozz létre egy Próbaestét a Kvízesték oldalon, és azon kattints végig mindent.'
+					'1. Témák → 2. Kérdésbank → 3. Kvízesték: összerakó → 4. Esemény és jelentkezések → 5. Élő lebonyolítás → 6. Riportok.<br><br>Tipp: először hozz létre egy Próbaestét, és azon kattints végig mindent.'
 			}
 		]
 	},
@@ -102,21 +100,20 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Témák',
 		steps: [
 			{
-				element: 'theme-create',
-				title: 'Új téma',
+				element: 'theme-list',
+				title: 'A témák',
 				description:
-					'Írd be a nevét (pl. „Zene – 90-es évek”), majd Hozzáadás. A témát a kérdés szerkesztésekor választod ki.'
+					'Bal oldalt a témák a kérdésszámmal. ↑/↓ lépked, Enter a név szerkesztésére ugrik — az átnevezés automatikusan mentődik.'
 			},
 			{
-				element: 'theme-list',
-				title: 'A témák listája',
-				description:
-					'Törölni csak olyan témát lehet, amelyhez már nem tartozik kérdés. Előbb a kérdéseket tedd át másik témába.'
+				element: 'theme-create',
+				title: 'Új téma',
+				description: 'Írd be a nevét (N a mezőbe ugrik), majd +.'
 			},
 			{
 				title: 'Tartalmi vagy vizuális téma?',
 				description:
-					'Az itteni témák a kérdések tartalmát csoportosítják. A kinézetet a Vizuális témák menüpont kezeli, a kettő független egymástól.'
+					'Az itteni témák a kérdések tartalmát csoportosítják. A kinézetet a Vizuális témák kezeli, a kettő független egymástól.'
 			}
 		]
 	},
@@ -125,90 +122,45 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Kérdésbank',
 		steps: [
 			{
-				element: 'q-filter',
-				title: 'Témaszűrő',
+				title: 'Lista és vászon egy nézetben',
 				description:
-					'Csak egy téma kérdéseit mutatja. Az „összes” választással minden kérdés látszik.'
+					'Bal oldalt a kérdések, középen a kijelölt kérdés ugyanazon a vásznon, mint a kvízösszerakóban, jobb oldalt a beállításai. Minden változás automatikusan mentődik, amint a kérdés teljes.'
+			},
+			{
+				element: 'q-filter',
+				title: 'Szűrők',
+				description:
+					'Téma, típus, „Csak nem játszott”, „Van kép” — és a keresés (/) a kérdés szövegében.'
+			},
+			{
+				element: 'q-table',
+				title: 'A kérdések',
+				description:
+					'↑/↓ lépked, Enter a kérdés szövegébe ugrik. A jobb szélső jelzés: „új” = még nem hangzott el, „2×” = két estén már szerepelt.'
 			},
 			{
 				element: 'q-new',
 				title: 'Új kérdés',
-				description: 'Megnyitja a kérdés-űrlapot. Ott is van saját bemutató.'
-			},
-			{
-				element: 'q-table',
-				title: 'A kérdések listája',
-				description: 'Kérdés, téma, típus és alappontszám. A legutóbb felvett kérdés van felül.'
-			},
-			{
-				element: 'q-last-used',
-				title: 'Utoljára játszva',
 				description:
-					'Ha egy kérdés bekerül egy estébe, a random húzás egy ideig nem választja újra (alapból 6 hónapig, a Beállításokban módosítható). Kézzel viszont bármikor hozzáadhatod egy körhöz.'
-			},
-			{
-				element: 'q-row-actions',
-				title: 'Szerkesztés és törlés',
-				description:
-					'Figyelem: egy már lejátszott kérdés törlése a korábbi esték részletes eredményeiből is eltávolítja az arra adott válaszokat. Ha csak javítani kell, használd a Szerkesztést.'
-			}
-		]
-	},
-
-	'question-form': {
-		title: 'Kérdés szerkesztése',
-		steps: [
-			{
-				element: 'qf-round-context',
-				title: 'Egyenesen a körbe',
-				description:
-					'Ezt az űrlapot egy kvízeste köréből nyitottad meg: mentés után a kérdés a kérdésbankba és a kör végére is bekerül, majd visszavisz az estére.'
-			},
-			{
-				title: 'Ugyanaz a vászon, mint a kvízösszerakóban',
-				description:
-					'A kérdést úgy szerkeszted, ahogy a kivetítőn megjelenik: középen a kérdés, a kép és a kártyaszínes válaszlapok (♠ ♥ ♦ ♣), jobb oldalt a beállítások.'
+					'N: új kérdés a vásznon. Addig nem kerül a bankba, amíg nem teljes (szöveg + helyes válasz) — a hiányzót a vászon felett látod.'
 			},
 			{
 				element: 'qb-prompt',
-				title: 'A kérdés szövege',
-				description: 'Ez jelenik meg a kivetítőn és a csapatok telefonján. Enter a mezőbe ugrik.'
-			},
-			{
-				element: 'qb-image',
-				title: 'Kép a kérdéshez',
+				title: 'Szerkesztés billentyűzettel',
 				description:
-					'Opcionális: húzd be, tallózd ki, vagy illeszd be (Ctrl+V). JPG, PNG vagy WebP, legfeljebb 5 MB; feltöltés előtt automatikusan tömörítjük.'
-			},
-			{
-				element: 'qb-answers',
-				title: 'Válaszlapok',
-				description:
-					'Az 1–8 billentyű (vagy a kör a lap sarkában) jelöli a helyes választ, Alt+1–8 a lap szövegébe ugrik. Több helyesnél 6–8 lap van, több is helyes lehet; lapokhoz kép is tehető. Csúszkánál a helyes érték és a tűrés, sorrendnél a helyes sorrend (felülről lefelé) számít.'
-			},
-			{
-				element: 'qb-type',
-				title: 'Kérdéstípus',
-				description:
-					'<b>Egy helyes:</b> 4 lap.<br><b>Több helyes:</b> 6–8 lap.<br><b>Igaz / hamis.</b><br><b>Csúszka:</b> szám becslése tűréssel.<br><b>Sorrend.</b><br>Típusváltáskor a kérdés szövege és a kép megmarad.'
+					'1–8: helyes válasz, Alt+1–8: a lap szövege, T: típus, Ctrl+V: kép beillesztése, Esc: vissza a listába.'
 			},
 			{
 				element: 'qb-time',
 				title: 'Válaszidő és olvasási idő',
 				description:
-					'A gyors választók mellett egyéni válaszidő is megadható (5–600 mp). Előtte olvasási idő jár: alapból a Beállításokban megadott érték (5 mp), kérdésenként „Egyéni”-re állítható — ez alatt csak a kérdés látszik, a gombok utána aktiválódnak.'
+					'Gyors választók + egyéni érték (5–600 mp). Az olvasási idő alapból a Beállításokban megadott érték, kérdésenként egyéni is lehet.'
 			},
 			{
-				element: 'qb-scoring',
-				title: 'Pontozás',
+				element: 'q-row-actions',
+				title: 'Hol szerepel',
 				description:
-					'<b>Pont:</b> ennyit ér a helyes válasz.<br><b>Dupla:</b> dupla pontos kérdés.<br><b>Gyorsasági pontcsökkenés:</b> az azonnali helyes válasz a teljes pontot, a válaszidő végén adott a felét éri (az olvasási idő nem számít bele).'
-			},
-			{
-				element: 'qf-save',
-				title: 'Mentés',
-				description:
-					'A Mentés addig inaktív, amíg valami hiányzik (a gomb mellett látod, mi). A Mégse visszavisz mentés nélkül.'
+					'Mely estéken és körökben szerepel a kérdés; innen egy kör végére is hozzáadhatod (A). Figyelem: a törlés a korábbi esték eredményeiből is eltávolítja a válaszokat — javításhoz elég a szerkesztés.'
 			}
 		]
 	},
@@ -217,10 +169,27 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Esemény és jelentkezések',
 		steps: [
 			{
+				element: 'ev-stats',
+				title: 'Létszám',
+				description: 'A megerősített csapatok összlétszáma a korláthoz képest és a szabad helyek.'
+			},
+			{
+				element: 'ev-table',
+				title: 'Jelentkezések',
+				description:
+					'Bal oldalt a csapatok: bekerült, várólista, lemondott. Középen a kijelölt csapat: csapatkód, belépett-e, kapcsolattartó. P: beengedés a várólistáról, Del: lemondás — mindkettőről e-mail megy.'
+			},
+			{
+				element: 'ev-walkin',
+				title: 'Helyszíni csapat és export',
+				description:
+					'W: előzetes jelentkezés nélkül érkezett csapat — kap egy csapatkódot, ezt mondd meg nekik. Az „Export CSV” Excelben nyitható listát ad.'
+			},
+			{
 				element: 'ev-settings',
 				title: 'Esemény adatai',
 				description:
-					'Időpont (magyar idő szerint), helyszín és létszámkorlát főben. Ha a korlátot megemeled és mentesz, a várólistáról sorban bekerülnek azok, akik beleférnek, és e-mailt kapnak.',
+					'Név, időpont (magyar idő), helyszín, létszámkorlát főben — automatikus mentéssel. Ha a korlátot megemeled, a várólistáról bekerülnek, akik beleférnek.',
 				side: 'left'
 			},
 			{
@@ -234,33 +203,14 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				element: 'ev-join-code',
 				title: 'Csatlakozás csapatkóddal',
 				description:
-					'Bekapcsolva az estén csak a jelentkezéskor kapott 6 karakteres csapatkóddal lehet csatlakozni — a PIN önmagában nem elég. A kóddal a játék indulása után is be lehet lépni, és egy csapat másik telefonról is visszaléphet vele.',
+					'Bekapcsolva csak a jelentkezéskor kapott 6 karakteres csapatkóddal lehet csatlakozni — a PIN önmagában nem elég.',
 				side: 'left'
 			},
 			{
 				element: 'ev-theme',
 				title: 'Megjelenés',
-				description:
-					'Az este vizuális témája a kivetítőn, a host és a csapatok felületén. Alapból Letisztult; buli-hangulathoz válaszd az Arcade (fun) témát.',
+				description: 'Az este vizuális témája a kivetítőn, a host és a csapatok felületén.',
 				side: 'left'
-			},
-			{
-				element: 'ev-stats',
-				title: 'Létszám',
-				description:
-					'A megerősített csapatok összlétszáma a korláthoz képest, a várólista és a szabad helyek.'
-			},
-			{
-				element: 'ev-table',
-				title: 'Jelentkezések',
-				description:
-					'A csapatok a kapcsolattartó adataival. Lemondáskor a várólistáról automatikusan bekerül, aki belefér; a „Beenged” a korláttól függetlenül beenged egy várólistás csapatot. Mindkét esetben e-mail megy a csapatnak.'
-			},
-			{
-				element: 'ev-walkin',
-				title: 'Helyszíni csapat',
-				description:
-					'Előzetes jelentkezés nélkül érkezett csapatnak itt kérsz csapatkódot — ezt mondd meg nekik. A host lobbyban is megteheted.'
 			},
 			{
 				element: 'ev-delete',
@@ -271,8 +221,9 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 			},
 			{
 				element: 'tab-rounds',
-				title: 'Körök és kérdések',
-				description: 'Itt állítod össze az este köreit és kérdéseit.'
+				title: 'Az este nézetei',
+				description:
+					'Szerkesztő, Áttekintés, Esemény, Eredmények — ugyanaz a fejléc minden nézetben.'
 			}
 		]
 	},
@@ -280,17 +231,16 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Helyszínek',
 		steps: [
 			{
+				element: 'venues-list',
+				title: 'Helyszínek',
+				description:
+					'Bal oldalt a lista, középen a kijelölt helyszín adatai automatikus mentéssel, alatta az előnézet: így látszik a nyilvános oldalon. Jobb oldalt az itt tartott esték.'
+			},
+			{
 				element: 'venues-create',
 				title: 'Új helyszín',
 				description:
-					'Név, cím és város. A térkép-link nem kötelező — ha üres, a nyilvános oldal a címből keres a térképen.',
-				side: 'left'
-			},
-			{
-				element: 'venues-list',
-				title: 'Helyszínek listája',
-				description:
-					'Szerkesztés és törlés. Törléskor a hozzá tartozó esték megmaradnak, csak a helyszínük lesz üres.'
+					'N vagy „+ Helyszín”: először csak a név kell, a címet, várost és térkép-linket utána adod meg. Törléskor az esték megmaradnak, csak a helyszínük lesz üres.'
 			}
 		]
 	},
@@ -298,40 +248,39 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Kvízesték',
 		steps: [
 			{
+				element: 'games-list',
+				title: 'Az esték',
+				description:
+					'Csoportosítva: élő, közelgő, lezárt, próba. A chipekkel szűrhetsz, ↑/↓ lépked, Enter megnyitja az összerakót.'
+			},
+			{
+				element: 'games-status',
+				title: 'Állapot és teendők',
+				description:
+					'Középen a kijelölt este: jelentkezők, menetrend körönként és a teendők az estig (időpont, helyszín, nyilvánosság, üres körök, várólista).'
+			},
+			{
 				element: 'games-create',
 				title: 'Új kvízeste',
 				description:
-					'Adj nevet az estének. Létrehozás után az esemény adatai jönnek (időpont, helyszín, létszámkorlát), majd a körök összeállítása.'
+					'N vagy „+ Kvízeste”: nevet adsz, utána az esemény adatai jönnek (időpont, helyszín, létszámkorlát), majd az összerakó.'
 			},
 			{
 				element: 'games-practice',
 				title: 'Próbaeste',
 				description:
-					'Egy kattintással létrehoz egy gyakorló estét 2 körrel és mintakérdésekkel. Nyugodtan végigjátszhatod telefonnal és kivetítővel; a riportokban nem jelenik meg.'
-			},
-			{
-				element: 'games-list',
-				title: 'Az esték listája',
-				description:
-					'A névre kattintva nyílik az este összeállítása. A kártyán a PIN-kód és a csatlakozott csapatok száma látszik.'
-			},
-			{
-				element: 'games-status',
-				title: 'Állapot',
-				description:
-					'<b>Váró:</b> a csapatok csatlakozhatnak.<br><b>Aktív:</b> a játék fut.<br><b>Lezárva:</b> vége, az eredmények a riportokban.'
+					'Egy kattintással gyakorló este 2 körrel és mintakérdésekkel; a riportokban nem jelenik meg.'
 			},
 			{
 				element: 'games-reopen',
 				title: 'Újranyitás',
-				description:
-					'Egy lezárt estét vissza lehet állítani Váró állapotba, ha folytatni vagy megismételni szeretnéd. Ugyanez a gomb az este saját oldalán, a fejlécben is megvan.'
+				description: 'Lezárt estén: Váró állapotba állítja vissza, hogy újra elindíthasd.'
 			},
 			{
 				element: 'games-delete',
 				title: 'Törlés (csak rendszergazda)',
 				description:
-					'Véglegesen törli az estét a köreivel, csapataival, válaszaival és jelentkezéseivel együtt; a kérdések a kérdésbankban maradnak. Futó estét nem lehet törölni.'
+					'Véglegesen törli az estét a köreivel, csapataival, válaszaival és jelentkezéseivel; a kérdések a bankban maradnak. Futó estét nem lehet törölni.'
 			}
 		]
 	},
@@ -532,20 +481,14 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Részletes eredmények',
 		steps: [
 			{
-				element: 'game-reopen',
-				title: 'Kvízeste újranyitása',
-				description:
-					'Lezárt estén jelenik meg: Váró állapotba állítja vissza az estét, hogy újra elindíthasd.'
-			},
-			{
 				title: 'Csak a kezelő látja',
 				description:
-					'Ez a bontás soha nem jelenik meg a kivetítőn vagy a csapatok telefonján; ott csak a Top 3 és a végeredmény látszik.'
+					'Ez a bontás soha nem jelenik meg a kivetítőn vagy a csapatok telefonján; ott csak az állások és a végeredmény látszik.'
 			},
 			{
 				element: 'res-round',
-				title: 'Körönként, kérdésenként',
-				description: 'Minden kérdés alatt táblázat mutatja az összes csapatot.'
+				title: 'Kérdésenként',
+				description: 'Bal oldalt a kérdések körönként (hány csapat találta el); ↑/↓ lépked.'
 			},
 			{
 				element: 'res-correct',
@@ -556,7 +499,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				element: 'res-table',
 				title: 'A csapatok válaszai',
 				description:
-					'Mit küldött be a csapat, helyes volt-e, hány pontot kapott (pontcsökkenés, szorzó és joker után), és mennyi idő alatt válaszolt.'
+					'Mit küldött be a csapat, helyes volt-e, hány pontot kapott (pontcsökkenés, szorzó és joker után), és mennyi idő alatt. Jobb oldalt a kör és az este összesített állása.'
+			},
+			{
+				element: 'game-reopen',
+				title: 'Kvízeste újranyitása',
+				description: 'Lezárt estén: Váró állapotba állítja vissza az estét.'
 			}
 		]
 	},
@@ -568,52 +516,30 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				element: 'dt-hint',
 				title: 'Mi a vizuális téma?',
 				description:
-					'Színek és betűtípusok a host, a kivetítő és a telefonok felületén. Bármelyik este bármelyik témát használhatja.'
-			},
-			{
-				element: 'dt-new',
-				title: 'Új téma',
-				description: 'Létrehoz egy új kinézetet. A szerkesztőnek is van saját bemutatója.'
+					'Színek és betűtípusok a host, a kivetítő és a telefonok felületén. Középen élő előnézet mutatja, hogyan fest a kivetítőn és a telefonon.'
 			},
 			{
 				element: 'dt-list',
 				title: 'A témák',
 				description:
-					'A névre kattintva szerkesztheted. Az alapértelmezett témát nem lehet törölni; előbb jelölj ki másikat alapértelmezettnek.'
-			},
-			{
-				title: 'Hol választod ki?',
-				description:
-					'Estéhez a host felületén, várakozás közben („Vizuális köntös”). Ha ott nem választasz, az alapértelmezett érvényes, amit a Beállításokban is átállíthatsz.'
-			}
-		]
-	},
-
-	'design-theme-editor': {
-		title: 'Vizuális téma szerkesztése',
-		steps: [
-			{
-				element: 'dte-title',
-				title: 'Név',
-				description: 'Így jelenik meg a témaválasztókban.'
+					'Bal oldalt a témák a fő színeikkel. Az alapértelmezettet nem lehet törölni; előbb jelölj ki másikat.'
 			},
 			{
 				element: 'dte-default',
 				title: 'Alapértelmezett',
 				description:
-					'Ha bejelölöd, minden olyan este ezt használja, amelyhez a host nem választott külön témát.'
+					'Bekapcsolva minden olyan este ezt használja, amelyhez nem választottak külön témát (Esemény fül).'
 			},
 			{
 				element: 'dte-tokens',
-				title: 'Színek és betűtípusok',
+				title: 'Színek',
 				description:
-					'Kulcs–érték párok. Például: <code>--cabinet</code> a háttér, <code>--marquee</code> a szöveg, <code>--cyan</code>, <code>--coin</code>, <code>--violet</code> a kiemelő színek. A <code>font_display</code>, <code>font_body</code>, <code>font_led</code> értéke egy Google Fonts betűtípus neve; ezeket automatikusan betöltjük. Hibás JSON-t nem lehet elmenteni.'
+					'Színválasztókkal állíthatod a háttér, szöveg, kiemelés, siker, hiba stb. színét; a „Haladó” részben az összes token (pl. betűtípusok) JSON-ként. Minden automatikusan mentődik, és azonnal megjelenik a nyitott felületeken.'
 			},
 			{
-				element: 'dte-save',
-				title: 'Mentés',
-				description:
-					'A változás azonnal megjelenik minden nyitott felületen, amelyik ezt a témát használja.'
+				element: 'dt-new',
+				title: 'Új téma',
+				description: 'A Letisztult alapkészletből indul — utána színezd át.'
 			}
 		]
 	},
@@ -622,15 +548,14 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Felhasználók',
 		steps: [
 			{
-				element: 'us-table',
-				title: 'A regisztrált felhasználók',
-				description: 'Az új regisztrálók „Csak megtekintés” jogot kapnak, amíg itt át nem állítod.'
+				title: 'Szerepkörök szerint',
+				description: 'Bal oldalt a felhasználók szerepkörönként csoportosítva, ↑/↓ lépked, / keres.'
 			},
 			{
 				element: 'us-role',
 				title: 'Jogosultság',
 				description:
-					'A választás azonnal mentődik.<br><b>Rendszergazda:</b> minden, a Felhasználók és a Beállítások is.<br><b>Kérdésbank kezelő:</b> kérdésbank, témák, kvízesték.<br><b>Kvízmester:</b> élő lebonyolítás.<br><b>Csak megtekintés:</b> riportok.'
+					'A választás azonnal mentődik; mindegyik mellett ott a rövid leírása. A saját rendszergazda jogodat nem veheted el.'
 			}
 		]
 	},
@@ -639,21 +564,27 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Beállítások',
 		steps: [
 			{
-				element: 'st-default-theme',
-				title: 'Alapértelmezett kinézet',
+				title: 'Kategóriák',
 				description:
-					'Ez érvényes minden estén, ahol a host nem választott külön vizuális témát. A váltás azonnal megjelenik a nyitott felületeken.'
+					'Bal oldalt: Játék, Megjelenés, Nyilvános oldal, Impresszum és jogi, E-mail. Minden mező automatikusan mentődik; jobb oldalt mindig látszik az élesítés állapota.'
 			},
 			{
 				element: 'st-list',
-				title: 'További beállítások',
-				description: 'Mindegyiket külön, a saját „Mentés” gombjával mented.'
+				title: 'Játék',
+				description:
+					'Olvasási idő (alap 5 mp), alap válaszidő új kérdéshez, és a kérdés-pihentetés hónapokban.'
 			},
 			{
 				element: 'st-cooldown',
-				title: 'Kérdés-újrafelhasználási türelmi idő',
+				title: 'Kérdés-pihentetés',
 				description:
-					'Hány hónapig nem húzza újra a random betöltés azt a kérdést, amelyet már játszottatok. Kézi válogatással ettől függetlenül bármikor hozzáadható.'
+					'Hány hónapig nem húzza újra a random betöltés a már játszott kérdést. Kézzel bármikor hozzáadható.'
+			},
+			{
+				element: 'st-default-theme',
+				title: 'Alapértelmezett kinézet',
+				description:
+					'A Megjelenés kategóriában: minden estén ez érvényes, ahol nem választottak külön témát.'
 			}
 		]
 	},
@@ -662,14 +593,15 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 		title: 'Riportok',
 		steps: [
 			{
+				element: 'rp-games',
+				title: 'Esték',
+				description:
+					'Bal oldalt az Összesítés és a lezárult esték; egy estére lépve a végeredménye jelenik meg.'
+			},
+			{
 				element: 'rp-stats',
 				title: 'Összesített statisztikák',
 				description: 'Csak a lezárult, valódi estékből számolunk; a Próbaesték nem számítanak bele.'
-			},
-			{
-				element: 'rp-games',
-				title: 'Lezárult kvízesték',
-				description: 'Kattints egy estére a végeredményért.'
 			}
 		]
 	},

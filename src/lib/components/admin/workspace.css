@@ -1,0 +1,438 @@
+/* A kezelői munkaterület közös építőkockái (docs/features/admin-workspace.md).
+   Globális, "ws-" előtagú osztályok, hogy minden oldal ugyanazt a kártya-,
+   csempe-, művelet- és mezőstílust használja. */
+
+.ws-crumb {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	color: var(--marquee-dim);
+}
+
+.ws-crumb b {
+	color: var(--marquee);
+}
+
+.ws-saved {
+	margin-left: auto;
+	font-size: 0.8rem;
+	color: var(--power);
+	white-space: nowrap;
+}
+
+.ws-saved.busy {
+	color: var(--marquee-dim);
+}
+
+.ws-saved.error {
+	color: var(--danger);
+}
+
+.ws-h1 {
+	margin: 0;
+	font-family: var(--font-display);
+	font-weight: 600;
+	font-size: clamp(1.5rem, 2.4vw, 2rem);
+	line-height: 1.15;
+	color: var(--marquee);
+}
+
+.ws-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.6rem 1rem;
+}
+
+.ws-sub {
+	margin: 0.3rem 0 0;
+	color: var(--marquee-dim);
+	font-size: 0.9rem;
+}
+
+.ws-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.8rem;
+	padding: 1.1rem 1.25rem;
+	border: 1px solid var(--panel-border, #e4ded2);
+	border-radius: 1rem;
+	background: var(--cabinet-2);
+}
+
+.ws-card h2 {
+	margin: 0;
+	font-family: var(--font-body);
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.ws-card-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.ws-tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+	gap: 0.6rem;
+}
+
+.ws-tile {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	padding: 0.75rem 0.9rem;
+	border: 1px solid var(--panel-border, #e4ded2);
+	border-radius: 0.8rem;
+	background: var(--cabinet-2);
+	font-size: 0.8rem;
+	color: var(--marquee-dim);
+}
+
+.ws-tile strong {
+	font-family: var(--font-display);
+	font-size: 1.35rem;
+	font-weight: 600;
+	color: var(--marquee);
+}
+
+.ws-bar {
+	height: 0.45rem;
+	border-radius: 0.3rem;
+	background: color-mix(in srgb, var(--marquee-dim) 18%, var(--cabinet-2));
+	overflow: hidden;
+}
+
+.ws-bar > i {
+	display: block;
+	height: 100%;
+	border-radius: 0.3rem;
+	background: var(--cyan);
+}
+
+.ws-cap {
+	margin: 0;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--marquee-dim);
+}
+
+.ws-action {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	width: 100%;
+	min-height: 2.6rem;
+	box-sizing: border-box;
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--panel-border, #e4ded2);
+	border-radius: 0.65rem;
+	background: var(--cabinet-2);
+	color: var(--marquee);
+	font: inherit;
+	font-weight: 600;
+	text-align: left;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.ws-action:hover {
+	border-color: var(--cyan);
+}
+
+.ws-action > span:first-child {
+	flex: 1;
+	min-width: 0;
+}
+
+.ws-action.primary {
+	border-color: transparent;
+	background: var(--btn-primary, var(--cyan));
+	color: var(--on-primary, #fff);
+}
+
+.ws-action.danger {
+	color: var(--danger);
+	border-color: color-mix(in srgb, var(--danger) 30%, var(--cabinet-2));
+}
+
+.ws-action:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.ws-action kbd,
+.ws-kbd {
+	font-family: ui-monospace, monospace;
+	font-size: 0.72rem;
+	font-weight: 400;
+	opacity: 0.8;
+}
+
+.ws-action:focus-visible,
+.ws-field input:focus-visible,
+.ws-field select:focus-visible,
+.ws-field textarea:focus-visible {
+	outline: 3px solid var(--cyan);
+	outline-offset: 1px;
+}
+
+.ws-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	min-width: 0;
+}
+
+.ws-field > span {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--marquee-dim);
+}
+
+.ws-field input,
+.ws-field select,
+.ws-field textarea {
+	min-height: 2.5rem;
+	box-sizing: border-box;
+	width: 100%;
+	border: 1px solid var(--field-border, #d5cec0);
+	border-radius: 0.6rem;
+	padding: 0.45rem 0.7rem;
+	font: inherit;
+	color: var(--marquee);
+	background: var(--cabinet-2);
+}
+
+.ws-field textarea {
+	min-height: 5rem;
+	resize: vertical;
+}
+
+.ws-grid2 {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.8rem;
+}
+
+.ws-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	min-height: 2rem;
+	cursor: pointer;
+}
+
+.ws-toggle input {
+	width: 1.15rem;
+	height: 1.15rem;
+	accent-color: var(--cyan);
+}
+
+.ws-note {
+	margin: 0;
+	padding: 0.65rem 0.8rem;
+	border-radius: 0.65rem;
+	background: color-mix(in srgb, var(--cabinet) 70%, var(--cabinet-2));
+	color: var(--marquee-dim);
+	font-size: 0.84rem;
+	line-height: 1.45;
+}
+
+.ws-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.15rem 0.55rem;
+	border-radius: 999px;
+	font-size: 0.74rem;
+	font-weight: 700;
+	white-space: nowrap;
+	background: color-mix(in srgb, var(--marquee-dim) 14%, var(--cabinet-2));
+	color: var(--marquee-dim);
+}
+
+.ws-pill.ok {
+	background: color-mix(in srgb, var(--power) 14%, var(--cabinet-2));
+	color: var(--power);
+}
+
+.ws-pill.warn {
+	background: color-mix(in srgb, var(--coin) 14%, var(--cabinet-2));
+	color: var(--coin);
+}
+
+.ws-pill.live {
+	background: color-mix(in srgb, var(--danger) 12%, var(--cabinet-2));
+	color: var(--danger);
+}
+
+.ws-item-text {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+}
+
+.ws-item-text strong {
+	font-size: 0.88rem;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ws-item-text small {
+	font-size: 0.75rem;
+	color: var(--marquee-dim);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ws-date {
+	flex-shrink: 0;
+	width: 2.5rem;
+	padding: 0.2rem 0;
+	border-radius: 0.5rem;
+	background: var(--cabinet);
+	text-align: center;
+	line-height: 1.1;
+}
+
+.ws-date b {
+	display: block;
+	font-size: 1rem;
+}
+
+.ws-date small {
+	font-size: 0.64rem;
+	text-transform: uppercase;
+	color: var(--marquee-dim);
+}
+
+.ws-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.ws-chip {
+	padding: 0.25rem 0.65rem;
+	border: 1px solid var(--field-border, #d5cec0);
+	border-radius: 999px;
+	background: var(--cabinet-2);
+	color: var(--marquee);
+	font: inherit;
+	font-size: 0.78rem;
+	cursor: pointer;
+}
+
+.ws-chip[aria-pressed='true'] {
+	border-color: var(--cyan);
+	background: var(--cyan);
+	color: var(--on-primary, #fff);
+	font-weight: 600;
+}
+
+.ws-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	min-height: 2.4rem;
+	box-sizing: border-box;
+	padding: 0 0.85rem;
+	border: 1px solid var(--field-border, #d5cec0);
+	border-radius: 0.6rem;
+	background: var(--cabinet-2);
+	color: var(--marquee);
+	font: inherit;
+	font-size: 0.88rem;
+	font-weight: 600;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.ws-btn.outline {
+	border-color: var(--cyan);
+	color: var(--cyan);
+}
+
+.ws-btn.primary {
+	border-color: transparent;
+	background: var(--btn-primary, var(--cyan));
+	color: var(--on-primary, #fff);
+}
+
+.ws-btn.danger {
+	color: var(--danger);
+	border-color: color-mix(in srgb, var(--danger) 30%, var(--cabinet-2));
+}
+
+.ws-btn:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.ws-btn:focus-visible,
+.ws-chip:focus-visible {
+	outline: 3px solid var(--cyan);
+	outline-offset: 1px;
+}
+
+.ws-empty {
+	margin: auto;
+	max-width: 28rem;
+	text-align: center;
+	color: var(--marquee-dim);
+}
+
+.ws-empty h2 {
+	font-family: var(--font-display);
+	font-weight: 400;
+	color: var(--marquee);
+}
+
+.ws-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.88rem;
+}
+
+.ws-table th,
+.ws-table td {
+	padding: 0.45rem 0.6rem;
+	border-bottom: 1px solid var(--panel-border, #e4ded2);
+	text-align: left;
+}
+
+.ws-table th {
+	font-size: 0.72rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--marquee-dim);
+}
+
+.ws-table td.num,
+.ws-table th.num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+	.ws-grid2 {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

@@ -1,34 +1,40 @@
-import { fail } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
+import type { PageServerLoad } from './$types';
+import { defaultAnswerTime, loadBank, readingDefault } from '$lib/server/builder';
 
-export const load: PageServerLoad = async ({ locals: { supabase }, url }) => {
-	const themeFilter = url.searchParams.get('theme_id');
+// Kérdésbank — lista · vászon · beállítások (docs/features/admin-workspace.md).
+// A kijelölt kérdés részletei a ./api végponton töltődnek be.
+export const load: PageServerLoad = async ({ locals: { supabase } }) => {
+	const [bank, { data: themes }, { data: questionTypes }, { data: games }, reading, defaultTime] =
+		await Promise.all([
+			loadBank(supabase),
+			supabase.from('themes').select('id, title').order('title'),
+			supabase
+				.from('question_types')
+				.select('id, code, label, min_options, max_options')
+				.order('id'),
+			supabase
+				.from('games')
+				.select(
+					'id, title, status, scheduled_at, rounds!rounds_game_id_fkey(id, title, order_index)'
+				)
+				.neq('status', 'finished')
+				.order('scheduled_at', { ascending: true, nullsFirst: false }),
+			readingDefault(supabase),
+			defaultAnswerTime(supabase)
+		]);
 
-	let query = supabase
-		.from('questions')
-		.select('id, prompt, points, last_used_at, theme_id, themes(title), question_types(label)')
-		.order('created_at', { ascending: false });
-
-	if (themeFilter) {
-		query = query.eq('theme_id', themeFilter);
-	}
-
-	const [{ data: questions }, { data: themes }] = await Promise.all([
-		query,
-		supabase.from('themes').select('id, title').order('title')
-	]);
-
-	return { questions: questions ?? [], themes: themes ?? [], themeFilter };
-};
-
-export const actions: Actions = {
-	delete: async ({ request, locals: { supabase } }) => {
-		const formData = await request.formData();
-		const id = formData.get('id') as string;
-
-		const { error } = await supabase.from('questions').delete().eq('id', id);
-		if (error) {
-			return fail(400, { error: error.message });
-		}
-	}
+	return {
+		bank,
+		themes: themes ?? [],
+		questionTypes: questionTypes ?? [],
+		games: (games ?? [])
+			.map((g) => ({
+				id: g.id,
+				title: g.title,
+				rounds: (g.rounds ?? []).sort((a, b) => a.order_index - b.order_index)
+			}))
+			.filter((g) => g.rounds.length > 0),
+		readingDefault: reading,
+		defaultTime
+	};
 };

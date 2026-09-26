@@ -244,7 +244,9 @@ visszaszámlálás alatt élesedik), a válaszadás módját továbbra is a
 
 - `questions.reading_seconds integer` (0–120, NULL = globális alap):
   olvasási idő a válaszidő előtt. Globális alap:
-  `app_settings.question_reading_seconds` (5).
+  `app_settings.question_reading_seconds` (5). Új kérdés alap válaszideje:
+  `app_settings.question_default_time_seconds` (30, csak előtöltés —
+  `supabase/migrations/20260926230000_default_answer_time.sql`).
 - `round_questions.show_standings boolean not null default true`: a
   kérdés a körben elfoglalt helyén — felfedés után a kivetítős állás-e a
   host kiemelt következő lépése.

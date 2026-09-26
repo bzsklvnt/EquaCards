@@ -6,7 +6,9 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	const { data: venues } = await supabase
 		.from('venues')
-		.select('id, name, address, city, maps_url, games(count)')
+		.select(
+			'id, name, address, city, maps_url, games(id, title, scheduled_at, status, is_practice)'
+		)
 		.order('name');
 
 	return {
@@ -16,7 +18,9 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 			address: v.address,
 			city: v.city,
 			maps_url: v.maps_url,
-			gameCount: v.games?.[0]?.count ?? 0
+			games: (v.games ?? [])
+				.filter((g) => !g.is_practice)
+				.sort((a, b) => (b.scheduled_at ?? '').localeCompare(a.scheduled_at ?? ''))
 		}))
 	};
 };
@@ -44,9 +48,13 @@ export const actions: Actions = {
 	create: async ({ request, locals: { supabase } }) => {
 		const parsed = parseVenue(await request.formData());
 		if ('error' in parsed) return fail(400, { error: parsed.error });
-		const { error } = await supabase.from('venues').insert(parsed.venue);
-		if (error) return fail(400, { error: error.message });
-		return { success: true };
+		const { data: created, error } = await supabase
+			.from('venues')
+			.insert(parsed.venue)
+			.select('id')
+			.single();
+		if (error || !created) return fail(400, { error: error?.message ?? 'Nem sikerült.' });
+		return { success: true, createdId: created.id };
 	},
 
 	update: async ({ request, locals: { supabase } }) => {
