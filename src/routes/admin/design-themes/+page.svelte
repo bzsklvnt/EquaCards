@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { refreshPage } from '$lib/admin/refresh';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -112,7 +113,7 @@
 			busy = false;
 			if (result.type === 'success') {
 				newTitle = '';
-				await update();
+				await refreshPage(update);
 				if (result.data?.createdId) selection.set(String(result.data.createdId));
 				toast.success('Téma létrehozva a Letisztult alapból — színezd át!');
 			} else if (result.type === 'failure') {
@@ -136,7 +137,7 @@
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Nem sikerült.');
 			}
-			await update();
+			await refreshPage(update);
 		};
 	};
 

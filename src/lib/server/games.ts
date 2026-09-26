@@ -2,12 +2,32 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database.types';
 import {
 	appendQuestionsToRound,
-	insertQuestionTypeData,
+	saveParsedQuestion,
 	type ParsedQuestionForm
 } from '$lib/server/questions';
 
 export function generatePin(): string {
 	return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+type GameInsert = Database['public']['Tables']['games']['Insert'];
+
+/** Új kvízeste beszúrása egyedi PIN-nel: ütközéskor (egy futó estnek már ez a
+ * PIN-je) új PIN-nel újrapróbálja. */
+export async function insertGameWithPin(
+	supabase: SupabaseClient<Database>,
+	values: Omit<GameInsert, 'pin'>
+): Promise<{ id: string } | { error: string }> {
+	for (let attempt = 0; attempt < 5; attempt++) {
+		const { data, error } = await supabase
+			.from('games')
+			.insert({ ...values, pin: generatePin() })
+			.select('id')
+			.single();
+		if (data) return { id: data.id };
+		if (error?.code !== '23505') return { error: error?.message ?? 'Nem sikerült létrehozni.' };
+	}
+	return { error: 'Nem sikerült egyedi PIN-t generálni, próbáld újra.' };
 }
 
 // Próbaeste (docs/features/guided-tours.md): a mintakérdések egy saját témába
@@ -115,9 +135,9 @@ const SEEDS: Seed[] = [
 	}
 ];
 
+// A mintakérdés szerzője a bejelentkezett kezelő (admin_save_question: auth.uid()).
 async function practiceQuestionIds(
-	supabase: SupabaseClient<Database>,
-	userId: string | undefined
+	supabase: SupabaseClient<Database>
 ): Promise<{ round1: string[]; round2: string[] } | { error: string }> {
 	let { data: theme } = await supabase
 		.from('themes')
@@ -138,6 +158,7 @@ async function practiceQuestionIds(
 		.from('questions')
 		.select('id')
 		.eq('theme_id', theme.id)
+		.is('archived_at', null)
 		.order('created_at');
 	if (existing && existing.length > 0) {
 		const half = Math.ceil(existing.length / 2);
@@ -159,27 +180,9 @@ async function practiceQuestionIds(
 			theme_id: theme.id,
 			question_type_id: questionTypeId
 		};
-		const { data: question, error } = await supabase
-			.from('questions')
-			.insert({
-				theme_id: parsed.theme_id,
-				question_type_id: parsed.question_type_id,
-				prompt: parsed.prompt,
-				image_url: parsed.image_url,
-				image_pixelate: parsed.image_pixelate,
-				points: parsed.points,
-				points_multiplier: parsed.points_multiplier,
-				time_limit_seconds: parsed.time_limit_seconds,
-				points_decay: parsed.points_decay,
-				reading_seconds: parsed.reading_seconds,
-				created_by: userId
-			})
-			.select('id')
-			.single();
-		if (error || !question)
-			return { error: error?.message ?? 'Nem sikerült a mintakérdést létrehozni.' };
-		const childError = await insertQuestionTypeData(supabase, question.id, parsed);
-		if (childError) return { error: childError };
+		const saved = await saveParsedQuestion(supabase, null, parsed);
+		if ('error' in saved) return { error: saved.error };
+		const question = saved;
 		(seed.round === 1 ? result.round1 : result.round2).push(question.id);
 	}
 	return result;
@@ -189,7 +192,7 @@ export async function createPracticeGame(
 	supabase: SupabaseClient<Database>,
 	userId: string | undefined
 ): Promise<{ gameId: string } | { error: string }> {
-	const questions = await practiceQuestionIds(supabase, userId);
+	const questions = await practiceQuestionIds(supabase);
 	if ('error' in questions) return questions;
 
 	const stamp = new Date().toLocaleString('hu-HU', {
@@ -199,19 +202,15 @@ export async function createPracticeGame(
 		hour: '2-digit',
 		minute: '2-digit'
 	});
-	const { data: game, error } = await supabase
-		.from('games')
-		.insert({
-			title: `Próbaeste – ${stamp}`,
-			pin: generatePin(),
-			host_id: userId,
-			is_practice: true,
-			// Próbaestén szabad, név alapú csatlakozás (nincs jelentkezés, nincs csapatkód)
-			join_requires_code: false
-		})
-		.select('id')
-		.single();
-	if (error || !game) return { error: error?.message ?? 'Nem sikerült a próbaestét létrehozni.' };
+	const created = await insertGameWithPin(supabase, {
+		title: `Próbaeste – ${stamp}`,
+		host_id: userId,
+		is_practice: true,
+		// Próbaestén szabad, név alapú csatlakozás (nincs jelentkezés, nincs csapatkód)
+		join_requires_code: false
+	});
+	if ('error' in created) return { error: created.error };
+	const game = created;
 
 	const { data: rounds, error: roundsError } = await supabase
 		.from('rounds')
@@ -252,6 +251,15 @@ export async function reopenGameAction(
 		.update({ status: 'lobby', finished_at: null })
 		.eq('id', gameId)
 		.eq('status', 'finished');
+	if (error?.code === '23505') {
+		// Egy futó estnek épp ugyanez a PIN-je: új PIN-nel nyitjuk újra.
+		const { error: retryError } = await supabase
+			.from('games')
+			.update({ status: 'lobby', finished_at: null, pin: generatePin() })
+			.eq('id', gameId)
+			.eq('status', 'finished');
+		return retryError ? { error: 'Nem sikerült újranyitni, próbáld újra.' } : null;
+	}
 	return error ? { error: error.message } : null;
 }
 

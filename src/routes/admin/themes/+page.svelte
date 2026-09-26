@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { refreshPage } from '$lib/admin/refresh';
 	/* eslint-disable svelte/no-navigation-without-resolve -- a linkek resolve()-olt útvonalra épülnek, csak ?lekérdezést vagy előre resolve()-olt href-et fűznek hozzá */
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
@@ -49,7 +50,7 @@
 			busy = false;
 			if (result.type === 'success') {
 				newTitle = '';
-				await update();
+				await refreshPage(update);
 				if (result.data?.createdId) selection.set(String(result.data.createdId));
 				toast.success('Téma létrehozva.');
 			} else if (result.type === 'failure') {
@@ -78,7 +79,7 @@
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Nem sikerült.');
 			}
-			await update();
+			await refreshPage(update);
 		};
 	};
 

@@ -44,9 +44,9 @@
 
 	let gameDesignThemeId = $state<string | null>(game.design_theme_id);
 	// Fázis P5 — reaktív hook: a globális alapértelmezett VAGY az adott
-	// este design_theme_id-jának változása (lásd lent, a games tábla
-	// postgres_changes eseményéből élőben frissülő gameDesignThemeId)
-	// azonnal, reload nélkül alkalmazódik.
+	// este design_theme_id-jának változása (a játékcsatorna theme_changed
+	// eseményéből élőben frissülő gameDesignThemeId) azonnal, reload nélkül
+	// alkalmazódik.
 	const theme = createReactiveThemeTokens(
 		untrack(() => data.supabase),
 		() => gameDesignThemeId
@@ -86,31 +86,66 @@
 		QRCode.toDataURL(joinUrl, { width: 320 }).then((url) => (qrDataUrl = url));
 	});
 
-	// Fázis P5 — ha a host átváltja EZ az este design témáját, amíg a TV
-	// már nyitva van, a games sor postgres_changes eseménye frissíti a
-	// gameDesignThemeId-t élőben — ez feeds a fenti reaktív hook-ba.
-	$effect(() => {
-		const themeChangesChannel = data.supabase
-			.channel(`games_theme:${game.id}`)
-			.on(
-				'postgres_changes',
-				{
-					event: 'UPDATE',
-					schema: 'public',
-					table: 'games',
-					filter: `id=eq.${game.id}`
-				},
-				(payload) => {
-					const newRow = payload.new as { design_theme_id: string | null };
-					gameDesignThemeId = newRow.design_theme_id;
-				}
-			)
-			.subscribe();
-
-		return () => {
-			themeChangesChannel.unsubscribe();
-		};
-	});
+	// Oldalbetöltéskor és újracsatlakozáskor a kivetítő a szerverről tölti
+	// vissza az aktuális kérdést (a kimaradt broadcastokat utólag nem kapja meg).
+	async function restoreState() {
+		const { data: state } = await data.supabase.rpc('current_question_state', {
+			p_game_id: game.id
+		});
+		const s = state as {
+			question_id: string | null;
+			question_type?: string;
+			round_title?: string;
+			prompt?: string;
+			image_url?: string | null;
+			image_pixelate?: boolean;
+			time_limit_seconds?: number;
+			order_index?: number;
+			total_questions?: number;
+			options?: { id: string; option_text: string; image_url: string | null }[] | null;
+			slider?: { min_value: number; max_value: number; step: number } | null;
+			ordering_items?: { id: string; item_text: string }[] | null;
+			server_start_time?: string | null;
+			duration?: number | null;
+			reading_seconds?: number | null;
+			revealed?: boolean;
+			correct_answer?: string | null;
+		} | null;
+		if (!s?.question_id || roundLeaderboard || finalLeaderboard || questionStandings) return;
+		if (currentQuestion?.question_id !== s.question_id) {
+			currentQuestion = {
+				question_id: s.question_id,
+				question_type: s.question_type ?? '',
+				round_title: s.round_title ?? '',
+				prompt: s.prompt ?? '',
+				image_url: s.image_url ?? null,
+				image_pixelate: s.image_pixelate ?? false,
+				time_limit_seconds: s.time_limit_seconds ?? 30,
+				order_index: s.order_index ?? 1,
+				total_questions: s.total_questions ?? 1,
+				options: s.options ?? undefined,
+				slider: s.slider ?? undefined,
+				ordering_items: s.ordering_items ?? undefined
+			};
+			locked = false;
+			revealInfo = null;
+			timerInfo = null;
+		}
+		if (s.revealed) {
+			if (!revealInfo) {
+				revealInfo = { question_id: s.question_id, correct_answer: s.correct_answer ?? '' };
+			}
+			locked = true;
+			timerInfo = null;
+		} else if (s.server_start_time && !timerInfo) {
+			timerInfo = {
+				question_id: s.question_id,
+				duration: s.duration ?? 30,
+				server_start_time: s.server_start_time,
+				reading_seconds: s.reading_seconds ?? 0
+			};
+		}
+	}
 
 	onMount(() => {
 		calibrateServerClock(data.supabase);
@@ -126,6 +161,11 @@
 
 		channel.on('broadcast', { event: 'game_started' }, () => {
 			gameStatus = 'active';
+		});
+
+		// Az este témájának váltása (az adatbázis küldi).
+		channel.on('broadcast', { event: 'theme_changed' }, ({ payload }) => {
+			gameDesignThemeId = (payload as { design_theme_id: string | null }).design_theme_id;
 		});
 
 		channel.on('broadcast', { event: 'question_show' }, ({ payload }) => {
@@ -185,12 +225,20 @@
 		});
 
 		channel.subscribe((status) => {
-			if (status === 'SUBSCRIBED') connectionStatus = 'connected';
-			else if (status === 'CLOSED') connectionStatus = 'disconnected';
+			if (status === 'SUBSCRIBED') {
+				connectionStatus = 'connected';
+				if (gameStatus === 'active' || gameStatus === 'paused') restoreState();
+			} else if (status === 'CLOSED') connectionStatus = 'disconnected';
 			else connectionStatus = 'reconnecting';
 		});
 
+		const onVisible = () => {
+			if (document.visibilityState === 'visible' && gameStatus === 'active') restoreState();
+		};
+		document.addEventListener('visibilitychange', onVisible);
+
 		return () => {
+			document.removeEventListener('visibilitychange', onVisible);
 			channel.unsubscribe();
 		};
 	});

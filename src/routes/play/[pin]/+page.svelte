@@ -35,7 +35,10 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	type JoinedInfo = { teamId: string; teamName: string; gameId: string };
+	// A deviceToken a csapat titkos azonosítója: a válasz és a joker csak vele
+	// együtt fogadható el (submit_answer / use_joker).
+	type JoinedInfo = { teamId: string; teamName: string; gameId: string; deviceToken: string };
+	const DEVICE_KEY = 'equacards:device';
 
 	let storageKey = $derived(`equacards:team:${data.pin}`);
 
@@ -83,13 +86,30 @@
 	let channel: ReturnType<typeof data.supabase.channel> | undefined;
 
 	onMount(() => {
-		deviceToken = crypto.randomUUID();
+		// Eszközönként állandó token: egy oldal-újratöltés után is ugyanaz.
+		let token: string;
+		try {
+			token = localStorage.getItem(DEVICE_KEY) ?? '';
+			if (!token) {
+				token = crypto.randomUUID();
+				localStorage.setItem(DEVICE_KEY, token);
+			}
+		} catch {
+			token = crypto.randomUUID();
+		}
+		deviceToken = token;
 		calibrateServerClock(data.supabase);
 
 		const saved = localStorage.getItem(storageKey);
 		if (saved) {
 			try {
-				joined = JSON.parse(saved);
+				const parsed = JSON.parse(saved) as Partial<JoinedInfo>;
+				if (parsed.teamId && parsed.gameId && parsed.deviceToken) {
+					joined = parsed as JoinedInfo;
+				} else {
+					// Régi (token nélküli) bejegyzés: újra kell csatlakozni.
+					localStorage.removeItem(storageKey);
+				}
 			} catch {
 				localStorage.removeItem(storageKey);
 			}
@@ -101,7 +121,8 @@
 			const info: JoinedInfo = {
 				teamId: form.team.id,
 				teamName: form.team.name,
-				gameId: form.game.id
+				gameId: form.game.id,
+				deviceToken
 			};
 			localStorage.setItem(storageKey, JSON.stringify(info));
 			joined = info;
@@ -112,43 +133,13 @@
 
 	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — ugyanaz a feloldási minta,
 	// mint a host/TV oldalon. Fázis P5 — reaktív hook: a globális
-	// alapértelmezett VAGY a `gameDesignThemeId` (lásd lent, a games
-	// tábla postgres_changes-eseményéből élőben frissülő) változása
+	// alapértelmezett VAGY a `gameDesignThemeId` (a játékcsatorna
+	// theme_changed eseményéből élőben frissülő) változása
 	// azonnal, reload nélkül alkalmazódik.
 	const theme = createReactiveThemeTokens(
 		untrack(() => data.supabase),
 		() => gameDesignThemeId
 	);
-
-	// Fázis P5 — ha a host átváltja EZ az este design témáját, amíg a
-	// csapat már csatlakozva van (nem csak csatlakozáskor/oldalbetöltéskor
-	// olvassuk ki), a games sor postgres_changes eseménye frissíti a
-	// gameDesignThemeId-t élőben — ez feeds a fenti reaktív hook-ba.
-	$effect(() => {
-		const info = joined;
-		if (!info) return;
-
-		const themeChangesChannel = data.supabase
-			.channel(`games_theme:${info.gameId}`)
-			.on(
-				'postgres_changes',
-				{
-					event: 'UPDATE',
-					schema: 'public',
-					table: 'games',
-					filter: `id=eq.${info.gameId}`
-				},
-				(payload) => {
-					const newRow = payload.new as { design_theme_id: string | null };
-					gameDesignThemeId = newRow.design_theme_id;
-				}
-			)
-			.subscribe();
-
-		return () => {
-			themeChangesChannel.unsubscribe();
-		};
-	});
 
 	// A szerver-oldali load csak 'lobby' állapotú games sort ad vissza (azt
 	// dönti el, felajánlható-e az ÚJ csatlakozás) — egy már csatlakozott
@@ -352,6 +343,11 @@
 			resetAnswerState(currentQuestion);
 		});
 
+		// Az este témájának váltása (az adatbázis küldi, docs/features/design-themes.md).
+		channel.on('broadcast', { event: 'theme_changed' }, ({ payload }) => {
+			gameDesignThemeId = (payload as { design_theme_id: string | null }).design_theme_id;
+		});
+
 		channel.on('broadcast', { event: 'timer_start' }, ({ payload }) => {
 			timerInfo = payload as TimerStartPayload;
 		});
@@ -401,9 +397,17 @@
 			if (finalLeaderboard.standings[0]?.team_id === info.teamId) fireWinnerConfetti();
 		});
 
+		let subscribedOnce = false;
 		channel.subscribe(async (status) => {
 			if (status === 'SUBSCRIBED') {
 				connectionStatus = 'connected';
+				// Újracsatlakozáskor (pl. elaludt a telefon) a kimaradt eseményeket
+				// nem kapjuk meg utólag — az aktuális állapot a szerverről jön.
+				if (subscribedOnce) {
+					restoreLiveState(info);
+					restoreRoundStandings(info);
+				}
+				subscribedOnce = true;
 				await channel!.track({ team_id: info.teamId, name: info.teamName });
 				await channel!.send({
 					type: 'broadcast',
@@ -417,7 +421,18 @@
 			}
 		});
 
+		// A képernyő feloldásakor (a böngésző a háttérben felfüggesztheti a
+		// kapcsolatot) szintén frissítjük az állapotot.
+		const onVisible = () => {
+			if (document.visibilityState === 'visible') {
+				restoreLiveState(info);
+				restoreRoundStandings(info);
+			}
+		};
+		document.addEventListener('visibilitychange', onVisible);
+
 		return () => {
+			document.removeEventListener('visibilitychange', onVisible);
 			channel?.unsubscribe();
 		};
 	});
@@ -495,56 +510,38 @@
 		submitting = true;
 
 		try {
-			const answerId = crypto.randomUUID();
-			const { error: answerError } = await data.supabase.from('answers').insert({
-				id: answerId,
-				game_id: joined.gameId,
-				question_id: currentQuestion.question_id,
-				team_id: joined.teamId,
-				answer_time_ms: timerInfo
-					? serverNow() - new Date(timerInfo.server_start_time).getTime()
-					: null
+			// Egy hívás, egy tranzakció: a válasz és a választott opció együtt íródik,
+			// a válaszidőt a szerver méri (docs/features/scoring.md).
+			const type = currentQuestion.question_type;
+			const { error: answerError } = await data.supabase.rpc('submit_answer', {
+				p_team_id: joined.teamId,
+				p_device_token: joined.deviceToken,
+				p_question_id: currentQuestion.question_id,
+				p_option_ids:
+					type === 'single_choice' || type === 'true_false'
+						? selectedOptionId
+							? [selectedOptionId]
+							: undefined
+						: type === 'multi_choice'
+							? selectedOptionIds
+							: undefined,
+				p_slider_value: type === 'slider' ? sliderValue : undefined,
+				p_ordering: type === 'ordering' ? orderedItems.map((item) => item.id) : undefined
 			});
 
 			if (answerError) {
-				// A 42501 (RLS-policy megsértése) itt szinte mindig azt jelenti,
-				// hogy az answer_within_timer() szerver-oldali ellenőrzés (Fázis L)
-				// elutasította a beszúrást — a duration (+ pár mp türelmi idő)
-				// már lejárt, mire a kérés megérkezett.
+				if (answerError.message.includes('already_answered')) {
+					submitted = true;
+					return;
+				}
+				// 42501: lejárt az időkeret (vagy a csapat azonosítása sikertelen).
 				submitError =
-					answerError.code === '42501'
+					answerError.code === '42501' && answerError.message.includes('time_up')
 						? 'Lejárt az idő, mielőtt a válaszod megérkezett volna.'
-						: 'Nem sikerült elküldeni a választ, próbáld újra.';
+						: answerError.message.includes('invalid_team')
+							? 'A csatlakozásod lejárt ezen az eszközön, csatlakozz újra.'
+							: 'Nem sikerült elküldeni a választ, próbáld újra.';
 				return;
-			}
-
-			if (
-				currentQuestion.question_type === 'single_choice' ||
-				currentQuestion.question_type === 'true_false'
-			) {
-				if (selectedOptionId) {
-					await data.supabase
-						.from('answer_choice')
-						.insert({ answer_id: answerId, option_id: selectedOptionId });
-				}
-			} else if (currentQuestion.question_type === 'multi_choice') {
-				if (selectedOptionIds.length) {
-					await data.supabase
-						.from('answer_choice_multi')
-						.insert(selectedOptionIds.map((option_id) => ({ answer_id: answerId, option_id })));
-				}
-			} else if (currentQuestion.question_type === 'slider') {
-				await data.supabase
-					.from('answer_slider')
-					.insert({ answer_id: answerId, value: sliderValue });
-			} else if (currentQuestion.question_type === 'ordering') {
-				await data.supabase.from('answer_ordering').insert(
-					orderedItems.map((item, i) => ({
-						answer_id: answerId,
-						item_id: item.id,
-						position: i + 1
-					}))
-				);
 			}
 
 			submitted = true;
@@ -577,10 +574,10 @@
 		// érvényesült). A csapat kliense mostantól szinkron, közvetlenül ír
 		// (ugyanaz a bizalmi modell, mint az answers_insert_anon_active_game
 		// policy-nál) — mire ez a hívás visszatér, a sor garantáltan létezik.
-		const { error } = await data.supabase.from('team_joker_uses').insert({
-			team_id: joined.teamId,
-			question_id: currentQuestion.question_id,
-			joker_type: 'double_points'
+		const { error } = await data.supabase.rpc('use_joker', {
+			p_team_id: joined.teamId,
+			p_device_token: joined.deviceToken,
+			p_question_id: currentQuestion.question_id
 		});
 
 		if (error) {

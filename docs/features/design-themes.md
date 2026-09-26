@@ -72,9 +72,10 @@ Ezt a host (`/host/[game_id]`), a csapat (`/play/[pin]`) és a TV
 
 ## Betűtípusok — dinamikus betöltés (Fázis E)
 
-A seedelt "Retro Arcade" téma három Google Font-ja (Press Start 2P,
-Silkscreen, Inter) statikusan be van linkelve a `src/app.html`-ben
-(zéró-latenciás, nincs villanás az alapértelmezett témánál). Egy admin
+A két beépített téma betűi (Fraunces, Hanken Grotesk, Press Start 2P,
+Silkscreen, Inter) a saját domainről töltődnek (`src/lib/assets/fonts/`,
+`@fontsource` csomagok — kódaudit, 2026-09-27: gyorsabb, és a látogató
+IP-címe nem kerül a Google-hoz). Egy admin
 által felvitt **másik** téma más `font_display`/`font_led`/`font_body`
 nevet is megadhat — ezeket a `getActiveTokens()` minden hívása
 futásidőben, dinamikusan betölti Google Fonts-ról
@@ -135,6 +136,16 @@ Decorative` (display), `Cinzel` (LED/timer — jó olvasható
 Mindkettő ugyanazt a teljes token-készletet adja meg, mint a Retro
 Arcade seed (lásd fent "Miért `design_tokens not null`") — nincs
 részleges/felülíró téma. A `font_display`/`font_led`/`font_body`
-értékei nem szerepelnek statikusan az `app.html`-ben, tehát a fenti
-"Betűtípusok — dinamikus betöltés" szakasz szerint futásidőben,
-Google Fonts-ról töltődnek be az első alkalmazáskor.
+értékei a saját domainről kiszolgált betűk közé tartoznak; ettől eltérő
+betűt használó, admin által felvitt téma betűi a fenti "Betűtípusok —
+dinamikus betöltés" szakasz szerint Google Fonts-ról töltődnek be.
+
+## Élő témaváltás (kódaudit, 2026-09-27)
+
+A téma élő frissítése eddig `postgres_changes` feliratkozással ment, de a
+`design_themes` tábla nem volt a Realtime publikációban, így a
+színmódosítás csak újratöltés után látszott. Most az adatbázis maga küld
+broadcastot: a `design_themes` bármely változásakor a `design_themes`
+csatornára (`changed`), egy este témájának váltásakor az este
+`game:{id}` csatornájára (`theme_changed`). A host, a csapat és a
+kivetítő ezekre iratkozik fel (`src/lib/theme/reactive-tokens.svelte.ts`).

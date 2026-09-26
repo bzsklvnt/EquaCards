@@ -30,7 +30,8 @@ async function setupStatus(currentHost: string, settings: { key: string; value: 
 	};
 }
 
-export const load: PageServerLoad = async ({ parent, url, locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ depends, parent, url, locals: { supabase } }) => {
+	depends('app:page');
 	const { profile } = await parent();
 	if (profile.role_id !== 1) {
 		kitError(403, 'Csak a rendszergazda módosíthatja a globális beállításokat.');

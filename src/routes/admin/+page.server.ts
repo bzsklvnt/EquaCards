@@ -2,7 +2,8 @@ import type { PageServerLoad } from './$types';
 
 // Vezérlőpult: a következő esték a jelentkezési létszámmal és néhány
 // összesítő szám — docs/features/admin-workspace.md.
-export const load: PageServerLoad = async ({ locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ depends, locals: { supabase } }) => {
+	depends('app:page');
 	const since = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
 	const [{ data }, { count: questionCount }, { count: freshCount }, { data: live }] =
 		await Promise.all([
@@ -16,10 +17,14 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 				.gte('scheduled_at', since)
 				.order('scheduled_at')
 				.limit(8),
-			supabase.from('questions').select('id', { count: 'exact', head: true }),
 			supabase
 				.from('questions')
 				.select('id', { count: 'exact', head: true })
+				.is('archived_at', null),
+			supabase
+				.from('questions')
+				.select('id', { count: 'exact', head: true })
+				.is('archived_at', null)
 				.is('last_used_at', null),
 			supabase.from('games').select('id, title').in('status', ['active', 'paused']).limit(3)
 		]);

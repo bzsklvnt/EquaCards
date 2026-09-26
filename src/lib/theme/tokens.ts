@@ -96,6 +96,16 @@ function extractFontFamilyName(fontFamilyValue: string): string | null {
 // kétszer ugyanazt a Google Fonts kombinációt navigáció/téma-váltás közben.
 const loadedFontSets = new Set<string>();
 
+// A saját domainről kiszolgált betűtípusok ($lib/assets/fonts/fonts.css) —
+// ezekhez nem kell a Google Fonts.
+const SELF_HOSTED_FONTS = new Set([
+	'Fraunces',
+	'Hanken Grotesk',
+	'Inter',
+	'Press Start 2P',
+	'Silkscreen'
+]);
+
 // Fázis E: eddig csak a seedelt "Retro Arcade" téma 3 fontja volt belinkelve
 // statikusan az app.html-ben — egy admin által létrehozott, más fontokat
 // használó design téma csendben a böngésző alap sans-serif/monospace-ára
@@ -115,7 +125,7 @@ export function loadThemeFonts(tokens: Record<string, string>): void {
 				.map((key) => tokens[key])
 				.filter((value): value is string => !!value)
 				.map(extractFontFamilyName)
-				.filter((name): name is string => !!name)
+				.filter((name): name is string => !!name && !SELF_HOSTED_FONTS.has(name))
 		)
 	];
 

@@ -132,3 +132,16 @@ hiszen a csatorna folyamatosan figyel) automatikusan korrigálja — nem
 jelent tartós hibás állapotot vagy pontozási problémát (a szerver-oldali
 `answer_within_timer()` RLS-ellenőrzés, Fázis L, továbbra is az egyetlen
 tényleges forrás a beküldés érvényességére).
+
+## Kódaudit kiegészítés (2026-09-27)
+
+- **Eszköz-token:** a telefon egy állandó tokent tárol (`equacards:device`),
+  és a csatlakozási bejegyzésbe (`equacards:team:{pin}`) is beírja. A válasz
+  és a joker csak ezzel együtt fogadható el (`submit_answer()`,
+  `use_joker()`). A régi, token nélküli bejegyzéseket a kliens törli, és
+  újracsatlakozást kér (csapatkódos estén a kóddal azonnal visszaléphet).
+- **Ébredés, újracsatlakozás:** a csapat telefonja és a kivetítő a csatorna
+  újracsatlakozásakor és a képernyő visszatérésekor (`visibilitychange`) is
+  lefuttatja az állapot-visszatöltést (`current_question_state`), nem csak
+  oldalbetöltéskor — így egy elaludt telefon sem marad le az aktuális
+  kérdésről. A kivetítő oldalbetöltéskor is visszatölti a futó kérdést.

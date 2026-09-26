@@ -3,7 +3,8 @@ import type { Actions, PageServerLoad } from './$types';
 
 // Helyszínek (DATA_MODEL.md 4. szakasz, venues) — egy kvízeste egy helyszínhez
 // tartozik; a nyilvános oldalon a név, cím és térkép-link jelenik meg.
-export const load: PageServerLoad = async ({ locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ depends, locals: { supabase } }) => {
+	depends('app:page');
 	const { data: venues } = await supabase
 		.from('venues')
 		.select(

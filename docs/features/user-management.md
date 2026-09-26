@@ -90,3 +90,11 @@ pontosan az az eset, amit a "csak akkor vezessünk be egy mintát, ha
 ténylegesen ismétlődik/indokolt" elv (lásd `docs/architecture/DESIGN_SYSTEM.md`)
 tanácsol elkerülni. A meglévő plain-form-action minta ugyanazt a
 funkcionalitást adja, kevesebb új felülettel.
+
+## Új regisztráció jóváhagyásra vár (kódaudit, 2026-09-27)
+
+A bejelentkező oldalon bárki regisztrálhat, de az új fiók szerepköre
+`0 / Jóváhagyásra vár`: semmihez nem fér hozzá (a kezelői, host- és
+riportoldalak „A fiókod jóváhagyásra vár” üzenetet adnak), amíg a
+rendszergazda a Felhasználók oldalon szerepkört nem ad neki. Korábban az új
+fiók azonnal `viewer` lett, és látta az összes riportot.

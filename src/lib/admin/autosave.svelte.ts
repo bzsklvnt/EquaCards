@@ -1,5 +1,6 @@
 import type { SubmitFunction } from '@sveltejs/kit';
 import { untrack } from 'svelte';
+import { refreshPage } from './refresh';
 
 // Kezelői űrlapok automatikus mentése: a mezők változása után (késleltetve)
 // maga küldi be az űrlapot a meglévő form action-re — docs/features/admin-workspace.md.
@@ -40,7 +41,7 @@ export function createAutosave(opts: {
 				state = 'error';
 				error = 'Váratlan hiba történt.';
 			}
-			await update({ reset: false });
+			await refreshPage(update, { reset: false });
 		};
 	};
 

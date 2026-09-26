@@ -171,3 +171,29 @@ kivetítő felület ("TV mód nagy kijelzőre") kifejezetten Fázis 6
 `final_leaderboard_reveal` broadcast események már most is olyan alakúak,
 hogy egy jövőbeli TV kliens minden külön backend-módosítás nélkül
 feliratkozhat rájuk — csak a read-only megjelenítő route hiányzik még.
+
+## Beküldés csak ellenőrzött csapatként, szerveroldali válaszidő (kódaudit, 2026-09-27)
+
+A pontszámítás képlete **változatlan** (`evaluate_question()`). A beküldés
+útja változott:
+
+- **`submit_answer(team_id, device_token, question_id, …)`** — a válasz és a
+  választott opció / csúszkaérték / sorrend **egy tranzakcióban** íródik. A
+  csapat eszköz-tokenjét a függvény ellenőrzi (más csapat nevében nem lehet
+  válaszolni), az időkeret ugyanaz, mint eddig (`answer_within_timer()`).
+- **A válaszidőt (`answer_time_ms`) a szerver méri** a beküldés pillanatában
+  (`now()` − `games.current_question_started_at`), 0 és a válaszidő közé
+  szorítva. Korábban a telefon küldte, így negatív értékkel a gyorsasági
+  szorzó 1 fölé emelhető volt. A telefonok órakülönbsége sem torzít többé.
+- **`use_joker(team_id, device_token, question_id)`** — ugyanaz a feltétel,
+  mint a korábbi `team_joker_uses_insert_anon_active_game` szabályé, plusz a
+  token-ellenőrzés.
+- A közvetlen anonim beszúrás a válasz- és joker-táblákba megszűnt, és a
+  `teams.device_token`, valamint a futó estek `games.pin` oszlopa anonim
+  módon nem olvasható (`20260927090500_audit_lockdown.sql`). A PIN-es
+  csatlakozás a `game_by_pin()` / `join_with_name()` / `join_with_code()`
+  függvényeken, a kivetítő a `tv_game()` függvényen át éri el az estét.
+- A host "Következő kérdés" lépése egy hívás (`host_next_question()`:
+  aktuális kérdés + időzítő, a `start_question()`-nel azonos olvasási
+  idő-logikával), a felfedés is (`host_reveal()` = `evaluate_question()` +
+  helyes válasz).

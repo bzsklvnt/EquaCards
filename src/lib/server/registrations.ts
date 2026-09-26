@@ -174,15 +174,19 @@ export async function registerTeam(
 	origin: string,
 	input: RegistrationInput
 ): Promise<RegisterResult> {
-	const { data, error } = await supabase.rpc('register_team', {
-		p_game_id: input.gameId,
-		p_team_name: input.teamName,
-		p_headcount: input.headcount,
-		p_contact_name: input.contactName,
-		p_contact_email: input.contactEmail,
-		p_contact_phone: input.contactPhone ?? undefined,
-		p_note: input.note ?? undefined
-	});
+	// A levélhez kellő esemény-adatok a jelentkezéssel párhuzamosan jönnek.
+	const [{ data, error }, { data: info }] = await Promise.all([
+		supabase.rpc('register_team', {
+			p_game_id: input.gameId,
+			p_team_name: input.teamName,
+			p_headcount: input.headcount,
+			p_contact_name: input.contactName,
+			p_contact_email: input.contactEmail,
+			p_contact_phone: input.contactPhone ?? undefined,
+			p_note: input.note ?? undefined
+		}),
+		supabase.rpc('public_event', { p_id: input.gameId })
+	]);
 	const row = data?.[0];
 	if (error || !row) {
 		if (error) console.error('[register_team]', error);
@@ -190,11 +194,8 @@ export async function registerTeam(
 	}
 
 	const status = row.status === 'waitlist' ? 'waitlist' : 'confirmed';
-	const { data: info } = await supabase.rpc('registration_by_token', {
-		p_token: row.cancel_token
-	});
 	const event: EventInfo = {
-		title: info?.[0]?.game_title ?? 'Kvízest',
+		title: info?.[0]?.title ?? 'Kvízest',
 		scheduledAt: info?.[0]?.scheduled_at ?? null,
 		venue: info?.[0]?.venue_name ?? null
 	};

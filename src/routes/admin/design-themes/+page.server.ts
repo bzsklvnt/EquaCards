@@ -5,7 +5,8 @@ import { defaultTokens } from '$lib/theme/tokens';
 
 // Vizuális témák — lista · élő előnézet (kivetítő + telefon) · színek és
 // tokenek (automatikus mentés). docs/features/admin-workspace.md.
-export const load: PageServerLoad = async ({ locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ depends, locals: { supabase } }) => {
+	depends('app:page');
 	const { data: designThemes } = await supabase
 		.from('design_themes')
 		.select('id, title, is_default, design_tokens')

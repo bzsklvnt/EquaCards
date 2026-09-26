@@ -1,17 +1,12 @@
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requireStaff } from '$lib/server/auth';
 
 // A Ctrl+K parancspaletta keresése: kvízesték, kérdések, helyszínek, témák.
 // A kezelő saját kliensével (RLS) — docs/features/admin-workspace.md.
-export const GET: RequestHandler = async ({ url, locals: { supabase, safeGetSession } }) => {
-	const { user } = await safeGetSession();
-	if (!user) error(401, 'Bejelentkezés szükséges.');
-	const { data: profile } = await supabase
-		.from('profiles')
-		.select('role_id')
-		.eq('id', user.id)
-		.single();
-	if (!profile || ![1, 2].includes(profile.role_id)) return json({ results: [] });
+export const GET: RequestHandler = async ({ url, locals }) => {
+	const { supabase } = locals;
+	await requireStaff(locals, [1, 2]);
 
 	const q = (url.searchParams.get('q') ?? '').trim().slice(0, 80);
 	if (q.length < 2) return json({ results: [] });
@@ -24,7 +19,12 @@ export const GET: RequestHandler = async ({ url, locals: { supabase, safeGetSess
 			.ilike('title', pattern)
 			.order('created_at', { ascending: false })
 			.limit(6),
-		supabase.from('questions').select('id, prompt').ilike('prompt', pattern).limit(6),
+		supabase
+			.from('questions')
+			.select('id, prompt')
+			.is('archived_at', null)
+			.ilike('prompt', pattern)
+			.limit(6),
 		supabase.from('venues').select('id, name, city').ilike('name', pattern).limit(4),
 		supabase.from('themes').select('id, title').ilike('title', pattern).limit(4)
 	]);

@@ -262,12 +262,16 @@
 		const id = current.id;
 		const index = visible.findIndex((q) => q.id === id);
 		try {
-			await api({ op: 'delete', id });
+			const res = await api<{ archived?: boolean }>({ op: 'delete', id });
 			bank = bank.filter((b) => b.id !== id);
 			delete drafts[id];
 			const next = visible[Math.min(index, visible.length - 1)];
 			selection.set(next?.id ?? null);
-			toast.success('Kérdés törölve.');
+			toast.success(
+				res.archived
+					? 'Kérdés archiválva — a korábbi estek eredményei megmaradnak.'
+					: 'Kérdés törölve.'
+			);
 		} catch (err) {
 			toast.error((err as Error).message);
 		}

@@ -2350,3 +2350,43 @@ javítva: a `games`↔`rounds` kétirányú kulcs miatt kétértelmű PostgREST
 beágyazás (`rounds!rounds_game_id_fkey`), ami a bankfiók „már játszott”
 számlálóját csendben üresen hagyhatta. Bemutatók átírva, a `question-form` és
 `design-theme-editor` megszűnt. Részletek: `docs/features/admin-workspace.md`.
+
+## 2026-09-27 — Kódaudit javításai (üzleti logika változatlan)
+
+A teljes kódbázis átvizsgálása (kimutatás: claude.ai artifact „EquaCards
+kódaudit”) után a felhasználó kérte, hogy minden javítás készüljön el, az
+üzleti logika változtatása nélkül. A pontszámítás, az időkeret, a
+jogosultsági szintek és a játékmenet ugyanaz; ami változott:
+
+- **Sebesség.** A Vercel függvények Dublinba kerültek (`adapter-vercel`,
+  `regions: ['dub1']`), az adatbázis mellé — a mért hívásidő Virginiából
+  110 ms (medián), Dublinból 27 ms. A gyökér layout nem kérdezi le újra a
+  felhasználót (a szerver és a böngésző is megtette), a Supabase kliens csak
+  a host/csapat/kivetítő felületen töltődik (főoldal JS: 104 → 46 KB).
+  Automatikus mentés után csak az oldal saját adatai töltődnek újra
+  (`depends('app:page')`). Egylépcsős betöltés a kvízösszerakóban, az
+  Eredményeknél és a hostnál; a host következő kérdés / felfedés lépése egy
+  hívás. A riportok grafikonkönyvtára lustán töltődik, a főoldal 60 mp-ig a
+  CDN-ből jön. A betűk a saját domainről.
+- **Adatintegritás.** Kérdésmentés egy tranzakcióban, helyben frissülő
+  opciókkal (a „töröld és írd újra” egy lejátszott kérdésnél megduplázta az
+  opciókat — egy élő kérdés javítva). Lejátszott kérdés törlése helyett
+  archiválás. Válasz és opció egy tranzakcióban.
+- **Csalás és jogosultság.** A válaszidőt a szerver méri; válasz és joker
+  csak a csapat eszköz-tokenjével; a PIN és a token nem olvasható anonim
+  módon. Új regisztráció jóváhagyásra vár (korábban azonnal látta a
+  riportokat).
+- **Élő játék.** A PIN-találgatás elleni limit csak a sikertelen
+  próbálkozásokat számolja (kocsmai közös IP mögött a 7. csapat körül
+  blokkolt). Újracsatlakozáskor és a képernyő ébredésekor a telefon és a
+  kivetítő visszatölti az aktuális kérdést. Az automatikus lezárás és a
+  Space nem értékel ki kétszer. A témaváltás élőben, adatbázis-broadcasttal.
+- **Karbantartás.** 1000 kérdés fölött is teljes kérdésbank; audit napló
+  180 napos megőrzéssel; indexek, összevont RLS szabályok; egységtesztek
+  (`npm test`, a CI is futtatja); `devalue` biztonsági frissítés.
+
+Két lépésben élesítve: az additív migráció (`20260927090000_audit_fixes.sql`)
+a kód előtt, a szigorító (`20260927090500_audit_lockdown.sql`) az új kliens
+kiélesítése után, hogy a futó verzió ne álljon le. Szándékosan nem változott:
+a kvízösszerakó továbbra is az oldal betöltésekor kapja a kérdésbankot (a
+„már játszott” jelzések miatt), és a `backup_20260926` séma érintetlen.

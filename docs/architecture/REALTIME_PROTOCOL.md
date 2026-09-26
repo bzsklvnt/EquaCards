@@ -306,6 +306,18 @@ total_questions, standings}` — a `standings` ugyanaz a sor-formátum, mint a
   `final_leaderboard_reveal`-en marad. TV — záró "Köszönjük a játékot!"
   képernyőre vált.
 
+### `theme_changed` (kódaudit, 2026-09-27)
+
+Az **adatbázis** küldi (`trg_broadcast_game_theme`, `realtime.send`), amikor
+egy este `design_theme_id`-ja változik — a host témaváltója és a kezelő
+Esemény oldala is kiváltja. Payload: `{ design_theme_id: string | null }`. A
+csapat és a kivetítő erre váltja a témát (korábban `games` postgres_changes
+feliratkozással, ami a PIN-oszlop anonim olvasását igényelte).
+
+A `design_themes` tábla bármely változásakor egy külön, `design_themes`
+nevű csatornára megy `changed` esemény (üres payload): a felületek újra
+feloldják a téma tokenjeit.
+
 ## Presence (Fázis 3)
 
 A `game:{game_id}` csatorna Presence funkciója tartja élőben szinkronban,

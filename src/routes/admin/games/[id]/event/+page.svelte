@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { refreshPage } from '$lib/admin/refresh';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -98,7 +99,7 @@
 				} else if (result.type === 'error') {
 					toast.error('Váratlan hiba történt.');
 				}
-				await update({ reset: false });
+				await refreshPage(update, { reset: false });
 			};
 		};
 	}
@@ -131,7 +132,7 @@
 			} else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Nem sikerült a művelet.');
 			}
-			await update({ reset: false });
+			await refreshPage(update, { reset: false });
 		};
 	};
 
@@ -177,7 +178,7 @@
 				saveState = 'error';
 				saveError = 'Váratlan hiba történt.';
 			}
-			await update({ reset: false });
+			await refreshPage(update, { reset: false });
 		};
 	};
 
