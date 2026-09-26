@@ -2218,3 +2218,14 @@ következő estéket mutatja létszámmal; két új bemutató (`game-event`,
 1024 px).
 
 Részletek: `docs/features/landing-and-registration.md`.
+
+## 2026-09-26 — Új ikon a letisztult témához
+
+A retro-arcade pixeles ikon helyett letisztult ikon: sötétzöld (#1E5B4F)
+lekerekített négyzet, krémszínű kérdőjel, borostyánsárga (sör) pont —
+16 px-en világos és sötét böngészőfülön is olvasható (böngészőben
+renderelve ellenőrizve). Fájlok: `src/lib/assets/favicon.svg` (fül),
+`static/icon.svg` (PWA manifest, a maskable biztonsági zónán belül),
+PNG-tartalékok: `static/favicon-32.png` (SVG-t nem ismerő böngészők),
+`static/apple-touch-icon.png` (iOS kezdőképernyő). A manifest neve
+„Kocsmakvízest” lett, színei a letisztult témát követik.

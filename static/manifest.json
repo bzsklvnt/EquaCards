@@ -1,13 +1,13 @@
 {
-	"name": "EquaCards — Pub Kvíz",
-	"short_name": "EquaCards",
-	"description": "Csapat felület heti pub kvízestékhez.",
+	"name": "Kocsmakvízest",
+	"short_name": "Kocsmakvízest",
+	"description": "Csapat felület a kvízestekhez.",
 	"start_url": "/play",
 	"scope": "/play",
 	"display": "standalone",
 	"orientation": "portrait",
-	"background_color": "#150e2c",
-	"theme_color": "#150e2c",
+	"background_color": "#f6f3ec",
+	"theme_color": "#1e5b4f",
 	"lang": "hu",
 	"icons": [
 		{
