@@ -18,6 +18,7 @@
 	import { getHostProgressContext } from '$lib/realtime/host-progress.svelte';
 	import PinDisplay from '$lib/components/PinDisplay.svelte';
 	import TeamChip from '$lib/components/TeamChip.svelte';
+	import JoinCodesPanel from '$lib/components/JoinCodesPanel.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import TimerRing from '$lib/components/TimerRing.svelte';
 	import Select from '$lib/components/Select.svelte';
@@ -651,6 +652,12 @@
 						</Button>
 					</span>
 				</div>
+
+				{#if game.join_requires_code}
+					<div data-tour="hl-codes">
+						<JoinCodesPanel supabase={data.supabase} gameId={game.id} refreshKey={teams.length} />
+					</div>
+				{/if}
 
 				<div data-tour="hl-teams">
 					<h2>Csapatok ({teams.length})</h2>

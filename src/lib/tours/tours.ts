@@ -232,6 +232,13 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				side: 'left'
 			},
 			{
+				element: 'ev-join-code',
+				title: 'Csatlakozás csapatkóddal',
+				description:
+					'Bekapcsolva az estén csak a jelentkezéskor kapott 6 karakteres csapatkóddal lehet csatlakozni — a PIN önmagában nem elég. A kóddal a játék indulása után is be lehet lépni, és egy csapat másik telefonról is visszaléphet vele.',
+				side: 'left'
+			},
+			{
 				element: 'ev-theme',
 				title: 'Megjelenés',
 				description:
@@ -249,6 +256,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				title: 'Jelentkezések',
 				description:
 					'A csapatok a kapcsolattartó adataival. Lemondáskor a várólistáról automatikusan bekerül, aki belefér; a „Beenged” a korláttól függetlenül beenged egy várólistás csapatot. Mindkét esetben e-mail megy a csapatnak.'
+			},
+			{
+				element: 'ev-walkin',
+				title: 'Helyszíni csapat',
+				description:
+					'Előzetes jelentkezés nélkül érkezett csapatnak itt kérsz csapatkódot — ezt mondd meg nekik. A host lobbyban is megteheted.'
 			},
 			{
 				element: 'tab-rounds',
@@ -404,6 +417,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				title: 'Az este kinézete',
 				description:
 					'Ha itt választasz vizuális témát, az azonnal megjelenik a kivetítőn és a telefonokon is.'
+			},
+			{
+				element: 'hl-codes',
+				title: 'Csapatkódok',
+				description:
+					'Csapatkódos estén itt látod a megerősített csapatok kódjait (ha valaki nem találja az e-mailt), és azt, ki lépett már be. Helyszíni csapatnak itt kérhetsz kódot.'
 			},
 			{
 				element: 'hl-teams',

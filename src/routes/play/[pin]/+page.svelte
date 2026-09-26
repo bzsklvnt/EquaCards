@@ -65,6 +65,7 @@
 	let sliderValue = $state(0);
 	let orderedItems = $state<{ id: string; item_text: string }[]>([]);
 	let joinName = $state('');
+	let joinCode = $state('');
 	let joining = $state(false);
 	let connectionStatus = $state<'connected' | 'reconnecting' | 'disconnected'>('connected');
 
@@ -762,39 +763,73 @@
 		{#if restoreError}
 			<p class="error">{restoreError}</p>
 		{/if}
-		<form
-			method="POST"
-			action="?/join"
-			use:enhance={() => {
-				joining = true;
-				return async ({ update }) => {
-					joining = false;
-					await update();
-				};
-			}}
-		>
-			<input type="hidden" name="device_token" value={deviceToken} />
-			<Input label="Csapatnév" name="name" bind:value={joinName} required maxlength={40} />
-			{#if data.registeredNames?.length}
-				<div class="registered">
-					<p>Előre jelentkeztetek? Koppintsatok a nevetekre:</p>
-					<div class="chips">
-						{#each data.registeredNames as name (name)}
-							<button
-								type="button"
-								class="chip"
-								class:selected={joinName === name}
-								onclick={() => (joinName = name)}>{name}</button
-							>
-						{/each}
+		{#if data.joinMode === 'code'}
+			<form
+				method="POST"
+				action="?/joinCode"
+				use:enhance={() => {
+					joining = true;
+					return async ({ update }) => {
+						joining = false;
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="device_token" value={deviceToken} />
+				<Input
+					label="Csapatkód"
+					name="code"
+					bind:value={joinCode}
+					required
+					maxlength={6}
+					autocomplete="off"
+					placeholder="pl. K7M2QX"
+				/>
+				<p class="code-hint">
+					A 6 karakteres kódot a jelentkezés visszaigazoló e-mailjében találod. Helyszíni csapatként
+					kérd a kvízmestertől. Ha már csatlakoztatok, ugyanezzel a kóddal másik telefonról is
+					visszaléphettek.
+				</p>
+				{#if form?.error}
+					<p class="error">{form.error}</p>
+				{/if}
+				<Button type="submit" loading={joining}>Csatlakozás</Button>
+			</form>
+		{:else}
+			<form
+				method="POST"
+				action="?/join"
+				use:enhance={() => {
+					joining = true;
+					return async ({ update }) => {
+						joining = false;
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="device_token" value={deviceToken} />
+				<Input label="Csapatnév" name="name" bind:value={joinName} required maxlength={40} />
+				{#if data.registeredNames?.length}
+					<div class="registered">
+						<p>Előre jelentkeztetek? Koppintsatok a nevetekre:</p>
+						<div class="chips">
+							{#each data.registeredNames as name (name)}
+								<button
+									type="button"
+									class="chip"
+									class:selected={joinName === name}
+									onclick={() => (joinName = name)}>{name}</button
+								>
+							{/each}
+						</div>
 					</div>
-				</div>
-			{/if}
-			{#if form?.error}
-				<p class="error">{form.error}</p>
-			{/if}
-			<Button type="submit" loading={joining}>Csatlakozás</Button>
-		</form>
+				{/if}
+				{#if form?.error}
+					<p class="error">{form.error}</p>
+				{/if}
+				<Button type="submit" loading={joining}>Csatlakozás</Button>
+			</form>
+		{/if}
 	{:else}
 		<h1>Nem található</h1>
 		{#if restoreError}
@@ -807,6 +842,22 @@
 </main>
 
 <style>
+	.code-hint {
+		margin: 0;
+		font-size: 0.85rem;
+		line-height: 1.45;
+		text-align: left;
+		color: var(--marquee-dim);
+	}
+
+	form :global(input[name='code']) {
+		text-transform: uppercase;
+		letter-spacing: 0.2em;
+		font-family: var(--font-led);
+		font-size: 1.3rem;
+		text-align: center;
+	}
+
 	.registered {
 		display: flex;
 		flex-direction: column;

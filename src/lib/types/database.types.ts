@@ -292,6 +292,7 @@ export type Database = {
 					pin: string;
 					public_note: string | null;
 					is_public: boolean;
+					join_requires_code: boolean;
 					scheduled_at: string | null;
 					started_at: string | null;
 					status: string;
@@ -313,6 +314,7 @@ export type Database = {
 					pin: string;
 					public_note?: string | null;
 					is_public?: boolean;
+					join_requires_code?: boolean;
 					scheduled_at?: string | null;
 					started_at?: string | null;
 					status?: string;
@@ -334,6 +336,7 @@ export type Database = {
 					pin?: string;
 					public_note?: string | null;
 					is_public?: boolean;
+					join_requires_code?: boolean;
 					scheduled_at?: string | null;
 					started_at?: string | null;
 					status?: string;
@@ -740,9 +743,11 @@ export type Database = {
 					game_id: string;
 					headcount: number;
 					id: string;
+					join_code: string;
 					note: string | null;
 					promoted_at: string | null;
 					status: string;
+					team_id: string | null;
 					team_name: string;
 				};
 				Insert: {
@@ -756,9 +761,11 @@ export type Database = {
 					game_id: string;
 					headcount: number;
 					id?: string;
+					join_code?: string;
 					note?: string | null;
 					promoted_at?: string | null;
 					status?: string;
+					team_id?: string | null;
 					team_name: string;
 				};
 				Update: {
@@ -772,9 +779,11 @@ export type Database = {
 					game_id?: string;
 					headcount?: number;
 					id?: string;
+					join_code?: string;
 					note?: string | null;
 					promoted_at?: string | null;
 					status?: string;
+					team_id?: string | null;
 					team_name?: string;
 				};
 				Relationships: [
@@ -872,6 +881,10 @@ export type Database = {
 			[_ in never]: never;
 		};
 		Functions: {
+			admin_add_walkin: {
+				Args: { p_game_id: string; p_headcount: number; p_team_name: string };
+				Returns: { id: string; join_code: string }[];
+			};
 			admin_cancel_registration: { Args: { p_id: string }; Returns: string[] };
 			admin_fill_from_waitlist: { Args: { p_game_id: string }; Returns: string[] };
 			admin_promote_registration: { Args: { p_id: string }; Returns: boolean };
@@ -917,7 +930,20 @@ export type Database = {
 				};
 			};
 			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
+			generate_join_code: { Args: never; Returns: string };
+			game_accepts_name_join: { Args: { p_game_id: string }; Returns: boolean };
 			game_status: { Args: { p_game_id: string }; Returns: string };
+			join_with_code: {
+				Args: { p_code: string; p_device_token: string; p_pin: string };
+				Returns: {
+					design_theme_id: string;
+					game_id: string;
+					game_title: string;
+					rejoined: boolean;
+					team_id: string;
+					team_name: string;
+				}[];
+			};
 			promote_from_waitlist: { Args: { p_game_id: string }; Returns: string[] };
 			public_event: {
 				Args: { p_id: string };
@@ -983,6 +1009,7 @@ export type Database = {
 				Returns: {
 					cancel_token: string;
 					id: string;
+					join_code: string;
 					status: string;
 					waitlist_position: number;
 				}[];

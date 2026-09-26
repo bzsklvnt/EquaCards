@@ -77,11 +77,48 @@ register_team ──► confirmed ──(lemondás)──► cancelled
 - Az űrlap botcsapdát (rejtett mező) és IP-alapú korlátot (8 jelentkezés / 10
   perc) használ.
 
-## Csatlakozás az estén
+## Csatlakozás az estén — csapatkód
 
-A `/play/[pin]` a megerősített csapatok neveit (`registered_team_names`)
-koppintható gombokként ajánlja fel, így a regisztrált csapat pontosan ugyanazzal
-a névvel lép be.
+- Minden jelentkezés kap egy 6 karakteres **csapatkódot**
+  (`team_registrations.join_code`, egyértelmű karakterekből: nincs 0/O,
+  1/I/L). A megerősített csapat a visszaigazoló (vagy a „Bekerültetek”)
+  e-mailben és a jelentkezés utáni oldalon is látja; a várólistás csak a
+  bekerüléskor kapja meg.
+- Ha az estén be van kapcsolva a `games.join_requires_code` (alapértelmezés;
+  próbaestén ki), a `/play/[pin]` név helyett csapatkódot kér. A csatlakozás a
+  `join_with_code(pin, code, device_token)` függvényen megy:
+  - érvényes kód csak megerősített jelentkezéshez tartozik;
+  - az első belépés létrehozza a csapatot (a jelentkezés nevével) és
+    összeköti a jelentkezéssel (`team_id`);
+  - a kód a játék indulása után is érvényes: késve érkező csapat
+    csatlakozhat, egy már bent lévő csapat pedig másik telefonról
+    visszaléphet (az új eszköz veszi át a csapatot);
+  - hibakódok: `invalid_code`, `game_not_found`, `game_closed`.
+- **Az adatbázis is kikényszeríti:** a `teams` anon beszúrási policy
+  (`game_accepts_name_join`) csak kód nélküli, váró estén enged név alapú
+  csatlakozást — a PIN ismeretében sem lehet a REST API-n át csapatot
+  beszúrni egy csapatkódos estére (élőben tesztelve: 42501).
+- **Helyszíni csapat:** a kezelő az Esemény fülön vagy a host lobby
+  „Csapatkódok” paneljén (`admin_add_walkin`) kér kódot, a létszámkorláttól
+  függetlenül; a kódot szóban adja át.
+- A host lobby panelje a kódokat és azt is mutatja, ki lépett már be.
+- Kód nélküli estén marad a név alapú csatlakozás, a megerősített
+  csapatnevek koppintható gombként jelennek meg (`registered_team_names`).
+
+## Jogi oldalak
+
+- `/impresszum` — Ekertv. 4. § szerinti adatok: szolgáltató neve, székhelye,
+  e-mail, adószám, nyilvántartási szám (a Beállításokban: `site_operator_name`,
+  `site_address`, `site_contact_email`, `site_tax_number`,
+  `site_registration`), tárhelyszolgáltató (Vercel Inc.), adatbázis
+  (Supabase, EU). Hiányzó adatnál kiemelt helykitöltő látszik.
+- `/szabalyzat` — részvételi szabályzat (jelentkezés, létszám, várólista,
+  csapatkód, lemondás, játékszabályok, díjak, helyszín). A jelentkezési
+  űrlapon a szabályzat és az adatkezelési tájékoztató elfogadása kötelező.
+- Mindkettő a láblécből érhető el; a Beállítások „Élesítés állapota” panelje
+  jelzi, ha az impresszum adatai hiányoznak.
+- A szövegek tájékoztató jellegű minták — élesítés előtt jogász/könyvelő
+  nézze át.
 
 ## E-mailek (`src/lib/server/registrations.ts`)
 

@@ -49,9 +49,9 @@ komponensek nem adják tovább az attribútumot), és vegyél fel egy lépést a
 | `question-form`       | `/admin/questions/new`, `/[id]`     | 9       |
 | `games`               | `/admin/games` (Próbaeste gombbal)  | 5       |
 | `game-setup`          | `/admin/games/[id]`                 | 11      |
-| `game-event`          | `/admin/games/[id]/event`           | 6       |
+| `game-event`          | `/admin/games/[id]/event`           | 8       |
 | `venues`              | `/admin/venues`                     | 2       |
-| `host-lobby`          | `/host/[game_id]`, várakozás        | 8       |
+| `host-lobby`          | `/host/[game_id]`, várakozás        | 9       |
 | `host-live`           | `/host/[game_id]`, élő játék        | 7       |
 | `results`             | `/admin/games/[id]/results`         | 5       |
 | `design-themes`       | `/admin/design-themes`              | 4       |

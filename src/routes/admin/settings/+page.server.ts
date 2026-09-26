@@ -25,7 +25,8 @@ async function setupStatus(currentHost: string, settings: { key: string; value: 
 		email: emailSetupStatus(),
 		serviceRole,
 		operatorName: Boolean(site.operatorName),
-		contactEmail: Boolean(site.contactEmail)
+		contactEmail: Boolean(site.contactEmail),
+		imprint: Boolean(site.address && site.taxNumber && site.registration)
 	};
 }
 

@@ -34,7 +34,13 @@ export const actions: Actions = {
 		// Botcsapda: az emberek számára rejtett mező — ha ki van töltve, csendben
 		// "sikert" mutatunk, de semmit nem mentünk.
 		if (text(form, 'website')) {
-			return { success: true, status: 'confirmed' as const, waitlistPosition: null, teamName: '' };
+			return {
+				success: true,
+				status: 'confirmed' as const,
+				waitlistPosition: null,
+				joinCode: null,
+				teamName: ''
+			};
 		}
 
 		if (isRateLimited(`register:${getClientAddress()}`, 8, 10 * 60 * 1000)) {
@@ -70,6 +76,7 @@ export const actions: Actions = {
 			success: true,
 			status: result.status,
 			waitlistPosition: result.waitlistPosition,
+			joinCode: result.joinCode,
 			teamName: values.teamName
 		};
 	}
