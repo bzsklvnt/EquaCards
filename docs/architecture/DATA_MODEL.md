@@ -322,6 +322,27 @@ maradtak (lásd fenti, most már megoldott MVP-korlát). Fázis Q6 ezt zárja le
   szerint, opciók kérdés szerint stb.); az átfedő RLS szabályok összevonva
   (ugyanaz a hozzáférés).
 
+### Kérdés-megjelenés, magyarázó dia, videó (`supabase/migrations/20260927120000_question_layout_info_video.sql`)
+
+Részletek: `docs/features/question-layout.md`.
+
+- `questions.layout jsonb` — kérdésenkénti megjelenés (`preset`, `timer`,
+  `counter`, `size`, `phone_cols`, `phone_prompt`); `null` = alapértelmezett.
+- `questions.info_text text` — a magyarázó dia szövege.
+- `questions.video_id text`, `video_start int`, `video_end int`,
+  `video_gate boolean not null default true` — YouTube-részlet;
+  `questions_video_check`: 11 karakteres azonosító, `0 <= start < end`,
+  legfeljebb 300 mp.
+- `question_types` új sora: `6 / info / Info / magyarázó dia` (nincs opció).
+- `admin_save_question()` és `admin_duplicate_question()` az új mezőkkel;
+  `draw_random_questions_for_round()` nem húz info diát;
+  `host_next_question()` info diánál nem indít időzítőt, videónál
+  (`video_gate`) az olvasási idő a klip hossza, és visszaadja a `layout`,
+  `info_text`, `video` mezőket; `current_question_state()` ugyanezekkel, a
+  sorszám és a kérdésszám az info diák nélkül számol.
+
+---
+
 ## 3. Válaszok — normalizálva, típusonként külön tábla (valódi FK-kkal)
 
 A `question_choice_options` / `question_slider_config` / `question_ordering_items` normalizált mintáját követve a válaszoknál is típusonként külön tábla van, valódi idegen kulcsokkal — nem szabad-formátumú jsonb, hogy a DB maga zárja ki az érvénytelen adatot (pl. nem létező vagy másik kérdéshez tartozó opció mentését).

@@ -146,6 +146,7 @@
 						theme_id: snapshot.theme_id,
 						type_code: snapshot.type_code,
 						has_image: !!snapshot.image_url,
+						has_video: !!snapshot.video,
 						created_at: new Date().toISOString(),
 						played_count: 0,
 						played_last: null
@@ -163,7 +164,8 @@
 								prompt: snapshot.prompt,
 								theme_id: snapshot.theme_id,
 								type_code: snapshot.type_code,
-								has_image: !!snapshot.image_url
+								has_image: !!snapshot.image_url,
+								has_video: !!snapshot.video
 							}
 						: b
 				);
@@ -231,6 +233,7 @@
 						theme_id: res.draft.theme_id,
 						type_code: res.draft.type_code,
 						has_image: !!res.draft.image_url,
+						has_video: !!res.draft.video,
 						created_at: null,
 						played_last: null
 					}),
@@ -381,6 +384,7 @@
 								theme_id: drafts[NEW].theme_id,
 								type_code: drafts[NEW].type_code,
 								has_image: !!drafts[NEW].image_url,
+								has_video: !!drafts[NEW].video,
 								created_at: null,
 								played_count: 0,
 								played_last: null
@@ -461,7 +465,7 @@
 					<small
 						>{TYPE_SHORT[q.type_code] ?? q.type_code} · {themeTitle(q.theme_id)}{q.has_image
 							? ' · kép'
-							: ''}</small
+							: ''}{q.has_video ? ' · videó' : ''}</small
 					>
 				</span>
 				{#if q.id !== NEW}

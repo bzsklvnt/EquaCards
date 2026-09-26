@@ -98,6 +98,10 @@
 			telefon böngészője egy azonosítót tárol, hogy a csapat újra tudjon csatlakozni, ha megszakad a
 			kapcsolat. A kezelői belépés munkamenet-sütit használ.
 		</p>
+		<p>
+			Ha egy kérdéshez videó tartozik, azt a kivetítő a YouTube adatvédelmi (youtube-nocookie.com)
+			lejátszójával játssza le. A csapatok telefonja nem tölt be YouTube-tartalmat.
+		</p>
 	</section>
 
 	<section>

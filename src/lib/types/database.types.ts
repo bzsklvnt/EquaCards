@@ -550,7 +550,9 @@ export type Database = {
 					id: string;
 					image_pixelate: boolean;
 					image_url: string | null;
+					info_text: string | null;
 					last_used_at: string | null;
+					layout: Json | null;
 					points: number | null;
 					points_decay: boolean | null;
 					points_multiplier: number | null;
@@ -559,6 +561,10 @@ export type Database = {
 					reading_seconds: number | null;
 					theme_id: string | null;
 					time_limit_seconds: number | null;
+					video_end: number | null;
+					video_gate: boolean;
+					video_id: string | null;
+					video_start: number | null;
 				};
 				Insert: {
 					archived_at?: string | null;
@@ -567,7 +573,9 @@ export type Database = {
 					id?: string;
 					image_pixelate?: boolean;
 					image_url?: string | null;
+					info_text?: string | null;
 					last_used_at?: string | null;
+					layout?: Json | null;
 					points?: number | null;
 					points_decay?: boolean | null;
 					points_multiplier?: number | null;
@@ -576,6 +584,10 @@ export type Database = {
 					reading_seconds?: number | null;
 					theme_id?: string | null;
 					time_limit_seconds?: number | null;
+					video_end?: number | null;
+					video_gate?: boolean;
+					video_id?: string | null;
+					video_start?: number | null;
 				};
 				Update: {
 					archived_at?: string | null;
@@ -584,7 +596,9 @@ export type Database = {
 					id?: string;
 					image_pixelate?: boolean;
 					image_url?: string | null;
+					info_text?: string | null;
 					last_used_at?: string | null;
+					layout?: Json | null;
 					points?: number | null;
 					points_decay?: boolean | null;
 					points_multiplier?: number | null;
@@ -593,6 +607,10 @@ export type Database = {
 					reading_seconds?: number | null;
 					theme_id?: string | null;
 					time_limit_seconds?: number | null;
+					video_end?: number | null;
+					video_gate?: boolean;
+					video_id?: string | null;
+					video_start?: number | null;
 				};
 				Relationships: [
 					{

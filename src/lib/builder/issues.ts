@@ -26,10 +26,13 @@ export function computeIssues(
 			issues.push({ level: 'warn', roundId: round.id, key: null, text: `${label}: még üres.` });
 		}
 		let prevSuit: number | null = null;
-		round.keys.forEach((key, qi) => {
+		let number = 0;
+		round.keys.forEach((key) => {
 			const draft = drafts[key];
 			if (!draft) return;
-			const where = `${label}, ${qi + 1}. kérdés`;
+			const info = draft.type_code === 'info';
+			if (!info) number += 1;
+			const where = info ? `${label}, magyarázó dia` : `${label}, ${number}. kérdés`;
 			const error = draftError(draft, types);
 			if (error) {
 				issues.push({ level: 'error', roundId: round.id, key, text: `${where}: ${error}` });
@@ -49,6 +52,7 @@ export function computeIssues(
 					text: `${where}: már elhangzott egy korábbi estén.`
 				});
 			}
+			if (info) return;
 			const suitIndex = correctSuitIndex(draft);
 			if (suitIndex !== null && suitIndex === prevSuit) {
 				issues.push({

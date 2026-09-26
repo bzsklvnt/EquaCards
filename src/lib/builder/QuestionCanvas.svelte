@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { ImageUploadError, uploadQuestionImage } from '$lib/images/upload';
+	import { effectivePreset, formatClock, youtubeThumbnail } from '$lib/questions/layout';
+	import { MAX_INFO_TEXT } from '$lib/questions/form';
 	import { suit, type Draft, type QuestionTypeInfo } from './model';
 
 	// A kérdés "vászna": úgy néz ki, ahogy a kivetítőn fog, de minden eleme
-	// szerkeszthető. Mind az 5 kérdéstípust kezeli — docs/features/quiz-builder.md.
+	// szerkeszthető. Mind az 5 kérdéstípust és a magyarázó diát kezeli, a
+	// kérdés megjelenése (elrendezés, betűméret) szerint rendezve —
+	// docs/features/quiz-builder.md, docs/features/question-layout.md.
 	let {
 		draft = $bindable(),
 		types
@@ -16,6 +20,12 @@
 	const isChoice = $derived(
 		draft.type_code === 'single_choice' || draft.type_code === 'multi_choice'
 	);
+	const info = $derived(draft.type_code === 'info');
+	// A szerkesztőben a választott elrendezés látszik (kép nélkül is, hogy
+	// legyen hová feltölteni); a kivetítő kép nélkül a „Csak szöveg”-re vált.
+	const preset = $derived(effectivePreset(draft.layout, { info, video: !!draft.video }));
+	const showImageZone = $derived(!draft.video && preset !== 'text');
+	const LETTERS = 'ABCDEFGH';
 	const minOptions = $derived(type?.min_options ?? 2);
 	const maxOptions = $derived(type?.max_options ?? 8);
 
@@ -121,75 +131,122 @@
 		Math.min(100, Math.max(0, ((v - draft.slider.min_value) / sliderRange) * 100));
 </script>
 
-<section class="canvas" aria-label="Kérdés vászon — így jelenik meg a kivetítőn">
+<section
+	class="canvas"
+	data-preset={preset}
+	data-size={draft.layout.size}
+	style={preset === 'image_bg' && draft.image_url ? `--bg: url("${draft.image_url}")` : undefined}
+	aria-label="Kérdés vászon — így jelenik meg a kivetítőn"
+>
 	<label class="prompt-field">
-		<span class="sr-only">Kérdés szövege</span>
+		<span class="sr-only">{info ? 'Dia címe' : 'Kérdés szövege'}</span>
 		<textarea
 			id="bq-prompt"
 			rows="2"
-			placeholder="Írd be a kérdést…"
+			placeholder={info ? 'A dia címe, pl. „Tudtad?”' : 'Írd be a kérdést…'}
 			bind:value={draft.prompt}
 			data-tour="qb-prompt"></textarea>
 	</label>
 
-	<div
-		class="image-zone"
-		class:has-image={!!draft.image_url}
-		class:drag={dragOver}
-		role="group"
-		aria-label="Kérdés képe"
-		ondragover={(e) => {
-			e.preventDefault();
-			dragOver = true;
-		}}
-		ondragleave={() => (dragOver = false)}
-		ondrop={onDrop}
-		data-tour="qb-image"
-	>
-		{#if draft.image_url}
-			<img src={draft.image_url} alt="" class:pixel={draft.image_pixelate} />
-			<div class="image-actions">
-				{#if draft.image_pixelate}<span class="badge">Pixeles felfedés</span>{/if}
-				<label class="mini-btn">
-					<input
-						type="file"
-						accept="image/jpeg,image/png,image/webp"
-						onchange={(e) => onFileInput(e, 'question')}
-					/>
-					Csere
-				</label>
-				<button type="button" class="mini-btn" onclick={() => (draft.image_url = null)}
-					>Eltávolítás</button
+	<div class="media">
+		{#if draft.video}
+			<div
+				class="video-zone"
+				style={`background-image: url(${youtubeThumbnail(draft.video.id)})`}
+				role="img"
+				aria-label="YouTube-videó"
+			>
+				<span
+					>▶ Videó · {formatClock(draft.video.start)}–{formatClock(draft.video.end)} ({Math.max(
+						0,
+						draft.video.end - draft.video.start
+					)} mp) · {preset === 'video_split' ? 'videó + kérdés' : 'teljes képernyőn'}</span
 				>
 			</div>
+		{:else if !showImageZone}
+			<p class="hint">
+				Csak szöveg: {draft.image_url
+					? 'a feltöltött kép nem jelenik meg a kivetítőn.'
+					: 'nincs kép a kivetítőn.'}
+			</p>
 		{:else}
-			<label class="drop-label">
-				<input
-					type="file"
-					accept="image/jpeg,image/png,image/webp"
-					onchange={(e) => onFileInput(e, 'question')}
-				/>
-				<svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true">
-					<rect x="3" y="4" width="18" height="16" rx="2" />
-					<circle cx="9" cy="10" r="2" />
-					<path d="M21 16l-5-5-8 9" />
-				</svg>
-				<span>{uploading === 'question' ? 'Feltöltés…' : 'Kép behúzása, tallózás vagy Ctrl+V'}</span
-				>
-				<small>Nem kötelező · JPG, PNG, WebP, max. 5 MB</small>
-			</label>
+			<div
+				class="image-zone"
+				class:has-image={!!draft.image_url}
+				class:drag={dragOver}
+				role="group"
+				aria-label="Kérdés képe"
+				ondragover={(e) => {
+					e.preventDefault();
+					dragOver = true;
+				}}
+				ondragleave={() => (dragOver = false)}
+				ondrop={onDrop}
+				data-tour="qb-image"
+			>
+				{#if draft.image_url}
+					<img src={draft.image_url} alt="" class:pixel={draft.image_pixelate} />
+					<div class="image-actions">
+						{#if draft.image_pixelate}<span class="badge">Pixeles felfedés</span>{/if}
+						<label class="mini-btn">
+							<input
+								type="file"
+								accept="image/jpeg,image/png,image/webp"
+								onchange={(e) => onFileInput(e, 'question')}
+							/>
+							Csere
+						</label>
+						<button type="button" class="mini-btn" onclick={() => (draft.image_url = null)}
+							>Eltávolítás</button
+						>
+					</div>
+				{:else}
+					<label class="drop-label">
+						<input
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							onchange={(e) => onFileInput(e, 'question')}
+						/>
+						<svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true">
+							<rect x="3" y="4" width="18" height="16" rx="2" />
+							<circle cx="9" cy="10" r="2" />
+							<path d="M21 16l-5-5-8 9" />
+						</svg>
+						<span
+							>{uploading === 'question'
+								? 'Feltöltés…'
+								: 'Kép behúzása, tallózás vagy Ctrl+V'}</span
+						>
+						<small>Nem kötelező · JPG, PNG, WebP, max. 5 MB</small>
+					</label>
+				{/if}
+			</div>
 		{/if}
+		{#if imageError}<p class="error" role="alert">{imageError}</p>{/if}
 	</div>
-	{#if imageError}<p class="error" role="alert">{imageError}</p>{/if}
 
 	<div class="answers" data-tour="qb-answers">
-		{#if isChoice}
+		{#if info}
+			<label class="info-field">
+				<span class="sr-only">Magyarázat</span>
+				<textarea
+					rows="5"
+					maxlength={MAX_INFO_TEXT}
+					placeholder={preset === 'info_image'
+						? 'Rövid képaláírás (nem kötelező)'
+						: 'Magyarázat az előző kérdéshez (nem kötelező)'}
+					bind:value={draft.info_text}></textarea>
+			</label>
+			<p class="hint">
+				Nincs válasz és pont · a telefonokon „Nézd a kivetítőt” · a host Szóközzel lép tovább
+			</p>
+		{:else if isChoice}
 			<div class="tiles" class:many={draft.options.length > 4}>
 				{#each draft.options as option, i (i)}
 					{@const s = suit(i)}
 					<div class="tile" style="--suit: {s.color}">
 						<div class="tile-top">
-							<span class="suit" aria-hidden="true">{s.label}</span>
+							<span class="suit" aria-hidden="true">{LETTERS[i]}<span>{s.symbol}</span></span>
 							<button
 								type="button"
 								class="correct"
@@ -259,7 +316,7 @@
 						aria-pressed={option.is_correct}
 						onclick={() => toggleCorrect(i)}
 					>
-						<span class="suit big" aria-hidden="true">{s.symbol}</span>
+						<span class="suit big" aria-hidden="true">{LETTERS[i]}<span>{s.symbol}</span></span>
 						<span class="tf-label">{option.text}</span>
 						<span class="tf-state">{option.is_correct ? '✓ helyes' : ''}</span>
 						<kbd>{i + 1}</kbd>
@@ -412,6 +469,164 @@
 		background: var(--cabinet-2);
 	}
 
+	.canvas[data-size='large'] .prompt-field textarea {
+		font-size: clamp(1.6rem, 2.7vw, 2.45rem);
+	}
+
+	.canvas[data-size='xl'] .prompt-field textarea {
+		font-size: clamp(1.9rem, 3.3vw, 3rem);
+	}
+
+	.media {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		min-width: 0;
+	}
+
+	/* Kép (vagy info diánál a kép) oldalt: a kérdés és a válaszok mellette. */
+	.canvas[data-preset='image_left'],
+	.canvas[data-preset='image_right'],
+	.canvas[data-preset='info_split'] {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-rows: auto 1fr;
+		grid-template-areas: 'media prompt' 'media answers';
+		align-items: start;
+	}
+
+	.canvas[data-preset='image_right'] {
+		grid-template-areas: 'prompt media' 'answers media';
+	}
+
+	.canvas[data-preset='image_left'] .media,
+	.canvas[data-preset='image_right'] .media,
+	.canvas[data-preset='info_split'] .media {
+		grid-area: media;
+	}
+
+	.canvas[data-preset='image_left'] .prompt-field,
+	.canvas[data-preset='image_right'] .prompt-field,
+	.canvas[data-preset='info_split'] .prompt-field {
+		grid-area: prompt;
+	}
+
+	.canvas[data-preset='image_left'] .answers,
+	.canvas[data-preset='image_right'] .answers,
+	.canvas[data-preset='info_split'] .answers {
+		grid-area: answers;
+	}
+
+	.canvas[data-preset='image_left'] .tiles,
+	.canvas[data-preset='image_right'] .tiles {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.canvas[data-preset='image_left'] .image-zone.has-image,
+	.canvas[data-preset='image_right'] .image-zone.has-image,
+	.canvas[data-preset='info_split'] .image-zone.has-image,
+	.canvas[data-preset='image_left'] .image-zone img,
+	.canvas[data-preset='image_right'] .image-zone img,
+	.canvas[data-preset='info_split'] .image-zone img {
+		max-height: 24rem;
+	}
+
+	/* Csak kép (info): nagy kép, alatta a cím és a képaláírás. */
+	.canvas[data-preset='info_image'] .media {
+		order: -1;
+	}
+
+	.canvas[data-preset='info_image'] .image-zone.has-image,
+	.canvas[data-preset='info_image'] .image-zone img {
+		max-height: 22rem;
+	}
+
+	/* Kép háttérben: a vászon hátterén halványítva. */
+	.canvas[data-preset='image_bg'] {
+		background:
+			linear-gradient(
+				color-mix(in srgb, var(--cabinet-2) 78%, transparent),
+				color-mix(in srgb, var(--cabinet-2) 78%, transparent)
+			),
+			var(--bg) center / cover,
+			var(--cabinet-2);
+	}
+
+	.canvas[data-preset='image_bg'] .image-zone.has-image {
+		align-self: flex-end;
+		min-height: 3rem;
+		width: 16rem;
+	}
+
+	.canvas[data-preset='image_bg'] .image-zone.has-image img {
+		max-height: 6rem;
+	}
+
+	.video-zone {
+		aspect-ratio: 16 / 9;
+		max-height: 15rem;
+		display: flex;
+		align-items: flex-end;
+		padding: 0.6rem;
+		border-radius: 0.9rem;
+		background-color: #1b1c1a;
+		background-size: cover;
+		background-position: center;
+	}
+
+	.canvas[data-preset='video_split'] {
+		display: grid;
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+		grid-template-areas: 'media prompt' 'media answers';
+		align-items: start;
+	}
+
+	.canvas[data-preset='video_split'] .media {
+		grid-area: media;
+	}
+
+	.canvas[data-preset='video_split'] .prompt-field {
+		grid-area: prompt;
+	}
+
+	.canvas[data-preset='video_split'] .answers {
+		grid-area: answers;
+	}
+
+	.canvas[data-preset='video_split'] .tiles {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.video-zone span {
+		padding: 0.3rem 0.6rem;
+		border-radius: 0.4rem;
+		background: rgb(0 0 0 / 65%);
+		color: #fff;
+		font-size: 0.8125rem;
+		font-weight: 600;
+	}
+
+	.info-field textarea {
+		width: 100%;
+		box-sizing: border-box;
+		resize: vertical;
+		min-height: 8rem;
+		border: 1px dashed var(--field-border, #d5cec0);
+		border-radius: 0.75rem;
+		padding: 0.75rem 1rem;
+		font: inherit;
+		font-size: 1.15rem;
+		line-height: 1.45;
+		color: var(--marquee);
+		background: var(--cabinet-2);
+	}
+
+	.info-field textarea:focus {
+		outline: 3px solid var(--cyan);
+		outline-offset: 1px;
+		border-style: solid;
+	}
+
 	.prompt-field textarea:focus {
 		outline: 3px solid var(--cyan);
 		outline-offset: 1px;
@@ -551,14 +766,19 @@
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 
+	/* Kártyalap, mint a kivetítőn és a telefonon: krémszínű lap, a sarokban
+	   betű + kártyaszín, sötét szöveg (docs/features/question-layout.md). */
 	.tile {
+		--card-edge: #e4ded2;
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
 		padding: 0.6rem 0.8rem;
+		border: 1px solid var(--card-edge);
 		border-radius: 0.9rem;
-		background: var(--suit);
-		color: #fff;
+		background: #fffdf8;
+		box-shadow: 0 3px 0 var(--card-edge);
+		color: #1c1b18;
 		min-width: 0;
 	}
 
@@ -574,30 +794,43 @@
 	}
 
 	.suit {
-		font-family: Georgia, serif;
-		font-size: 1.5rem;
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.15rem;
+		color: var(--suit);
+		font-size: 1.1rem;
+		font-weight: 800;
 		line-height: 1;
 	}
 
+	.suit span {
+		font-family: Georgia, serif;
+		font-size: 1.3rem;
+	}
+
 	.suit.big {
-		font-size: 2.6rem;
+		font-size: 1.6rem;
+	}
+
+	.suit.big span {
+		font-size: 2.2rem;
 	}
 
 	.correct {
 		width: 2.1rem;
 		height: 2.1rem;
 		border-radius: 50%;
-		border: 2px solid rgb(255 255 255 / 75%);
-		background: transparent;
-		color: var(--suit);
+		border: 2px solid var(--card-edge);
+		background: #fff;
+		color: #fff;
 		font-weight: 800;
 		font-size: 1.05rem;
 		cursor: pointer;
 	}
 
 	.correct.on {
-		background: #fff;
-		border-color: #fff;
+		background: var(--power, #1e7a4f);
+		border-color: var(--power, #1e7a4f);
 	}
 
 	.correct:focus-visible,
@@ -605,7 +838,7 @@
 	.tile-link:focus-within,
 	.tile-link:focus-visible,
 	.tf-tile:focus-visible {
-		outline: 3px solid #fff;
+		outline: 3px solid var(--cyan);
 		outline-offset: 2px;
 	}
 
@@ -613,9 +846,9 @@
 		width: 100%;
 		box-sizing: border-box;
 		border: 0;
-		border-bottom: 2px solid rgb(255 255 255 / 45%);
+		border-bottom: 1.5px dashed var(--card-edge);
 		background: transparent;
-		color: #fff;
+		color: #1c1b18;
 		font: inherit;
 		font-size: 1.1rem;
 		font-weight: 700;
@@ -623,12 +856,13 @@
 	}
 
 	.tile-input::placeholder {
-		color: rgb(255 255 255 / 70%);
+		color: #8a857b;
 		font-weight: 600;
 	}
 
 	.tile-foot {
 		font-size: 0.8rem;
+		color: #5e5a52;
 	}
 
 	.tile-foot img {
@@ -648,11 +882,10 @@
 		position: relative;
 		border: 0;
 		background: transparent;
-		color: #fff;
+		color: inherit;
 		font: inherit;
 		text-decoration: underline;
 		text-underline-offset: 2px;
-		opacity: 0.9;
 		cursor: pointer;
 		padding: 0;
 	}
@@ -663,6 +896,7 @@
 		min-height: 5.5rem;
 		border: 2px dashed var(--field-border, #c9bfa9);
 		background: transparent;
+		box-shadow: none;
 		color: var(--marquee-dim);
 		font: inherit;
 		font-weight: 700;
@@ -677,14 +911,13 @@
 		align-items: center;
 		justify-content: center;
 		min-height: 9rem;
-		border: 0;
 		font: inherit;
 		cursor: pointer;
 		position: relative;
 	}
 
-	.tf-tile[aria-pressed='false'] {
-		opacity: 0.8;
+	.tf-tile[aria-pressed='true'] {
+		border: 2.5px solid var(--power, #1e7a4f);
 	}
 
 	.tf-label {
@@ -701,8 +934,8 @@
 	}
 
 	.tf-tile[aria-pressed='true'] .tf-state {
-		background: #fff;
-		color: var(--suit);
+		background: var(--power, #1e7a4f);
+		color: #fff;
 	}
 
 	.tf-tile kbd {
@@ -870,6 +1103,10 @@
 		.tiles,
 		.tiles.many {
 			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.canvas[data-preset] {
+			display: flex;
 		}
 
 		.slider-fields {

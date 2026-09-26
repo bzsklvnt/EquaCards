@@ -10,6 +10,12 @@ import {
 	MIN_TIME_LIMIT,
 	MAX_TIME_LIMIT
 } from '$lib/questions/form';
+import {
+	DEFAULT_LAYOUT,
+	layoutForSave,
+	type QuestionLayout,
+	type QuestionVideo
+} from '$lib/questions/layout';
 
 export type QuestionTypeInfo = {
 	id: number;
@@ -48,6 +54,13 @@ export type Draft = {
 	options: DraftOption[];
 	slider: SliderConfig;
 	ordering: string[];
+	/** Kérdésenkénti megjelenés (null helyett mindig teljes; mentéskor az
+	 * alapértelmezett null-ként tárolódik). */
+	layout: QuestionLayout;
+	/** Magyarázó dia szövege (csak info típusnál). */
+	info_text: string;
+	/** YouTube-részlet (info diánál nem használható). */
+	video: QuestionVideo | null;
 };
 
 /** A kérdésbank-fiók egy sora (loadBank). */
@@ -57,6 +70,7 @@ export type BankItem = {
 	theme_id: string | null;
 	type_code: string;
 	has_image: boolean;
+	has_video: boolean;
 	created_at: string | null;
 	/** Más (már elindított) estéken hányszor szerepelt, és a legutóbbi címe. */
 	played_count: number;
@@ -72,14 +86,22 @@ export type QuestionUsage = {
 	round_title: string;
 };
 
-export const TYPE_ORDER = ['single_choice', 'multi_choice', 'true_false', 'slider', 'ordering'];
+export const TYPE_ORDER = [
+	'single_choice',
+	'multi_choice',
+	'true_false',
+	'slider',
+	'ordering',
+	'info'
+];
 
 export const TYPE_SHORT: Record<string, string> = {
 	single_choice: 'Egy helyes',
 	multi_choice: 'Több helyes',
 	true_false: 'Igaz / hamis',
 	slider: 'Csúszka',
-	ordering: 'Sorrend'
+	ordering: 'Sorrend',
+	info: 'Info dia'
 };
 
 export const TIME_PRESETS = [10, 20, 30, 45, 60, 90];
@@ -98,6 +120,11 @@ export function suit(index: number): { symbol: string; color: string; label: str
 		color: index < 4 ? SUIT_DARK[i] : SUIT_LIGHT[i],
 		label: index < 4 ? symbol : `${symbol}${index + 1}`
 	};
+}
+
+/** Magyarázó dia: nincs válasz, időzítő és pont, és nem számít a sorszámba. */
+export function isInfoType(code: string): boolean {
+	return code === 'info';
 }
 
 export function isChoiceType(code: string): boolean {
@@ -122,7 +149,9 @@ const TRUE_FALSE = (correctTrue = true): DraftOption[] => [
 export function emptyDraft(
 	type: QuestionTypeInfo,
 	themeId: string | null,
-	template?: Pick<Draft, 'time_limit_seconds' | 'points' | 'points_decay'>
+	template?: Pick<Draft, 'time_limit_seconds' | 'points' | 'points_decay'> & {
+		layout?: QuestionLayout;
+	}
 ): Draft {
 	const draft: Draft = {
 		key: newLocalKey(),
@@ -139,7 +168,10 @@ export function emptyDraft(
 		reading_seconds: null,
 		options: [],
 		slider: { min_value: 0, max_value: 100, step: 1, correct_value: 50, tolerance: 0 },
-		ordering: ['', '', '']
+		ordering: ['', '', ''],
+		layout: { ...(template?.layout ?? DEFAULT_LAYOUT) },
+		info_text: '',
+		video: null
 	};
 	return convertDraft(draft, type);
 }
@@ -149,6 +181,12 @@ export function emptyDraft(
  * piszkozatban, így visszaváltáskor sem vesznek el). */
 export function convertDraft(draft: Draft, type: QuestionTypeInfo): Draft {
 	const next: Draft = { ...draft, type_code: type.code, options: [...draft.options] };
+	if (type.code === 'info') {
+		// A válaszok a piszkozatban maradnak (visszaváltáskor megvannak), de
+		// a magyarázó dia nem kap videót.
+		next.video = null;
+		return next;
+	}
 	if (type.code === 'true_false') {
 		const wasTf = draft.type_code === 'true_false' && draft.options.length === 2;
 		next.options = wasTf ? draft.options : TRUE_FALSE(true);
@@ -190,6 +228,15 @@ export function draftToFormData(draft: Draft, types: QuestionTypeInfo[]): FormDa
 	fd.set('time_limit_seconds', String(draft.time_limit_seconds));
 	fd.set('points_decay', draft.points_decay ? 'true' : 'false');
 	fd.set('reading_seconds', draft.reading_seconds === null ? '' : String(draft.reading_seconds));
+	const layout = layoutForSave(draft.layout);
+	fd.set('layout', layout ? JSON.stringify(layout) : '');
+	fd.set('info_text', draft.type_code === 'info' ? draft.info_text : '');
+	if (draft.video && draft.type_code !== 'info') {
+		fd.set('video_id', draft.video.id);
+		fd.set('video_start', String(draft.video.start));
+		fd.set('video_end', String(draft.video.end));
+		fd.set('video_gate', draft.video.gate ? 'true' : 'false');
+	}
 	if (isChoiceType(draft.type_code)) {
 		draft.options.forEach((o, i) => {
 			fd.append('option_text', o.text);
@@ -227,5 +274,29 @@ export function correctSuitIndex(draft: Draft): number | null {
 }
 
 export function effectiveReading(draft: Draft, globalDefault: number): number {
+	if (draft.type_code === 'info') return 0;
+	// Ha a válaszidő a videó végén indul, az olvasási idő a klip hossza.
+	if (draft.video?.gate) return Math.max(0, draft.video.end - draft.video.start);
 	return draft.reading_seconds ?? globalDefault;
+}
+
+/** Kérdés-sorszámok a körön belül: a magyarázó dia nem kap számot (null),
+ * ugyanúgy, ahogy élőben a kivetítő és a telefon számoz. */
+export function questionNumbers(
+	keys: string[],
+	drafts: Record<string, Draft>
+): { numbers: Record<string, number | null>; total: number } {
+	const numbers: Record<string, number | null> = {};
+	let n = 0;
+	for (const key of keys) {
+		if (drafts[key]?.type_code === 'info') numbers[key] = null;
+		else numbers[key] = ++n;
+	}
+	return { numbers, total: n };
+}
+
+/** A kérdés becsült ideje másodpercben (olvasás + válasz + felfedés). */
+export function draftSeconds(draft: Draft, readingDefault: number): number {
+	if (draft.type_code === 'info') return 20;
+	return draft.time_limit_seconds + effectiveReading(draft, readingDefault) + 20;
 }

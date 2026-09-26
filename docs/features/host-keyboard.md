@@ -12,6 +12,7 @@ mindig azt nyomja meg:
 | Állapot          | Kiemelt lépés (Space)                                      |
 | ---------------- | ---------------------------------------------------------- |
 | kérdések között  | Következő kérdés                                           |
+| magyarázó dia    | Tovább (a kör utolsó eleménél: kör / végeredmény)          |
 | olvasási idő     | Olvasás átugrása                                           |
 | válaszidő        | Válaszok lezárása most (lejártakor magától zár és feltár)  |
 | lezárva          | Megoldás feltárása                                         |
@@ -20,7 +21,8 @@ mindig azt nyomja meg:
 | kör vége (Top 3) | Következő kör                                              |
 
 Egyéb billentyűk: **S** a felfedés utáni másodlagos lépés (állás kihagyása),
-**L** azonnali lezárás, **M** kivetítő hang ki/be, **C** csapatkódok (késve
+**L** azonnali lezárás, **M** kivetítő hang ki/be, **R** a kérdés videójának
+újrajátszása a kivetítőn, **C** csapatkódok (késve
 érkezőknek), **?** súgó, **Esc** bezárás.
 
 ## Biztonság

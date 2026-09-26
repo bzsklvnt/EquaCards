@@ -31,6 +31,7 @@
 	import ReconnectOverlay from '$lib/components/ReconnectOverlay.svelte';
 	import ArcadePanel from '$lib/components/ArcadePanel.svelte';
 	import PixelatedImage from '$lib/components/PixelatedImage.svelte';
+	import { normalizeLayout, type QuestionLayout, type QuestionVideo } from '$lib/questions/layout';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -67,6 +68,15 @@
 	// Olvasási idő: amíg tart, csak a kérdés látszik, a gombok nem nyomhatók.
 	let readingLeft = $state(0);
 	const reading = $derived(readingLeft > 0);
+	// Kérdésenkénti megjelenés a telefonon (docs/features/question-layout.md):
+	// 1 vagy 2 oszlopos lapok, a kérdés szövege elrejthető — a válaszok
+	// szövege mindig látszik.
+	const layout = $derived(normalizeLayout(currentQuestion?.layout));
+	const infoSlide = $derived(currentQuestion?.question_type === 'info');
+	const videoGate = $derived(!!currentQuestion?.video?.gate);
+	const clipSeconds = $derived(
+		currentQuestion?.video ? currentQuestion.video.end - currentQuestion.video.start : 0
+	);
 	let finalLeaderboard = $state<FinalLeaderboardRevealPayload | null>(null);
 	let submitted = $state(false);
 	let submitting = $state(false);
@@ -213,6 +223,9 @@
 			reading_seconds?: number | null;
 			revealed?: boolean;
 			correct_answer?: string | null;
+			layout?: QuestionLayout | null;
+			info_text?: string | null;
+			video?: QuestionVideo | null;
 		};
 
 		if (!s.question_id) {
@@ -233,7 +246,10 @@
 			total_questions: s.total_questions ?? 1,
 			options: s.options ?? undefined,
 			slider: s.slider ?? undefined,
-			ordering_items: s.ordering_items ? shuffleOrderingItems(s.ordering_items) : undefined
+			ordering_items: s.ordering_items ? shuffleOrderingItems(s.ordering_items) : undefined,
+			layout: s.layout ?? null,
+			info_text: s.info_text ?? null,
+			video: s.video ?? null
 		};
 
 		currentQuestion = payload;
@@ -693,14 +709,32 @@
 					<RoundStanding rows={roundStandings} teamId={joined.teamId} variant="card" />
 				{/if}
 			</div>
+		{:else if currentQuestion && infoSlide}
+			{#key currentQuestion.question_id}
+				<div class="watch-tv" in:fly={{ y: 16, duration: 300 }}>
+					<svg width="72" height="72" viewBox="0 0 24 24" aria-hidden="true"
+						><rect x="2" y="4" width="20" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></svg
+					>
+					<h2>Nézd a kivetítőt!</h2>
+					<p>Érdekesség a kivetítőn — nincs mit válaszolni. A következő kérdés hamarosan jön.</p>
+				</div>
+			{/key}
 		{:else if currentQuestion}
+			{@const choice =
+				currentQuestion.question_type === 'single_choice' ||
+				currentQuestion.question_type === 'multi_choice' ||
+				currentQuestion.question_type === 'true_false'}
 			{#key currentQuestion.question_id}
 				<div in:fly={{ y: 16, duration: 300 }}>
 					<ArcadePanel>
 						<p class="round-title">
 							{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
 						</p>
-						<p class="prompt">{currentQuestion.prompt}</p>
+						{#if layout.phone_prompt}
+							<p class="prompt">{currentQuestion.prompt}</p>
+						{:else}
+							<p class="prompt-hint">A kérdést a kivetítőn látod.</p>
+						{/if}
 						{#if currentQuestion.image_url && currentQuestion.image_pixelate}
 							<PixelatedImage
 								src={currentQuestion.image_url}
@@ -708,7 +742,7 @@
 								duration={timerInfo?.duration ?? 0}
 								sharp={locked}
 							/>
-						{:else if currentQuestion.image_url}
+						{:else if currentQuestion.image_url && !currentQuestion.video}
 							<img class="question-image" src={currentQuestion.image_url} alt="" />
 						{/if}
 					</ArcadePanel>
@@ -718,6 +752,26 @@
 				<div class="timer-wrap">
 					{#if locked}
 						<p class="locked-label">Lezárva</p>
+					{:else if reading && videoGate}
+						<div class="video-wait" role="status">
+							<p class="video-banner">
+								<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"
+									><rect x="2" y="4" width="20" height="13" rx="2" /><path
+										d="M10 8.5v5l4-2.5z"
+									/></svg
+								>
+								Figyeld a kivetítőt — a videó után válaszolhatsz
+							</p>
+							<div class="video-bar">
+								<div
+									style="width: {Math.min(
+										100,
+										(1 - readingLeft / Math.max(1, timerInfo.reading_seconds || clipSeconds)) * 100
+									)}%"
+								></div>
+							</div>
+							<span class="video-left">Még {readingLeft} mp a videóból</span>
+						</div>
 					{:else if reading}
 						<div class="reading" role="status">
 							<TimerRing
@@ -725,7 +779,11 @@
 								secondsLeft={readingLeft}
 								duration={timerInfo.reading_seconds || readingLeft}
 							/>
-							<p>Olvassátok a kérdést — a gombok mindjárt aktívak.</p>
+							<p>
+								{currentQuestion.video
+									? 'A kivetítőn videó megy — a gombok mindjárt aktívak.'
+									: 'Olvassátok a kérdést — a gombok mindjárt aktívak.'}
+							</p>
 						</div>
 					{:else}
 						<TimerRing {secondsLeft} duration={timerInfo.duration} />
@@ -733,18 +791,36 @@
 				</div>
 			{/if}
 
-			{#if submitted}
+			{#if submitted && choice && (selectedOptionId || selectedOptionIds.length > 0)}
+				<!-- A beküldött lap „BEKÜLDVE” pecséttel, a többi inaktív. -->
+				<div class="options" class:cols-2={layout.phone_cols === 2}>
+					{#each currentQuestion.options ?? [] as option, i (option.id)}
+						{@const mine = selectedOptionId === option.id || selectedOptionIds.includes(option.id)}
+						<ChoiceButton
+							text={option.option_text}
+							imageUrl={option.image_url}
+							suit={i}
+							tall={layout.phone_cols === 2}
+							disabled
+							selected={mine}
+							stamp={mine ? 'BEKÜLDVE' : null}
+						/>
+					{/each}
+				</div>
+				<p>Válasz elküldve, várj a többiekre…</p>
+			{:else if submitted}
 				<p>Válasz elküldve, várj a többiekre…</p>
 			{:else if locked}
 				<p>Az idő lejárt.</p>
 			{:else}
 				{#if currentQuestion.question_type === 'single_choice' || currentQuestion.question_type === 'true_false'}
-					<div class="options">
+					<div class="options" class:cols-2={layout.phone_cols === 2}>
 						{#each currentQuestion.options ?? [] as option, i (option.id)}
 							<ChoiceButton
 								text={option.option_text}
 								imageUrl={option.image_url}
 								suit={i}
+								tall={layout.phone_cols === 2}
 								disabled={reading}
 								selected={selectedOptionId === option.id}
 								pulse={selectedOptionId === option.id}
@@ -753,12 +829,13 @@
 						{/each}
 					</div>
 				{:else if currentQuestion.question_type === 'multi_choice'}
-					<div class="options">
+					<div class="options" class:cols-2={layout.phone_cols === 2}>
 						{#each currentQuestion.options ?? [] as option, i (option.id)}
 							<ChoiceButton
 								text={option.option_text}
 								imageUrl={option.image_url}
 								suit={i}
+								tall={layout.phone_cols === 2}
 								disabled={reading}
 								selected={selectedOptionIds.includes(option.id)}
 								onclick={() => toggleMultiOption(option.id)}
@@ -778,32 +855,38 @@
 						<p class="slider-value">{sliderValue}</p>
 					</div>
 				{:else if currentQuestion.question_type === 'ordering'}
+					<p class="ordering-hint">
+						Legkorábbi / első fent · húzd a lapokat, vagy használd a nyilakat
+					</p>
 					<ol
 						class="ordering"
-						role="listbox"
+						class:inactive={reading}
 						aria-label="Sorrendezés"
-						use:dndzone={{ items: orderedItems, flipDurationMs: 200 }}
+						use:dndzone={{ items: orderedItems, flipDurationMs: 200, dragDisabled: reading }}
 						onconsider={handleDndConsider}
 						onfinalize={handleDndFinalize}
 					>
 						{#each orderedItems as item, i (item.id)}
 							<li
-								role="option"
-								aria-selected="false"
-								tabindex="0"
-								aria-label="{item.item_text} — {i +
-									1}. / {orderedItems.length}. Húzd át a sorrend módosításához, vagy nyíl fel/le billentyűkkel."
-								onkeydown={(e) => {
-									if (e.key === 'ArrowUp' && i > 0) {
-										e.preventDefault();
-										reorder(i, i - 1);
-									} else if (e.key === 'ArrowDown' && i < orderedItems.length - 1) {
-										e.preventDefault();
-										reorder(i, i + 1);
-									}
-								}}
+								aria-label="{i +
+									1}. {item.item_text}. Húzd át a sorrend módosításához, vagy használd a nyilakat."
 							>
-								{item.item_text}
+								<span class="pos" aria-hidden="true">{i + 1}.</span>
+								<span class="item-text">{item.item_text}</span>
+								<span class="moves">
+									<button
+										type="button"
+										aria-label="Feljebb: {item.item_text}"
+										disabled={reading || i === 0}
+										onclick={() => reorder(i, i - 1)}>▲</button
+									>
+									<button
+										type="button"
+										aria-label="Lejjebb: {item.item_text}"
+										disabled={reading || i === orderedItems.length - 1}
+										onclick={() => reorder(i, i + 1)}>▼</button
+									>
+								</span>
 							</li>
 						{/each}
 					</ol>
@@ -815,7 +898,9 @@
 
 				{#if currentQuestion.question_type !== 'single_choice' && currentQuestion.question_type !== 'true_false'}
 					<Button onclick={submitAnswer} loading={submitting} disabled={reading}
-						>Válasz elküldése</Button
+						>{currentQuestion.question_type === 'ordering'
+							? 'Sorrend beküldése'
+							: 'Válasz elküldése'}</Button
 					>
 				{/if}
 
@@ -1055,8 +1140,96 @@
 
 	.options {
 		display: grid;
-		gap: 0.6rem;
+		gap: 0.8rem;
 		margin: 1rem 0;
+	}
+
+	.options.cols-2 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.prompt-hint {
+		margin: 0.6rem 0;
+		color: var(--marquee-dim);
+		font-size: 0.95rem;
+	}
+
+	/* Magyarázó dia a telefonon. */
+	.watch-tv {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+		padding: 2.5rem 1rem;
+		text-align: center;
+	}
+
+	.watch-tv svg {
+		fill: none;
+		stroke: var(--cyan);
+		stroke-width: 1.4;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.watch-tv h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.8rem;
+	}
+
+	.watch-tv p {
+		margin: 0;
+		max-width: 22rem;
+		line-height: 1.5;
+		color: var(--marquee-dim);
+	}
+
+	/* Videó a kivetítőn, a válaszidő a klip végén indul. */
+	.video-wait {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+		width: 100%;
+	}
+
+	.video-banner {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		margin: 0;
+		padding: 0.75rem 0.9rem;
+		border-radius: 0.75rem;
+		background: #1b1c1a;
+		color: #fff;
+		font-weight: 600;
+		text-align: left;
+	}
+
+	.video-banner svg {
+		flex-shrink: 0;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.8;
+	}
+
+	.video-bar {
+		height: 6px;
+		border-radius: 3px;
+		background: color-mix(in srgb, var(--marquee-dim) 30%, transparent);
+		overflow: hidden;
+	}
+
+	.video-bar div {
+		height: 100%;
+		background: var(--marquee);
+		transition: width 0.25s linear;
+	}
+
+	.video-left {
+		color: var(--marquee-dim);
+		font-size: 0.9rem;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.reading {
@@ -1103,23 +1276,33 @@
 		color: var(--coin);
 	}
 
+	.ordering-hint {
+		margin: 0.8rem 0 0;
+		color: var(--marquee-dim);
+		font-size: 0.9rem;
+	}
+
+	/* Sorba rendezés kártyalapokkal: helyezés, szöveg, ▲▼ gombok. */
 	.ordering {
-		list-style: decimal;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		margin: 0.8rem 0 1rem;
+		padding: 0;
 		text-align: left;
-		margin: 1rem 0;
-		padding-left: 1.5rem;
 	}
 
 	.ordering li {
-		padding: 0.75rem 0.5rem;
-		min-height: 44px;
 		display: flex;
-		align-items: center;
-		border: 1px solid var(--marquee-dim);
-		border-radius: 0.25rem;
-		margin-bottom: 0.25rem;
-		background: var(--cabinet-2);
-		color: var(--marquee);
+		align-items: stretch;
+		min-height: 3.6rem;
+		border: 1px solid #e4ded2;
+		border-radius: 0.9rem;
+		background: #fffdf8;
+		box-shadow: 0 4px 0 #e4ded2;
+		color: #1c1b18;
+		overflow: hidden;
 		cursor: grab;
 		/* Fázis O3 — touch-action: none nélkül a böngésző alapértelmezett
 		   görgetés-gesztusa versenyez a svelte-dnd-action pointer-alapú
@@ -1127,9 +1310,64 @@
 		touch-action: none;
 	}
 
-	.ordering li:focus-visible {
+	.ordering.inactive li {
+		border-style: dashed;
+		background: #efeae0;
+		box-shadow: none;
+		cursor: not-allowed;
+	}
+
+	.ordering .pos {
+		width: 3.2rem;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-right: 1.5px dashed #e4ded2;
+		font-family: var(--font-display);
+		font-size: 1.5rem;
+		font-weight: 600;
+		color: #1e5b4f;
+	}
+
+	.ordering .item-text {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		padding: 0.8rem 0.75rem;
+		font-size: 1.1rem;
+		font-weight: 700;
+		overflow-wrap: anywhere;
+	}
+
+	.ordering .moves {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 2px;
+		padding: 0.35rem 0.5rem 0.35rem 0;
+	}
+
+	.ordering .moves button {
+		width: 2.4rem;
+		height: 1.9rem;
+		border: 1px solid #e4ded2;
+		border-radius: 0.5rem;
+		background: #fff;
+		color: #45413a;
+		font: inherit;
+		font-size: 0.85rem;
+		cursor: pointer;
+	}
+
+	.ordering .moves button:disabled {
+		opacity: 0.35;
+		cursor: default;
+	}
+
+	.ordering .moves button:focus-visible {
 		outline: 3px solid var(--cyan);
-		outline-offset: 2px;
+		outline-offset: 1px;
 	}
 
 	.joker-wrap {

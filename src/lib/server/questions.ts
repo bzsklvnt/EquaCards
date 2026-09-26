@@ -11,7 +11,7 @@ export { parseQuestionForm, validateQuestionForm, type ParsedQuestionForm };
 
 type Client = SupabaseClient<Database>;
 
-// A kérdéstípusok törzsadatok (öt sor, migrációval változnak) — instance-onként
+// A kérdéstípusok törzsadatok (hat sor, migrációval változnak) — instance-onként
 // 10 percig memóriában, hogy a gyakori automatikus mentés ne kérdezze le újra.
 let typesCache: { at: number; types: QuestionTypeInfo[] } | null = null;
 const TYPES_TTL_MS = 10 * 60 * 1000;
@@ -54,7 +54,13 @@ export async function saveParsedQuestion(
 			points_multiplier: parsed.points_multiplier,
 			time_limit_seconds: parsed.time_limit_seconds,
 			points_decay: parsed.points_decay,
-			reading_seconds: parsed.reading_seconds
+			reading_seconds: parsed.reading_seconds,
+			layout: parsed.layout,
+			info_text: parsed.info_text,
+			video_id: parsed.video?.id ?? null,
+			video_start: parsed.video?.start ?? null,
+			video_end: parsed.video?.end ?? null,
+			video_gate: parsed.video?.gate ?? true
 		},
 		p_options: parsed.choiceOptions ?? undefined,
 		p_slider: parsed.sliderConfig ?? undefined,

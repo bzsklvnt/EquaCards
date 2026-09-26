@@ -12,8 +12,10 @@
 		FinalLeaderboardRevealPayload,
 		QuestionStandingsRevealPayload,
 		RoundStandingsUpdatePayload,
-		TvSoundPayload
+		TvSoundPayload,
+		VideoReplayPayload
 	} from '$lib/realtime/protocol';
+	import type { QuestionLayout, QuestionVideo } from '$lib/questions/layout';
 	import { rankRows } from '$lib/realtime/standings';
 	import { createReactiveThemeTokens } from '$lib/theme/reactive-tokens.svelte';
 	import { calibrateServerClock, serverNow } from '$lib/realtime/server-clock';
@@ -61,6 +63,7 @@
 	let roundQuestions = $state<RoundQuestionRow[]>([]);
 	let uiStep = $state<
 		| 'idle'
+		| 'info'
 		| 'timing'
 		| 'locked'
 		| 'revealed'
@@ -102,13 +105,23 @@
 		roundQuestions.findIndex((q) => q.question_id === game.current_question_id)
 	);
 
+	// Magyarázó dia (info): nem kap sorszámot, a kérdésszámba nem számít
+	// bele (docs/features/question-layout.md).
+	const isInfo = (row: RoundQuestionRow | undefined) =>
+		!!row && typeCode(row.question_type_id) === 'info';
+	const totalQuestions = $derived(roundQuestions.filter((q) => !isInfo(q)).length);
+	/** Az index-edik elemig (bezárólag) hány valódi kérdés volt. */
+	const questionNumberAt = (index: number) =>
+		roundQuestions.slice(0, index + 1).filter((q) => !isInfo(q)).length;
+	const currentNumber = $derived(questionNumberAt(currentIndex));
+
 	// A host header (Fázis F, src/routes/host/[game_id]/+layout.svelte) a
 	// jelenlegi kérdés-progresst context-en keresztül olvassa, mivel a
 	// roundQuestions ennek a page komponensnek a saját, kliens-oldali állapota.
 	$effect(() => {
 		if (game.status === 'active' && roundQuestions.length > 0) {
-			progress.current = currentIndex + 1;
-			progress.total = roundQuestions.length;
+			progress.current = currentNumber;
+			progress.total = totalQuestions;
 		} else {
 			progress.current = null;
 			progress.total = null;
@@ -404,13 +417,17 @@
 			image_url: string | null;
 			image_pixelate: boolean;
 			time_limit_seconds: number;
-			options: { id: string; option_text: string; image_url: string | null }[] | null;
-			slider: { min_value: number; max_value: number; step: number } | null;
-			ordering_items: { id: string; item_text: string }[] | null;
-			server_start_time: string;
+			options?: { id: string; option_text: string; image_url: string | null }[] | null;
+			slider?: { min_value: number; max_value: number; step: number } | null;
+			ordering_items?: { id: string; item_text: string }[] | null;
+			layout?: QuestionLayout | null;
+			info_text?: string | null;
+			video?: QuestionVideo | null;
+			server_start_time: string | null;
 			reading_seconds: number;
 		} | null;
-		if (error || !q?.server_start_time) {
+		const info = code === 'info';
+		if (error || !q || (!info && !q.server_start_time)) {
 			statusMessage = error?.message ?? 'Nem sikerült elindítani a kérdést.';
 			return;
 		}
@@ -426,17 +443,27 @@
 			image_url: q.image_url,
 			image_pixelate: q.image_pixelate,
 			time_limit_seconds: q.time_limit_seconds,
-			order_index: nextIndex + 1,
-			total_questions: roundQuestions.length,
+			order_index: questionNumberAt(nextIndex),
+			total_questions: totalQuestions,
 			options: q.options ?? undefined,
 			slider: q.slider ?? undefined,
-			ordering_items: q.ordering_items ? shuffle(q.ordering_items) : undefined
+			ordering_items: q.ordering_items ? shuffle(q.ordering_items) : undefined,
+			layout: q.layout ?? null,
+			info_text: q.info_text ?? null,
+			video: q.video ?? null
 		};
 
 		await channel?.send({ type: 'broadcast', event: 'question_show', payload });
 		statusMessage = '';
 		currentQuestion = payload;
 		revealInfo = null;
+
+		// Magyarázó dia: nincs időzítő — a host Space-szel lép tovább.
+		if (info || !q.server_start_time) {
+			timerInfo = null;
+			uiStep = 'info';
+			return;
+		}
 
 		await channel?.send({
 			type: 'broadcast',
@@ -475,6 +502,16 @@
 				server_start_time: res.server_start_time,
 				reading_seconds: 0
 			} satisfies TimerStartPayload
+		});
+	}
+
+	// R: a kérdés videójának újrajátszása a kivetítőn (a válaszidőt nem érinti).
+	async function replayVideo() {
+		if (!currentQuestion?.video || (uiStep !== 'timing' && uiStep !== 'locked')) return;
+		await channel?.send({
+			type: 'broadcast',
+			event: 'video_replay',
+			payload: { question_id: currentQuestion.question_id } satisfies VideoReplayPayload
 		});
 	}
 
@@ -589,8 +626,8 @@
 			event: 'round_standings_update',
 			payload: {
 				round_id: roundId,
-				question_number: currentIndex + 1,
-				total_questions: roundQuestions.length,
+				question_number: currentNumber,
+				total_questions: totalQuestions,
 				standings
 			} satisfies RoundStandingsUpdatePayload
 		});
@@ -604,8 +641,8 @@
 		const payload: QuestionStandingsRevealPayload = {
 			round_id: roundId,
 			round_title: round?.title ?? '',
-			question_number: currentIndex + 1,
-			total_questions: roundQuestions.length,
+			question_number: currentNumber,
+			total_questions: totalQuestions,
 			standings: questionStandings
 		};
 		await channel?.send({ type: 'broadcast', event: 'question_standings_reveal', payload });
@@ -706,6 +743,11 @@
 		switch (uiStep) {
 			case 'idle':
 				return hasNextQuestion ? { label: 'Következő kérdés', run: showNextQuestion } : null;
+			case 'info':
+				if (hasNextQuestion) return { label: 'Tovább', run: showNextQuestion };
+				return nextRoundAfterCurrent()
+					? { label: 'Kör eredményének feltárása', run: revealRoundLeaderboard }
+					: { label: 'Végeredmény feltárása', run: revealFinalLeaderboard };
 			case 'timing':
 				return readingLeft > 0
 					? { label: 'Olvasás átugrása', run: skipReading }
@@ -818,6 +860,9 @@
 		} else if (key === 'm' || key === 'M') {
 			e.preventDefault();
 			void toggleTvSound();
+		} else if (key === 'r' || key === 'R') {
+			e.preventDefault();
+			void replayVideo();
 		} else if ((key === 'c' || key === 'C') && game.join_requires_code) {
 			e.preventDefault();
 			codesOpen = !codesOpen;
@@ -841,6 +886,7 @@
 			title: 'Egyéb',
 			items: [
 				{ label: 'Kivetítő hang ki / be', keys: ['M'] },
+				{ label: 'Videó újrajátszása a kivetítőn', keys: ['R'] },
 				{ label: 'Csapatkódok (késve érkezőknek)', keys: ['C'] },
 				{ label: 'Ez a súgó', keys: ['?'] },
 				{ label: 'Ablak bezárása', keys: ['Esc'] }
@@ -948,7 +994,10 @@
 
 				<p class="round-label">
 					{rounds.find((r) => r.id === game.current_round_id)?.title}
-					{#if roundQuestions[currentIndex]}· {currentIndex + 1}. kérdés / {roundQuestions.length}{/if}
+					{#if roundQuestions[currentIndex]}·
+						{isInfo(roundQuestions[currentIndex])
+							? 'magyarázó dia'
+							: `${currentNumber}. kérdés / ${totalQuestions}`}{/if}
 				</p>
 
 				<div class="question-row">
@@ -973,6 +1022,15 @@
 											</p>
 										{/if}
 									{/if}
+									{#if isInfo(roundQuestions[currentIndex])}
+										<p class="pixel-note">Magyarázó dia — nincs válasz és pont. Space: tovább.</p>
+									{:else if currentQuestion?.video && currentQuestion.question_id === roundQuestions[currentIndex].question_id}
+										<p class="pixel-note">
+											YouTube-videó a kivetítőn{currentQuestion.video.gate
+												? ' — a válaszidő a klip végén indul'
+												: ''}. R: újrajátszás.
+										</p>
+									{/if}
 								{/key}
 							</ArcadePanel>
 						</div>
@@ -983,7 +1041,9 @@
 							{#if uiStep === 'locked'}
 								<p class="locked-label">Lezárva</p>
 							{:else if readingLeft > 0}
-								<span class="timer-caption">Olvasás</span>
+								<span class="timer-caption"
+									>{currentQuestion?.video?.gate ? 'Videó' : 'Olvasás'}</span
+								>
 								<span class="reading-count">{readingLeft}</span>
 								<span class="timer-caption">utána {timerInfo?.duration ?? 0} mp válaszidő</span>
 							{:else}
@@ -1063,7 +1123,7 @@
 
 				{#if uiStep === 'question_standings'}
 					<div class="leaderboard" in:fade={{ duration: 200 }}>
-						<h3>Állás a körben — {currentIndex + 1}. kérdés után</h3>
+						<h3>Állás a körben — {currentNumber}. kérdés után</h3>
 						<StandingsBoard rows={questionStandings} limit={10} />
 					</div>
 				{:else if uiStep === 'round_summary'}
