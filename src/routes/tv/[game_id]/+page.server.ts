@@ -9,11 +9,10 @@ import type { PageServerLoad } from './$types';
 // keresztül" biztonsági szint, mint amit a projekt a csapat-oldalon is
 // következetesen alkalmaz.
 export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
-	const { data: game } = await supabase
-		.from('games')
-		.select('id, title, pin, status, design_theme_id')
-		.eq('id', params.game_id)
-		.single();
+	// A PIN anonim módon csak ezen a függvényen át olvasható (a kivetítő a
+	// csatlakozó QR-kódhoz használja) — docs/architecture/DATA_MODEL.md.
+	const { data: rows } = await supabase.rpc('tv_game', { p_game_id: params.game_id });
+	const game = rows?.[0];
 
 	if (!game) {
 		kitError(404, 'A kvízeste nem található.');

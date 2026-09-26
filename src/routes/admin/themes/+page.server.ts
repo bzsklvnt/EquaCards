@@ -1,21 +1,28 @@
 import { fail } from '@sveltejs/kit';
+import { fetchAllRows } from '$lib/server/builder';
 import type { Actions, PageServerLoad } from './$types';
 
 // Témák (a kérdések kategóriái) — lista · részlet (név, kérdések) · műveletek.
 // docs/features/admin-workspace.md.
-export const load: PageServerLoad = async ({ locals: { supabase } }) => {
-	const [{ data: themes }, { data: questions }] = await Promise.all([
+export const load: PageServerLoad = async ({ depends, locals: { supabase } }) => {
+	depends('app:page');
+	const [{ data: themes }, questions] = await Promise.all([
 		supabase.from('themes').select('id, title').order('title'),
-		supabase
-			.from('questions')
-			.select('id, prompt, theme_id, last_used_at, question_types(code)')
-			.not('theme_id', 'is', null)
-			.order('created_at', { ascending: false })
+		fetchAllRows((from, to) =>
+			supabase
+				.from('questions')
+				.select('id, prompt, theme_id, last_used_at, question_types(code)')
+				.not('theme_id', 'is', null)
+				.is('archived_at', null)
+				.order('created_at', { ascending: false })
+				.order('id')
+				.range(from, to)
+		)
 	]);
 
 	return {
 		themes: (themes ?? []).map((t) => {
-			const own = (questions ?? []).filter((q) => q.theme_id === t.id);
+			const own = questions.filter((q) => q.theme_id === t.id);
 			return {
 				id: t.id,
 				title: t.title,
@@ -66,6 +73,12 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const id = formData.get('id') as string;
 
+		// Az archivált (lejátszott, a bankból törölt) kérdések nem tartják életben a témát.
+		await supabase
+			.from('questions')
+			.update({ theme_id: null })
+			.eq('theme_id', id)
+			.not('archived_at', 'is', null);
 		const { error } = await supabase.from('themes').delete().eq('id', id);
 		if (error) {
 			return fail(400, { error: error.message });

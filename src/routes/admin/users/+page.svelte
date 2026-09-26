@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { refreshPage } from '$lib/admin/refresh';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -15,6 +16,7 @@
 	registerPageTour(() => 'users');
 
 	const ROLE_INFO: Record<number, string> = {
+		0: 'Új regisztráció: semmihez nem fér hozzá, amíg szerepkört nem kap.',
 		1: 'Mindenhez hozzáfér: felhasználók, beállítások, kvízeste törlése.',
 		2: 'Kérdésbank, témák, kvízesték összeállítása és lebonyolítása, helyszínek.',
 		3: 'Élő lebonyolítás (host) és riportok — összeállítani nem tud.',
@@ -47,7 +49,7 @@
 			else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Nem sikerült a módosítás.');
 			}
-			await update();
+			await refreshPage(update);
 		};
 	};
 </script>

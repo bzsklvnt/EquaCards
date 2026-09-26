@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { refreshPage } from '$lib/admin/refresh';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { untrack } from 'svelte';
@@ -135,7 +136,7 @@
 			else if (result.type === 'failure') {
 				toast.error((result.data?.error as string) ?? 'Nem sikerült frissíteni a témát.');
 			}
-			await update();
+			await refreshPage(update);
 		};
 	};
 
@@ -264,7 +265,7 @@
 						use:enhance={() => {
 							testingEmail = true;
 							return async ({ update }) => {
-								await update({ reset: false });
+								await refreshPage(update, { reset: false });
 								testingEmail = false;
 							};
 						}}

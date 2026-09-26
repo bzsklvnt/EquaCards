@@ -1,10 +1,11 @@
 import type { PageServerLoad } from './$types';
-import { defaultAnswerTime, loadBank, readingDefault } from '$lib/server/builder';
+import { loadBank, questionDefaults } from '$lib/server/builder';
 
 // Kérdésbank — lista · vászon · beállítások (docs/features/admin-workspace.md).
 // A kijelölt kérdés részletei a ./api végponton töltődnek be.
-export const load: PageServerLoad = async ({ locals: { supabase } }) => {
-	const [bank, { data: themes }, { data: questionTypes }, { data: games }, reading, defaultTime] =
+export const load: PageServerLoad = async ({ depends, locals: { supabase } }) => {
+	depends('app:page');
+	const [bank, { data: themes }, { data: questionTypes }, { data: games }, defaults] =
 		await Promise.all([
 			loadBank(supabase),
 			supabase.from('themes').select('id, title').order('title'),
@@ -19,8 +20,7 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 				)
 				.neq('status', 'finished')
 				.order('scheduled_at', { ascending: true, nullsFirst: false }),
-			readingDefault(supabase),
-			defaultAnswerTime(supabase)
+			questionDefaults(supabase)
 		]);
 
 	return {
@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 				rounds: (g.rounds ?? []).sort((a, b) => a.order_index - b.order_index)
 			}))
 			.filter((g) => g.rounds.length > 0),
-		readingDefault: reading,
-		defaultTime
+		readingDefault: defaults.readingDefault,
+		defaultTime: defaults.defaultTime
 	};
 };

@@ -3,12 +3,13 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	createPracticeGame,
 	deleteGameAction,
-	generatePin,
+	insertGameWithPin,
 	reopenGameAction
 } from '$lib/server/games';
 
 // Kvízesték — lista · részlet · műveletek (docs/features/admin-workspace.md).
-export const load: PageServerLoad = async ({ locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ depends, locals: { supabase } }) => {
+	depends('app:page');
 	const { data: games } = await supabase
 		.from('games')
 		.select(
@@ -55,14 +56,9 @@ export const actions: Actions = {
 			return fail(400, { error: 'A kvízeste neve kötelező.' });
 		}
 
-		const { data: game, error } = await supabase
-			.from('games')
-			.insert({ title, pin: generatePin(), host_id: user?.id })
-			.select('id')
-			.single();
-
-		if (error || !game) {
-			return fail(400, { error: error?.message ?? 'Nem sikerült létrehozni a kvízestét.' });
+		const game = await insertGameWithPin(supabase, { title, host_id: user?.id });
+		if ('error' in game) {
+			return fail(400, { error: game.error });
 		}
 
 		// Létrehozás után először az esemény adatai (időpont, helyszín, létszám).

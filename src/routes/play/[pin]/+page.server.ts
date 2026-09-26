@@ -1,26 +1,29 @@
 import { error as kitError, fail } from '@sveltejs/kit';
-import { isRateLimited } from '$lib/server/rate-limit';
+import { recordFailure, tooManyFailures } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
 // A PIN 6 jegyű (kb. 900 000 lehetőség) — szekvenciális találgatás elleni
 // gát. IP-nkénti, memóriabeli számláló (lásd $lib/server/rate-limit.ts),
 // mindkét belépési ponton (load ÉS a join action) érvényesítve, mert egy
 // szkript közvetlenül POST-olhatna a ?/join action-re a load() kihagyásával.
+// Csak a SIKERTELEN próbálkozás (nem létező PIN, rossz csapatkód) számít: egy
+// kocsmában minden telefon ugyanazzal a nyilvános IP-vel érkezik, a sikeres
+// csatlakozások így nem fogyasztják el egymás elől a keretet.
 const PIN_ATTEMPT_LIMIT = 20;
 const PIN_ATTEMPT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MESSAGE = 'Túl sok próbálkozás, várj egy percet, mielőtt újra próbálkozol.';
 
 export const load: PageServerLoad = async ({ params, locals: { supabase }, getClientAddress }) => {
-	if (isRateLimited(getClientAddress(), PIN_ATTEMPT_LIMIT, PIN_ATTEMPT_WINDOW_MS)) {
+	const ip = getClientAddress();
+	if (tooManyFailures(ip, PIN_ATTEMPT_LIMIT, PIN_ATTEMPT_WINDOW_MS)) {
 		kitError(429, RATE_LIMIT_MESSAGE);
 	}
 
-	const { data: found } = await supabase
-		.from('games')
-		.select('id, title, design_theme_id, status, join_requires_code')
-		.eq('pin', params.pin)
-		.neq('status', 'finished')
-		.maybeSingle();
+	// A PIN nem olvasható közvetlenül a games táblából (anonim módon) — a
+	// game_by_pin() függvény csak a megadott PIN-hez tartozó estét adja vissza.
+	const { data: rows } = await supabase.rpc('game_by_pin', { p_pin: params.pin });
+	const found = rows?.[0] ?? null;
+	if (!found) recordFailure(ip, PIN_ATTEMPT_WINDOW_MS);
 
 	// Csapatkódos estén (docs/features/landing-and-registration.md "Csapatkód")
 	// a kóddal a játék indulása után is lehet csatlakozni / másik telefonról
@@ -62,7 +65,8 @@ const JOIN_CODE_ERRORS: Record<string, string> = {
 
 export const actions: Actions = {
 	joinCode: async ({ request, params, locals: { supabase }, getClientAddress }) => {
-		if (isRateLimited(getClientAddress(), PIN_ATTEMPT_LIMIT, PIN_ATTEMPT_WINDOW_MS)) {
+		const ip = getClientAddress();
+		if (tooManyFailures(ip, PIN_ATTEMPT_LIMIT, PIN_ATTEMPT_WINDOW_MS)) {
 			return fail(429, { error: RATE_LIMIT_MESSAGE });
 		}
 
@@ -80,6 +84,7 @@ export const actions: Actions = {
 		});
 		const row = data?.[0];
 		if (error || !row) {
+			recordFailure(ip, PIN_ATTEMPT_WINDOW_MS);
 			const key = Object.keys(JOIN_CODE_ERRORS).find((k) => error?.message.includes(k));
 			return fail(400, { error: key ? JOIN_CODE_ERRORS[key] : 'Nem sikerült csatlakozni.' });
 		}
@@ -92,7 +97,8 @@ export const actions: Actions = {
 	},
 
 	join: async ({ request, params, locals: { supabase }, getClientAddress }) => {
-		if (isRateLimited(getClientAddress(), PIN_ATTEMPT_LIMIT, PIN_ATTEMPT_WINDOW_MS)) {
+		const ip = getClientAddress();
+		if (tooManyFailures(ip, PIN_ATTEMPT_LIMIT, PIN_ATTEMPT_WINDOW_MS)) {
 			return fail(429, { error: RATE_LIMIT_MESSAGE });
 		}
 
@@ -107,36 +113,28 @@ export const actions: Actions = {
 			return fail(400, { error: 'Hiányzó eszközazonosító, próbáld újra.' });
 		}
 
-		const { data: game } = await supabase
-			.from('games')
-			.select('id, title, design_theme_id, join_requires_code')
-			.eq('pin', params.pin)
-			.eq('status', 'lobby')
-			.single();
-
-		if (!game) {
-			return fail(400, { error: 'A PIN nem található, vagy a játék már elindult.' });
-		}
-		// Az adatbázis (teams RLS) is elutasítaná — itt barátságos üzenettel.
-		if (game.join_requires_code) {
-			return fail(400, { error: 'Erre az estére csak csapatkóddal lehet csatlakozni.' });
-		}
-
-		const { data: team, error } = await supabase
-			.from('teams')
-			.insert({ game_id: game.id, name, device_token: deviceToken })
-			.select('id, name')
-			.single();
-
-		if (error || !team) {
-			if (error?.code === '23505') {
+		const { data, error } = await supabase.rpc('join_with_name', {
+			p_pin: params.pin,
+			p_name: name,
+			p_device_token: deviceToken
+		});
+		const row = data?.[0];
+		if (error || !row) {
+			const message = error?.message ?? '';
+			if (message.includes('name_taken')) {
 				return fail(400, {
 					error: 'Ez a csapatnév már foglalt ebben a kvízestén, válassz másikat.'
 				});
 			}
-			return fail(400, { error: error?.message ?? 'Nem sikerült csatlakozni.' });
+			if (message.includes('code_required')) {
+				return fail(400, { error: 'Erre az estére csak csapatkóddal lehet csatlakozni.' });
+			}
+			recordFailure(ip, PIN_ATTEMPT_WINDOW_MS);
+			return fail(400, { error: 'A PIN nem található, vagy a játék már elindult.' });
 		}
 
+		const team = { id: row.team_id, name: row.team_name };
+		const game = { id: row.game_id, title: row.game_title, design_theme_id: row.design_theme_id };
 		return { success: true as const, team, game };
 	}
 };

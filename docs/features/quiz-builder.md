@@ -65,6 +65,27 @@ válaszideje mindkét helyen az `app_settings.question_default_time_seconds`
 - A kérdés a bankban él, tehát a szerkesztése minden estét érint, ahol
   szerepel (ez a korábbi viselkedés is volt).
 
+### Tranzakciós mentés (kódaudit, 2026-09-27)
+
+Minden kérdésmentés (kvízösszerakó, kérdésbank, próbaeste) egy
+adatbázis-függvényen megy (`admin_save_question()`): a kérdés és a
+típusadatai egy tranzakcióban íródnak, a válaszlehetőségek **helyben
+frissülnek** (sorszám szerint), így a lejátszott kérdés opcióinak azonosítója
+és a rájuk hivatkozó válaszok megmaradnak. Korábban a „töröld és írd újra”
+mentés egy lejátszott kérdésnél megduplázta az opciókat (a törlést az
+adatbázis a válaszok miatt elutasította, a hibát a kód nem vette észre).
+Lejátszott kérdés válaszlehetőségeinek **száma** nem csökkenthető (a
+szöveg és a helyes jelölés szerkeszthető) — ilyenkor a mentés érthető
+hibát ad, és a másolat (Ctrl+D) szerkeszthető.
+
+A kérdésbankból törölt, már lejátszott kérdés **archiválódik**
+(`admin_delete_question()`): eltűnik a bankból, a keresésből és a random
+húzásból, a még el nem indult estek köreiből kikerül, de a korábbi estek
+eredményei megmaradnak.
+
+A kérdésbank és a Témák oldal 1000 kérdés fölött is teljes (lapozva
+töltődik — a Supabase API kérésenként legfeljebb 1000 sort ad).
+
 ## Billentyűzet
 
 Az egybetűs parancsok csak szövegmezőn kívül élnek; szövegmezőből Esc visz

@@ -544,6 +544,7 @@ export type Database = {
 			};
 			questions: {
 				Row: {
+					archived_at: string | null;
 					created_at: string | null;
 					created_by: string | null;
 					id: string;
@@ -560,6 +561,7 @@ export type Database = {
 					time_limit_seconds: number | null;
 				};
 				Insert: {
+					archived_at?: string | null;
 					created_at?: string | null;
 					created_by?: string | null;
 					id?: string;
@@ -576,6 +578,7 @@ export type Database = {
 					time_limit_seconds?: number | null;
 				};
 				Update: {
+					archived_at?: string | null;
 					created_at?: string | null;
 					created_by?: string | null;
 					id?: string;
@@ -896,12 +899,23 @@ export type Database = {
 			};
 			admin_cancel_registration: { Args: { p_id: string }; Returns: string[] };
 			admin_delete_game: { Args: { p_game_id: string }; Returns: string };
+			admin_delete_question: { Args: { p_question_id: string }; Returns: string };
 			admin_duplicate_question: {
 				Args: { p_question_id: string };
 				Returns: string;
 			};
 			admin_fill_from_waitlist: { Args: { p_game_id: string }; Returns: string[] };
 			admin_promote_registration: { Args: { p_id: string }; Returns: boolean };
+			admin_save_question: {
+				Args: {
+					p_options?: Json;
+					p_ordering?: Json;
+					p_question: Json;
+					p_question_id: string | null;
+					p_slider?: Json;
+				};
+				Returns: string;
+			};
 			admin_set_round_questions: {
 				Args: { p_question_ids: string[]; p_round_id: string };
 				Returns: undefined;
@@ -934,6 +948,7 @@ export type Database = {
 			draw_random_questions_for_round: {
 				Args: { p_count?: number; p_round_id: string; p_theme_id: string };
 				Returns: {
+					archived_at: string | null;
 					created_at: string | null;
 					created_by: string | null;
 					id: string;
@@ -959,7 +974,19 @@ export type Database = {
 			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
 			generate_join_code: { Args: never; Returns: string };
 			game_accepts_name_join: { Args: { p_game_id: string }; Returns: boolean };
+			game_by_pin: {
+				Args: { p_pin: string };
+				Returns: {
+					design_theme_id: string | null;
+					id: string;
+					join_requires_code: boolean;
+					status: string;
+					title: string;
+				}[];
+			};
 			game_status: { Args: { p_game_id: string }; Returns: string };
+			host_next_question: { Args: { p_game_id: string; p_question_id: string }; Returns: Json };
+			host_reveal: { Args: { p_question_id: string }; Returns: Json };
 			join_with_code: {
 				Args: { p_code: string; p_device_token: string; p_pin: string };
 				Returns: {
@@ -967,6 +994,16 @@ export type Database = {
 					game_id: string;
 					game_title: string;
 					rejoined: boolean;
+					team_id: string;
+					team_name: string;
+				}[];
+			};
+			join_with_name: {
+				Args: { p_device_token: string; p_name: string; p_pin: string };
+				Returns: {
+					design_theme_id: string | null;
+					game_id: string;
+					game_title: string;
 					team_id: string;
 					team_name: string;
 				}[];
@@ -1022,6 +1059,7 @@ export type Database = {
 					waitlist_teams: number;
 				}[];
 			};
+			purge_old_audit_logs: { Args: never; Returns: number };
 			purge_old_registrations: { Args: never; Returns: number };
 			register_team: {
 				Args: {
@@ -1114,6 +1152,17 @@ export type Database = {
 				Args: { p_duration: number; p_game_id: string };
 				Returns: string;
 			};
+			submit_answer: {
+				Args: {
+					p_device_token: string;
+					p_option_ids?: string[];
+					p_ordering?: string[];
+					p_question_id: string;
+					p_slider_value?: number;
+					p_team_id: string;
+				};
+				Returns: string;
+			};
 			team_answer_result: {
 				Args: { p_question_id: string; p_team_id: string };
 				Returns: {
@@ -1123,6 +1172,20 @@ export type Database = {
 			};
 			team_current_question: { Args: { p_team_id: string }; Returns: string };
 			team_owner_game_status: { Args: { p_team_id: string }; Returns: string };
+			tv_game: {
+				Args: { p_game_id: string };
+				Returns: {
+					design_theme_id: string | null;
+					id: string;
+					pin: string;
+					status: string;
+					title: string;
+				}[];
+			};
+			use_joker: {
+				Args: { p_device_token: string; p_question_id: string; p_team_id: string };
+				Returns: undefined;
+			};
 		};
 		Enums: {
 			[_ in never]: never;

@@ -21,7 +21,12 @@ export const load: LayoutServerLoad = async ({ locals: { safeGetSession, supabas
 		.single();
 
 	if (!profile || !REPORT_ROLE_IDS.includes(profile.role_id)) {
-		error(403, 'Nincs jogosultságod ehhez az oldalhoz.');
+		error(
+			403,
+			profile?.role_id === 0
+				? 'A fiókod jóváhagyásra vár — a rendszergazda ad hozzá jogosultságot.'
+				: 'Nincs jogosultságod ehhez az oldalhoz.'
+		);
 	}
 
 	return { profile };

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database.types';
+import { draftToFormData, type Draft, type QuestionTypeInfo } from '$lib/builder/model';
 import {
 	parseQuestionForm,
 	validateQuestionForm,
@@ -8,66 +9,82 @@ import {
 
 export { parseQuestionForm, validateQuestionForm, type ParsedQuestionForm };
 
-export async function insertQuestionTypeData(
-	supabase: SupabaseClient<Database>,
-	questionId: string,
-	parsed: ParsedQuestionForm
-): Promise<string | null> {
-	if (parsed.choiceOptions) {
-		const { error } = await supabase.from('question_choice_options').insert(
-			parsed.choiceOptions.map((o) => ({
-				question_id: questionId,
-				option_text: o.option_text,
-				image_url: o.image_url,
-				is_correct: o.is_correct,
-				order_index: o.order_index
-			}))
-		);
-		if (error) return error.message;
-	}
+type Client = SupabaseClient<Database>;
 
-	if (parsed.sliderConfig) {
-		const { error } = await supabase
-			.from('question_slider_config')
-			.insert({ question_id: questionId, ...parsed.sliderConfig });
-		if (error) return error.message;
-	}
+// A kérdéstípusok törzsadatok (öt sor, migrációval változnak) — instance-onként
+// 10 percig memóriában, hogy a gyakori automatikus mentés ne kérdezze le újra.
+let typesCache: { at: number; types: QuestionTypeInfo[] } | null = null;
+const TYPES_TTL_MS = 10 * 60 * 1000;
 
-	if (parsed.orderingItems) {
-		const { error } = await supabase.from('question_ordering_items').insert(
-			parsed.orderingItems.map((o) => ({
-				question_id: questionId,
-				item_text: o.item_text,
-				correct_position: o.correct_position
-			}))
-		);
-		if (error) return error.message;
-	}
-
-	return null;
+export async function getQuestionTypes(supabase: Client): Promise<QuestionTypeInfo[]> {
+	if (typesCache && Date.now() - typesCache.at < TYPES_TTL_MS) return typesCache.types;
+	const { data } = await supabase
+		.from('question_types')
+		.select('id, code, label, min_options, max_options')
+		.order('id');
+	const types = (data ?? []) as QuestionTypeInfo[];
+	if (types.length > 0) typesCache = { at: Date.now(), types };
+	return types;
 }
 
-// Egyszerű "töröld és írd újra" frissítés a típus-specifikus gyerekrekordokon —
-// admin CRUD-nál a néhány soros opció-lista diffelése nem éri meg a
-// bonyolultságot, a törlés+újrabeszúrás egy tranzakción belül biztonságos.
-export async function replaceQuestionTypeData(
-	supabase: SupabaseClient<Database>,
-	questionId: string,
-	parsed: ParsedQuestionForm
-): Promise<string | null> {
-	await Promise.all([
-		supabase.from('question_choice_options').delete().eq('question_id', questionId),
-		supabase.from('question_slider_config').delete().eq('question_id', questionId),
-		supabase.from('question_ordering_items').delete().eq('question_id', questionId)
-	]);
+const SAVE_ERRORS: Record<string, string> = {
+	option_in_use:
+		'Ez a kérdés már szerepelt játékban, ezért a válaszlehetőségek száma nem csökkenthető. Másold le (Ctrl+D), és a másolatot szerkeszd.',
+	question_not_found: 'A kérdés nem található.',
+	insufficient_privilege: 'Nincs jogosultságod a kérdés mentéséhez.'
+};
 
-	return insertQuestionTypeData(supabase, questionId, parsed);
+/** Kérdés mentése (új vagy meglévő) egyetlen tranzakcióban — az
+ * admin_save_question() a típusadatokat helyben frissíti, így a lejátszott
+ * kérdés opcióinak azonosítója (és a rájuk hivatkozó válaszok) megmaradnak. */
+export async function saveParsedQuestion(
+	supabase: Client,
+	id: string | null,
+	parsed: ParsedQuestionForm
+): Promise<{ id: string } | { error: string }> {
+	const { data, error } = await supabase.rpc('admin_save_question', {
+		p_question_id: id,
+		p_question: {
+			theme_id: parsed.theme_id,
+			question_type_id: parsed.question_type_id,
+			prompt: parsed.prompt,
+			image_url: parsed.image_url,
+			image_pixelate: parsed.image_pixelate,
+			points: parsed.points,
+			points_multiplier: parsed.points_multiplier,
+			time_limit_seconds: parsed.time_limit_seconds,
+			points_decay: parsed.points_decay,
+			reading_seconds: parsed.reading_seconds
+		},
+		p_options: parsed.choiceOptions ?? undefined,
+		p_slider: parsed.sliderConfig ?? undefined,
+		p_ordering: parsed.orderingItems ?? undefined
+	});
+	if (error || !data) {
+		const key = Object.keys(SAVE_ERRORS).find((k) => error?.message.includes(k));
+		return { error: key ? SAVE_ERRORS[key] : (error?.message ?? 'Nem sikerült menteni.') };
+	}
+	return { id: data };
+}
+
+/** Egy szerkesztő-piszkozat ellenőrzése (a klienssel közös szabályokkal) és mentése. */
+export async function saveDraft(
+	supabase: Client,
+	draft: Draft
+): Promise<{ id: string } | { error: string }> {
+	const types = await getQuestionTypes(supabase);
+	const type = types.find((t) => t.code === draft.type_code);
+	if (!type) return { error: 'Érvénytelen kérdéstípus.' };
+	const parsed = parseQuestionForm(draftToFormData(draft, types), type.code);
+	const validationError = validateQuestionForm(parsed, type);
+	if (validationError) return { error: validationError };
+	return saveParsedQuestion(supabase, draft.id ?? null, parsed);
 }
 
 /** A kör végére fűzi a még nem szereplő kérdéseket (kézi válogatás és az
  * "új kérdés ehhez a körhöz" folyamat közös útja). */
 export async function appendQuestionsToRound(
-	supabase: SupabaseClient<Database>,
+	supabase: Client,
 	roundId: string,
 	questionIds: string[]
 ): Promise<{ added: number; error: string | null }> {
@@ -86,52 +103,4 @@ export async function appendQuestionsToRound(
 			toAdd.map((question_id, i) => ({ round_id: roundId, question_id, order_index: start + i }))
 		);
 	return { added: error ? 0 : toAdd.length, error: error?.message ?? null };
-}
-
-/** Új kérdés létrehozása egy beküldött QuestionForm-ból (kérdésbank és a kör
- * szerkesztőjének felugró űrlapja közös útja). Ha a típus-specifikus adatok
- * mentése elbukik, a félkész kérdést visszatörli. */
-export async function createQuestionFromForm(
-	supabase: SupabaseClient<Database>,
-	formData: FormData,
-	userId: string | undefined
-): Promise<{ id: string } | { error: string }> {
-	const { data: type } = await supabase
-		.from('question_types')
-		.select('code, min_options, max_options')
-		.eq('id', Number(formData.get('question_type_id')))
-		.single();
-	if (!type) return { error: 'Érvénytelen kérdéstípus.' };
-
-	const parsed = parseQuestionForm(formData, type.code);
-	const validationError = validateQuestionForm(parsed, type);
-	if (validationError) return { error: validationError };
-
-	const { data: question, error } = await supabase
-		.from('questions')
-		.insert({
-			theme_id: parsed.theme_id,
-			question_type_id: parsed.question_type_id,
-			prompt: parsed.prompt,
-			image_url: parsed.image_url,
-			image_pixelate: parsed.image_pixelate,
-			points: parsed.points,
-			points_multiplier: parsed.points_multiplier,
-			time_limit_seconds: parsed.time_limit_seconds,
-			points_decay: parsed.points_decay,
-			reading_seconds: parsed.reading_seconds,
-			created_by: userId
-		})
-		.select('id')
-		.single();
-	if (error || !question) {
-		return { error: error?.message ?? 'Nem sikerült létrehozni a kérdést.' };
-	}
-
-	const childError = await insertQuestionTypeData(supabase, question.id, parsed);
-	if (childError) {
-		await supabase.from('questions').delete().eq('id', question.id);
-		return { error: childError };
-	}
-	return { id: question.id };
 }

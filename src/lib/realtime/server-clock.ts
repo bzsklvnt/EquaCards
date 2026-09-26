@@ -29,32 +29,28 @@ let offsetMs = 0;
  * onMount-jában) — mindig felülírja a korábbi mérést egy frissebbel.
  */
 export async function calibrateServerClock(supabase: SupabaseClient<Database>): Promise<void> {
-	const t0 = Date.now();
-	const { data, error } = await supabase.rpc('server_now');
-	const t1 = Date.now();
-	if (error || !data) return;
+	// Kódaudit (M6) — az első kérésben a kapcsolatfelvétel (DNS, TLS) ideje is
+	// benne van, ami aszimmetrikus késést és így hibás eltolást ad. Három mérés
+	// közül a leggyorsabb kör-utazásút használjuk: annál a legkisebb a hiba.
+	let best: { roundTripMs: number; offset: number } | null = null;
+	for (let i = 0; i < 3; i++) {
+		const t0 = Date.now();
+		const { data, error } = await supabase.rpc('server_now');
+		const t1 = Date.now();
+		if (error || !data) continue;
 
-	const serverMs = new Date(data).getTime();
-	const roundTripMs = t1 - t0;
-	// A szerver válasza kb. a kör-utazás felénél (t0 + roundTrip/2)
-	// keletkezett — ehhez a pillanathoz viszonyítjuk az akkor mért
-	// szerver-időt, hogy a hálózati késleltetés fele ne torzítsa az
-	// eltolást.
-	//
-	// Sürgősségi javítás — élő tesztelésből: a válasz-beküldés MINDEN
-	// alkalommal 22P02 ("invalid input syntax for type integer")
-	// Postgres-hibával hasalt el egy adott munkamenetben. Gyökérok:
-	// `roundTripMs / 2` páratlan kör-utazási idő esetén .5-re végződő
-	// törtszámot ad, ami innentől offsetMs-be, onnan MINDEN serverNow()
-	// hívásba beépül — az `answers.answer_time_ms` (integer oszlop)
-	// insert-je pedig ezt a törtszámot kapta meg. Mivel offsetMs csak
-	// egyszer, onMount-kor kalibrálódik és utána a teljes munkamenetre
-	// rögzül, ez NEM alkalmi/időszakos hiba volt, hanem az adott
-	// munkamenet MINDEN beküldését elvitte, amíg a kör-utazás páratlan
-	// volt kalibráláskor. Math.round() itt, a forrásnál zárja ki a
-	// problémát — minden serverNow()-fogyasztó (visszaszámlálás,
-	// answer_time_ms) garantáltan egész számot kap.
-	offsetMs = Math.round(serverMs - (t0 + roundTripMs / 2));
+		const serverMs = new Date(data).getTime();
+		const roundTripMs = t1 - t0;
+		// A szerver válasza kb. a kör-utazás felénél (t0 + roundTrip/2)
+		// keletkezett — ehhez a pillanathoz viszonyítjuk az akkor mért
+		// szerver-időt, hogy a hálózati késleltetés fele ne torzítsa az
+		// eltolást. A Math.round() egész milliszekundumot ad (lásd a korábbi
+		// 22P02 hibát: az answer_time_ms integer oszlop törtszámot kapott).
+		const offset = Math.round(serverMs - (t0 + roundTripMs / 2));
+		if (!best || roundTripMs < best.roundTripMs) best = { roundTripMs, offset };
+		// Első eredmény azonnal érvényes, a további mérések csak pontosítanak.
+		offsetMs = best.offset;
+	}
 }
 
 /** `Date.now()` helyett használandó a visszaszámláláshoz mindenhol, ahol

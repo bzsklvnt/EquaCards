@@ -3,7 +3,8 @@ import type { Actions, PageServerLoad } from './$types';
 
 // Csak super_admin (role_id = 1) — az /admin layout guard-ja (1,2) tágabb,
 // ez a szűkítés ide, a route-hoz kötve tartozik.
-export const load: PageServerLoad = async ({ parent, locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ depends, parent, locals: { supabase } }) => {
+	depends('app:page');
 	const { profile } = await parent();
 	if (profile.role_id !== 1) {
 		kitError(403, 'Csak a rendszergazda kezelheti a felhasználókat.');

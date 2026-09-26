@@ -1,27 +1,23 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import {
-		Chart,
-		BarController,
-		LineController,
-		CategoryScale,
-		LinearScale,
-		BarElement,
-		LineElement,
-		PointElement,
-		Tooltip
-	} from 'chart.js';
+	import type { Chart } from 'chart.js';
 
-	Chart.register(
-		BarController,
-		LineController,
-		CategoryScale,
-		LinearScale,
-		BarElement,
-		LineElement,
-		PointElement,
-		Tooltip
-	);
+	// A grafikonkönyvtár csak a diagram megjelenésekor töltődik be (nem az
+	// oldal JavaScriptjével együtt) — a „Diagram betöltése…” felirat addig látszik.
+	async function loadChart(): Promise<typeof Chart> {
+		const lib = await import('chart.js');
+		lib.Chart.register(
+			lib.BarController,
+			lib.LineController,
+			lib.CategoryScale,
+			lib.LinearScale,
+			lib.BarElement,
+			lib.LineElement,
+			lib.PointElement,
+			lib.Tooltip
+		);
+		return lib.Chart;
+	}
 
 	let {
 		type,
@@ -51,8 +47,12 @@
 	let chart: Chart | undefined;
 	let ready = $state(false);
 
-	onMount(() => {
-		chart = new Chart(canvas, {
+	let destroyed = false;
+
+	onMount(async () => {
+		const ChartClass = await loadChart();
+		if (destroyed) return;
+		chart = new ChartClass(canvas, {
 			type,
 			data: {
 				labels,
@@ -95,6 +95,7 @@
 	});
 
 	onDestroy(() => {
+		destroyed = true;
 		chart?.destroy();
 	});
 </script>

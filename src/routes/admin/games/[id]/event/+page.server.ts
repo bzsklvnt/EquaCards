@@ -12,7 +12,8 @@ import type { Actions, PageServerLoad } from './$types';
 // Egy kvízeste esemény-adatai (időpont, helyszín, létszámkorlát, nyilvánosság,
 // megjelenés) és a csapatjelentkezések kezelése —
 // docs/features/landing-and-registration.md.
-export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ depends, params, locals: { supabase } }) => {
+	depends('app:page');
 	const [{ data: game }, { data: venues }, { data: themes }, { data: registrations }] =
 		await Promise.all([
 			supabase

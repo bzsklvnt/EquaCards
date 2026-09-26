@@ -163,12 +163,25 @@
 		if (!timeUp && !allAnswered) return;
 
 		autoAdvanceTriggered = true;
-		autoLockAndReveal();
+		void autoLockAndReveal();
 	});
 
+	// A kézi lépésekkel közös védelmen fut (runAction): ha a host épp akkor
+	// nyom Space-t, a lezárás és a felfedés nem fut le kétszer.
 	async function autoLockAndReveal() {
-		await lockAnswers();
-		await revealAnswer();
+		if (acting) {
+			// Egy kézi lépés fut (pl. épp a "Zárás most"); utána, ha még kell, folytatjuk.
+			while (acting) await new Promise((r) => setTimeout(r, 50));
+		}
+		if (uiStep !== 'timing') return;
+		acting = true;
+		lastActionAt = Date.now();
+		try {
+			await lockAnswers();
+			await revealAnswer();
+		} finally {
+			acting = false;
+		}
 	}
 
 	// Vizuális köntös (DATA_MODEL.md 8. szakasz) — a games.design_theme_id
@@ -377,50 +390,28 @@
 
 		const code = typeCode(next.question_type_id);
 
-		const { data: question } = await data.supabase
-			.from('questions')
-			.select('id, prompt, image_url, image_pixelate, time_limit_seconds')
-			.eq('id', next.question_id)
-			.single();
-
-		if (!question) return;
-
-		let optionsPayload: QuestionShowPayload['options'];
-		let sliderPayload: QuestionShowPayload['slider'];
-		let orderingPayload: QuestionShowPayload['ordering_items'];
-
-		if (code === 'single_choice' || code === 'multi_choice' || code === 'true_false') {
-			const { data: options } = await data.supabase
-				.from('question_choice_options')
-				.select('id, option_text, image_url, order_index')
-				.eq('question_id', next.question_id)
-				.order('order_index');
-			optionsPayload = (options ?? []).map((o) => ({
-				id: o.id,
-				option_text: o.option_text,
-				image_url: o.image_url
-			}));
-		} else if (code === 'slider') {
-			const { data: config } = await data.supabase
-				.from('question_slider_config')
-				.select('min_value, max_value, step')
-				.eq('question_id', next.question_id)
-				.single();
-			if (config) sliderPayload = config;
-		} else if (code === 'ordering') {
-			const { data: items } = await data.supabase
-				.from('question_ordering_items')
-				.select('id, item_text')
-				.eq('question_id', next.question_id);
-			orderingPayload = shuffle(items ?? []);
-		}
-
-		const { error } = await data.supabase
-			.from('games')
-			.update({ current_question_id: next.question_id })
-			.eq('id', game.id);
-		if (error) {
-			statusMessage = error.message;
+		// Egyetlen hívás (host_next_question): beállítja az aktuális kérdést,
+		// elindítja az időzítőt (a Postgres-szerver órájával, olvasási idővel —
+		// docs/features/timer.md), és visszaadja a csapatoknak kiküldendő adatokat
+		// (helyes válasz nélkül).
+		const { data: started, error } = await data.supabase.rpc('host_next_question', {
+			p_game_id: game.id,
+			p_question_id: next.question_id
+		});
+		const q = started as {
+			question_id: string;
+			prompt: string;
+			image_url: string | null;
+			image_pixelate: boolean;
+			time_limit_seconds: number;
+			options: { id: string; option_text: string; image_url: string | null }[] | null;
+			slider: { min_value: number; max_value: number; step: number } | null;
+			ordering_items: { id: string; item_text: string }[] | null;
+			server_start_time: string;
+			reading_seconds: number;
+		} | null;
+		if (error || !q?.server_start_time) {
+			statusMessage = error?.message ?? 'Nem sikerült elindítani a kérdést.';
 			return;
 		}
 		game = { ...game, current_question_id: next.question_id };
@@ -428,18 +419,18 @@
 		const round = rounds.find((r) => r.id === game.current_round_id);
 
 		const payload: QuestionShowPayload = {
-			question_id: question.id,
+			question_id: q.question_id,
 			question_type: code,
 			round_title: round?.title ?? '',
-			prompt: question.prompt,
-			image_url: question.image_url,
-			image_pixelate: question.image_pixelate,
-			time_limit_seconds: question.time_limit_seconds ?? 30,
+			prompt: q.prompt,
+			image_url: q.image_url,
+			image_pixelate: q.image_pixelate,
+			time_limit_seconds: q.time_limit_seconds,
 			order_index: nextIndex + 1,
 			total_questions: roundQuestions.length,
-			options: optionsPayload,
-			slider: sliderPayload,
-			ordering_items: orderingPayload
+			options: q.options ?? undefined,
+			slider: q.slider ?? undefined,
+			ordering_items: q.ordering_items ? shuffle(q.ordering_items) : undefined
 		};
 
 		await channel?.send({ type: 'broadcast', event: 'question_show', payload });
@@ -447,43 +438,14 @@
 		currentQuestion = payload;
 		revealInfo = null;
 
-		// Fázis O1 — a timer korábban egy külön "Timer indítása" gombra várt;
-		// mostantól a kérdés megjelenítésével egy menetben, azonnal indul.
-		// A duration-t a fenti kérdés-lekérdezésből újrahasznosítjuk, nem kell
-		// külön DB kör-utazás érte.
-		const duration = question.time_limit_seconds ?? 30;
-
-		// Sürgősségi javítás — a kezdő időbélyeg korábban a host kliens
-		// saját Date.now()-jából jött (`new Date().toISOString()`), ami a
-		// host eszközének óra-pontatlanságát minden más kliensre
-		// ráterhelte (a /play és a /tv saját órája sem feltétlenül egyezik
-		// a hosszéval VAGY egymáséval). A start_question_timer() RPC a
-		// Postgres-szerver now()-ját írja be és adja vissza — egyetlen,
-		// közös, tekintélyelvű időforrás, amihez minden kliens a saját
-		// kalibrált óráját (serverNow(), src/lib/realtime/server-clock.ts)
-		// méri, nem a host eszközének esetlegesen pontatlan óráját.
-		//
-		// Olvasási idő (docs/features/timer.md 6.): a start_question() a kérdés
-		// (vagy a globális alap) olvasási idejével a JÖVŐBE teszi a válaszidő
-		// kezdetét — addig csak a kérdés látszik, a gombok utána aktiválódnak.
-		const { data: started, error: timerError } = await data.supabase.rpc('start_question', {
-			p_game_id: game.id,
-			p_duration: duration
-		});
-		const start = started as { server_start_time: string; reading_seconds: number } | null;
-		if (timerError || !start?.server_start_time) {
-			statusMessage = timerError?.message ?? 'Nem sikerült elindítani az időzítőt.';
-			return;
-		}
-
 		await channel?.send({
 			type: 'broadcast',
 			event: 'timer_start',
 			payload: {
 				question_id: next.question_id,
-				duration,
-				server_start_time: start.server_start_time,
-				reading_seconds: start.reading_seconds
+				duration: q.time_limit_seconds,
+				server_start_time: q.server_start_time,
+				reading_seconds: q.reading_seconds
 			} satisfies TimerStartPayload
 		});
 		// timerInfo-t a fenti self:true broadcast-feliratkozás állítja be
@@ -540,13 +502,20 @@
 		const current = roundQuestions[currentIndex];
 		if (!current) return;
 
-		const { error: evalError } = await data.supabase.rpc('evaluate_question', {
+		// Egy hívás (host_reveal): kiértékel (evaluate_question) és visszaadja a
+		// helyes választ.
+		const { data: revealed, error: evalError } = await data.supabase.rpc('host_reveal', {
 			p_question_id: current.question_id
 		});
 		if (evalError) {
 			statusMessage = evalError.message;
 			return;
 		}
+		const r = revealed as {
+			options: { id: string; option_text: string; is_correct: boolean }[] | null;
+			correct_value: number | null;
+			ordering: { id: string; item_text: string }[] | null;
+		} | null;
 
 		const code = typeCode(current.question_type_id);
 		let correctAnswer = '';
@@ -555,33 +524,18 @@
 		let correctOrder: { id: string; item_text: string }[] | undefined;
 
 		if (code === 'single_choice' || code === 'multi_choice' || code === 'true_false') {
-			const { data: options } = await data.supabase
-				.from('question_choice_options')
-				.select('id, option_text, is_correct')
-				.eq('question_id', current.question_id)
-				.order('order_index');
-			const correctOptions = (options ?? []).filter((o) => o.is_correct);
+			const correctOptions = (r?.options ?? []).filter((o) => o.is_correct);
 			correctAnswer = correctOptions.map((o) => o.option_text).join(', ');
 			// Fázis P6 — csak reveal-kor kerül ki, melyik opció(k) helyesek
 			// (a currentQuestion.options-ban, amit a csapatok is látnak,
 			// szándékosan nincs is_correct — lásd protocol.ts).
 			correctOptionIds = correctOptions.map((o) => o.id);
 		} else if (code === 'slider') {
-			const { data: config } = await data.supabase
-				.from('question_slider_config')
-				.select('correct_value')
-				.eq('question_id', current.question_id)
-				.single();
-			correctAnswer = String(config?.correct_value ?? '');
-			correctValue = config?.correct_value ?? undefined;
+			correctAnswer = String(r?.correct_value ?? '');
+			correctValue = r?.correct_value ?? undefined;
 		} else if (code === 'ordering') {
-			const { data: items } = await data.supabase
-				.from('question_ordering_items')
-				.select('id, item_text, correct_position')
-				.eq('question_id', current.question_id)
-				.order('correct_position');
-			correctAnswer = (items ?? []).map((i) => i.item_text).join(' → ');
-			correctOrder = (items ?? []).map((i) => ({ id: i.id, item_text: i.item_text }));
+			correctOrder = r?.ordering ?? [];
+			correctAnswer = correctOrder.map((i) => i.item_text).join(' → ');
 		}
 
 		const payload: QuestionRevealPayload = {

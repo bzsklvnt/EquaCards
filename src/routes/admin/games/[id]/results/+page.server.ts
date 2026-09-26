@@ -16,87 +16,75 @@ import type { Actions, PageServerLoad } from './$types';
 // az ÖSSZES csapat válaszát visszaadja — ez itt szándékos (a nézet célja
 // pont ez), de kizárólag azért biztonságos, mert ez a route maga is
 // staff-only.
-export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
-	const { data: game } = await supabase
-		.from('games')
-		.select('id, title, status, pin')
-		.eq('id', params.id)
-		.single();
+export const load: PageServerLoad = async ({ depends, params, locals: { supabase } }) => {
+	depends('app:page');
+	// Egyetlen párhuzamos kör: minden lekérdezés az este azonosítójára szűr
+	// (a körök kérdései és a válaszok beágyazva hozzák a típusadatokat).
+	const [
+		{ data: game },
+		{ data: rounds },
+		{ data: teams },
+		{ data: roundQuestionRows },
+		{ data: answerRows }
+	] = await Promise.all([
+		supabase.from('games').select('id, title, status, pin').eq('id', params.id).single(),
+		supabase
+			.from('rounds')
+			.select('id, title, order_index')
+			.eq('game_id', params.id)
+			.order('order_index'),
+		supabase.from('teams').select('id, name').eq('game_id', params.id).order('name'),
+		supabase
+			.from('round_questions')
+			.select(
+				'round_id, order_index, question_id, rounds!inner(game_id), questions(prompt, question_type_id, question_types(code), question_choice_options(id, question_id, option_text, is_correct, order_index), question_slider_config(question_id, correct_value), question_ordering_items(id, question_id, item_text, correct_position))'
+			)
+			.eq('rounds.game_id', params.id)
+			.order('order_index'),
+		supabase
+			.from('answers')
+			.select(
+				'id, question_id, team_id, is_correct, points_awarded, answer_time_ms, answer_choice(answer_id, option_id), answer_choice_multi(answer_id, option_id), answer_slider(answer_id, value), answer_ordering(answer_id, item_id, position)'
+			)
+			.eq('game_id', params.id)
+	]);
 
 	if (!game) {
 		kitError(404, 'A kvízeste nem található.');
 	}
 
-	const { data: rounds } = await supabase
-		.from('rounds')
-		.select('id, title, order_index')
-		.eq('game_id', game.id)
-		.order('order_index');
-
-	const roundIds = (rounds ?? []).map((r) => r.id);
-
-	const { data: teams } = await supabase
-		.from('teams')
-		.select('id, name')
-		.eq('game_id', game.id)
-		.order('name');
-
-	if (roundIds.length === 0 || !teams || teams.length === 0) {
+	if ((rounds ?? []).length === 0 || !teams || teams.length === 0) {
 		return { workspace: true, game, rounds: [], teams: teams ?? [] };
 	}
 
-	const { data: roundQuestions } = await supabase
-		.from('round_questions')
-		.select(
-			'round_id, order_index, question_id, questions(prompt, question_type_id, question_types(code))'
-		)
-		.in('round_id', roundIds)
-		.order('order_index');
-
-	const questionIds = (roundQuestions ?? []).map((rq) => rq.question_id);
-
-	const [
-		{ data: choiceOptions },
-		{ data: sliderConfigs },
-		{ data: orderingItems },
-		{ data: answers }
-	] = await Promise.all([
-		supabase
-			.from('question_choice_options')
-			.select('id, question_id, option_text, is_correct, order_index')
-			.in('question_id', questionIds)
-			.order('order_index'),
-		supabase
-			.from('question_slider_config')
-			.select('question_id, correct_value')
-			.in('question_id', questionIds),
-		supabase
-			.from('question_ordering_items')
-			.select('id, question_id, item_text, correct_position')
-			.in('question_id', questionIds)
-			.order('correct_position'),
-		supabase
-			.from('answers')
-			.select('id, question_id, team_id, is_correct, points_awarded, answer_time_ms')
-			.in('question_id', questionIds)
-	]);
-
-	const answerIds = (answers ?? []).map((a) => a.id);
-
-	const [
-		{ data: answerChoices },
-		{ data: answerChoicesMulti },
-		{ data: answerSliders },
-		{ data: answerOrderings }
-	] = await Promise.all([
-		supabase.from('answer_choice').select('answer_id, option_id').in('answer_id', answerIds),
-		supabase.from('answer_choice_multi').select('answer_id, option_id').in('answer_id', answerIds),
-		supabase.from('answer_slider').select('answer_id, value').in('answer_id', answerIds),
-		supabase
-			.from('answer_ordering')
-			.select('answer_id, item_id, position')
-			.in('answer_id', answerIds)
-	]);
+	const roundQuestions = roundQuestionRows ?? [];
+	const byOrder = <T extends { order_index?: number; correct_position?: number }>(a: T, b: T) =>
+		(a.order_index ?? a.correct_position ?? 0) - (b.order_index ?? b.correct_position ?? 0);
+	const choiceOptions = roundQuestions
+		.flatMap((rq) => rq.questions?.question_choice_options ?? [])
+		.sort(byOrder);
+	const sliderConfigs = roundQuestions
+		.map((rq) => rq.questions?.question_slider_config)
+		.filter((c): c is NonNullable<typeof c> => !!c);
+	const orderingItems = roundQuestions
+		.flatMap((rq) => rq.questions?.question_ordering_items ?? [])
+		.sort(byOrder);
+	const answers = (answerRows ?? []).map((a) => ({
+		id: a.id,
+		question_id: a.question_id,
+		team_id: a.team_id,
+		is_correct: a.is_correct,
+		points_awarded: a.points_awarded,
+		answer_time_ms: a.answer_time_ms
+	}));
+	const answerChoices = (answerRows ?? []).flatMap((a) =>
+		a.answer_choice ? [a.answer_choice].flat() : []
+	);
+	const answerChoicesMulti = (answerRows ?? []).flatMap((a) => a.answer_choice_multi ?? []);
+	const answerSliders = (answerRows ?? []).flatMap((a) =>
+		a.answer_slider ? [a.answer_slider].flat() : []
+	);
+	const answerOrderings = (answerRows ?? []).flatMap((a) => a.answer_ordering ?? []);
 
 	// Segéd-indexek a JS-oldali összeállításhoz — egy-egy nagy, tömeges
 	// lekérdezésből, N+1 kör-utazás nélkül.

@@ -1,14 +1,9 @@
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { draftToFormData, type Draft, type QuestionTypeInfo } from '$lib/builder/model';
-import {
-	appendQuestionsToRound,
-	createQuestionFromForm,
-	parseQuestionForm,
-	replaceQuestionTypeData,
-	validateQuestionForm
-} from '$lib/server/questions';
+import type { Draft } from '$lib/builder/model';
+import { appendQuestionsToRound, saveDraft } from '$lib/server/questions';
 import { loadDrafts, loadUsage } from '$lib/server/builder';
+import { requireStaff } from '$lib/server/auth';
 
 // A kérdésbank műveletei (betöltés, automatikus mentés, duplikálás, törlés,
 // hozzáadás egy kör végére) — docs/features/admin-workspace.md. A kezelő
@@ -21,17 +16,12 @@ type Body =
 	| { op: 'delete'; id: string }
 	| { op: 'addToRound'; question_id: string; round_id: string };
 
-export const POST: RequestHandler = async ({ request, locals: { supabase, safeGetSession } }) => {
-	const { user } = await safeGetSession();
-	if (!user) error(401, 'Bejelentkezés szükséges.');
-	const { data: profile } = await supabase
-		.from('profiles')
-		.select('role_id')
-		.eq('id', user.id)
-		.single();
-	if (!profile || ![1, 2].includes(profile.role_id)) error(403, 'Nincs jogosultságod.');
-
-	const body = (await request.json()) as Body;
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const { supabase } = locals;
+	const [, body] = await Promise.all([
+		requireStaff(locals, [1, 2]),
+		request.json() as Promise<Body>
+	]);
 
 	switch (body.op) {
 		case 'load': {
@@ -44,40 +34,9 @@ export const POST: RequestHandler = async ({ request, locals: { supabase, safeGe
 		}
 
 		case 'save': {
-			const { data: types } = await supabase
-				.from('question_types')
-				.select('id, code, label, min_options, max_options');
-			const typeList = (types ?? []) as QuestionTypeInfo[];
-			const formData = draftToFormData(body.draft, typeList);
-			if (!body.draft.id) {
-				const created = await createQuestionFromForm(supabase, formData, user.id);
-				if ('error' in created) return json({ error: created.error }, { status: 400 });
-				return json({ id: created.id });
-			}
-			const type = typeList.find((t) => t.code === body.draft.type_code);
-			if (!type) return json({ error: 'Érvénytelen kérdéstípus.' }, { status: 400 });
-			const parsed = parseQuestionForm(formData, type.code);
-			const validationError = validateQuestionForm(parsed, type);
-			if (validationError) return json({ error: validationError }, { status: 400 });
-			const { error: updateError } = await supabase
-				.from('questions')
-				.update({
-					theme_id: parsed.theme_id,
-					question_type_id: parsed.question_type_id,
-					prompt: parsed.prompt,
-					image_url: parsed.image_url,
-					image_pixelate: parsed.image_pixelate,
-					points: parsed.points,
-					points_multiplier: parsed.points_multiplier,
-					time_limit_seconds: parsed.time_limit_seconds,
-					points_decay: parsed.points_decay,
-					reading_seconds: parsed.reading_seconds
-				})
-				.eq('id', body.draft.id);
-			if (updateError) return json({ error: updateError.message }, { status: 400 });
-			const childError = await replaceQuestionTypeData(supabase, body.draft.id, parsed);
-			if (childError) return json({ error: childError }, { status: 400 });
-			return json({ id: body.draft.id });
+			const saved = await saveDraft(supabase, body.draft);
+			if ('error' in saved) return json({ error: saved.error }, { status: 400 });
+			return json({ id: saved.id });
 		}
 
 		case 'duplicate': {
@@ -92,9 +51,13 @@ export const POST: RequestHandler = async ({ request, locals: { supabase, safeGe
 		}
 
 		case 'delete': {
-			const { error: deleteError } = await supabase.from('questions').delete().eq('id', body.id);
+			// Lejátszott kérdés archiválódik (a korábbi estek eredményei megmaradnak),
+			// a többi törlődik — admin_delete_question().
+			const { data: outcome, error: deleteError } = await supabase.rpc('admin_delete_question', {
+				p_question_id: body.id
+			});
 			if (deleteError) return json({ error: deleteError.message }, { status: 400 });
-			return json({ ok: true });
+			return json({ ok: true, archived: outcome === 'archived' });
 		}
 
 		case 'addToRound': {

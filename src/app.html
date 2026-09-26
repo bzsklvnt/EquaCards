@@ -5,21 +5,6 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
 		<!--
-			A két beépített design téma ("Letisztult": Fraunces + Hanken Grotesk,
-			"Arcade (fun)": Press Start 2P + Silkscreen + Inter) betűtípusai
-			(docs/architecture/DATA_MODEL.md 8. szakasz). Statikusan betöltve gyors
-			első betöltéshez (nincs villanás alapértelmezett betűtípusra); a
-			src/lib/theme/tokens.ts loadThemeFonts()-a ugyanezt dinamikusan is
-			megteszi minden design_tokens-ben szereplő betűtípusra, így egy admin
-			által felvitt új téma más betűtípussal is helyesen töltődik be.
-		-->
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-		<link
-			rel="stylesheet"
-			href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&family=Inter:wght@400;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap"
-		/>
-		<!--
 			Overscroll/rubber-band villanás elleni védelem: minden oldal saját
 			.cabinet gyökere dinamikus style={themeCss}-ből kapja a hátterét
 			(var(--cabinet)), de a <html>/<body> maga sosem — trackpad "bounce"

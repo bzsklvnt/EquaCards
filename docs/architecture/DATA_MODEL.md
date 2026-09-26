@@ -44,7 +44,7 @@ RLS minden admin-jellegű táblán (`themes`, `questions`, `rounds`, `round_ques
 
 A fenti terven felül a megvalósítás a következőket vezette be, mert a működéshez szükségesek voltak, de a tervben nem szerepeltek explicit SQL-ként:
 
-- **`handle_new_user()` trigger** az `auth.users`-en: minden új regisztrációnál automatikusan létrehoz egy `profiles` sort `role_id = 4` (viewer) alapértelmezéssel. Az első `super_admin`-t emiatt kézzel kell felléptetni: `update profiles set role_id = 1 where id = '<uuid>';`
+- **`handle_new_user()` trigger** az `auth.users`-en: minden új regisztrációnál automatikusan létrehoz egy `profiles` sort. Az alapértelmezés 2026-09-27 óta `role_id = 0` (`pending`, „Jóváhagyásra vár”): az új fiók semmihez nem fér hozzá, amíg a rendszergazda szerepkört nem ad neki (korábban 4 = viewer, ami minden riportot látott — kódaudit, `20260927090000_audit_fixes.sql`). Az első `super_admin`-t emiatt kézzel kell felléptetni: `update profiles set role_id = 1 where id = '<uuid>';`
 - **`current_user_role_id()` segédfüggvény** (`security definer`, csak `authenticated`-nek grantelve): a bejelentkezett felhasználó `role_id`-ját adja vissza, hogy a `profiles`/`audit_logs` RLS szabályok ne okozzanak rekurzív policy-kiértékelést a `profiles` táblán saját magán.
 - **Konkrét RLS policy-k** a `roles`/`profiles`/`audit_logs` táblákon a fenti szöveges szabály alapján: mindenki olvashatja a saját profilját és a `roles` referenciatáblát; `role_id in (1,2)` olvashatja az összes profilt; csak `super_admin` (1) módosíthat bármely profilt (pl. role kiosztás), egy felhasználó a sajátját szerkesztheti, de a `role_id`-t nem tudja saját magának módosítani.
 - A `handle_new_user`/`log_table_change` trigger-függvényeken és a `current_user_role_id()`-n a public/anon RPC-elérés le van tiltva (`revoke execute ... from anon, authenticated`, `current_user_role_id`-nál csak `authenticated`-nek visszaadva) — a Supabase security advisor ezt jelezte, mivel alapból minden új public-séma függvényre EXECUTE jogot ad `anon`/`authenticated`-nek is.
@@ -300,6 +300,27 @@ maradtak (lásd fenti, most már megoldott MVP-korlát). Fázis Q6 ezt zárja le
   változatlan, nincs üres hely/placeholder.
 
 ---
+
+### Kódaudit javításai (`supabase/migrations/20260927090000_audit_fixes.sql`, `20260927090500_audit_lockdown.sql`)
+
+- `questions.archived_at timestamptz`: a már lejátszott kérdés törlés helyett
+  archiválódik (`admin_delete_question()`), így a korábbi estek válaszai és
+  eredményei megmaradnak. Archivált kérdés nem jelenik meg a bankban, a
+  keresésben és a témák listájában, és nem húzható randomra.
+- `roles` új sora: `0 / pending / Jóváhagyásra vár`; `profiles.role_id`
+  alapértéke 0.
+- Új függvények: `admin_save_question()` (kérdés + típusadatok egy
+  tranzakcióban, az opciók helyben frissülnek, így az azonosítójuk
+  megmarad), `admin_delete_question()`, `submit_answer()`, `use_joker()`,
+  `join_with_name()`, `game_by_pin()`, `tv_game()`, `host_next_question()`,
+  `host_reveal()`, `purge_old_audit_logs()` (napi cron, 180 nap).
+- Anonim jogosultság: nincs közvetlen beszúrás a válasz- és joker-táblákba;
+  a `teams.device_token` és a `games.pin` oszlop nem olvasható.
+- Broadcast az adatbázisból (`realtime.send`): `theme_changed` a
+  `game:{id}` csatornára, `changed` a `design_themes` csatornára.
+- Indexek a gyakori szűrésekre (válaszok est/csapat szerint, körök est
+  szerint, opciók kérdés szerint stb.); az átfedő RLS szabályok összevonva
+  (ugyanaz a hozzáférés).
 
 ## 3. Válaszok — normalizálva, típusonként külön tábla (valódi FK-kkal)
 
