@@ -35,7 +35,8 @@
 			<li>a csapat neve és létszáma,</li>
 			<li>a kapcsolattartó neve és e-mail címe,</li>
 			<li>ha megadod: telefonszám és megjegyzés,</li>
-			<li>a jelentkezés és a hozzájárulás időpontja.</li>
+			<li>a jelentkezés és a hozzájárulás időpontja,</li>
+			<li>a csatlakozáshoz kiadott csapatkód.</li>
 		</ul>
 		<p>
 			Játék közben csak a csapat nevét és a leadott válaszokat, pontszámokat tároljuk; ehhez nem

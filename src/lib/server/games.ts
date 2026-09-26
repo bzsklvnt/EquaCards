@@ -203,7 +203,9 @@ export async function createPracticeGame(
 			title: `Próbaeste – ${stamp}`,
 			pin: generatePin(),
 			host_id: userId,
-			is_practice: true
+			is_practice: true,
+			// Próbaestén szabad, név alapú csatlakozás (nincs jelentkezés, nincs csapatkód)
+			join_requires_code: false
 		})
 		.select('id')
 		.single();

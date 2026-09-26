@@ -2,6 +2,7 @@ import { error as kitError, fail } from '@sveltejs/kit';
 import { fromBudapestLocalInput } from '$lib/datetime';
 import { reopenGameAction } from '$lib/server/games';
 import {
+	adminAddWalkin,
 	adminCancelRegistration,
 	adminFillFromWaitlist,
 	adminPromoteRegistration
@@ -17,7 +18,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 			supabase
 				.from('games')
 				.select(
-					'id, title, status, pin, is_practice, scheduled_at, venue_id, is_public, max_players, public_note, design_theme_id'
+					'id, title, status, pin, is_practice, scheduled_at, venue_id, is_public, max_players, public_note, design_theme_id, join_requires_code'
 				)
 				.eq('id', params.id)
 				.single(),
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 			supabase
 				.from('team_registrations')
 				.select(
-					'id, team_name, headcount, contact_name, contact_email, contact_phone, note, status, created_at, promoted_at, cancelled_at'
+					'id, team_name, headcount, contact_name, contact_email, contact_phone, note, status, created_at, promoted_at, cancelled_at, join_code, team_id'
 				)
 				.eq('game_id', params.id)
 				.order('created_at')
@@ -101,7 +102,8 @@ export const actions: Actions = {
 				max_players: maxPlayers,
 				is_public: isPublic,
 				public_note: publicNote || null,
-				design_theme_id: text(form, 'design_theme_id') || null
+				design_theme_id: text(form, 'design_theme_id') || null,
+				join_requires_code: form.get('join_requires_code') === 'on'
 			})
 			.eq('id', params.id);
 		if (error) return fail(400, { error: error.message });
@@ -109,6 +111,15 @@ export const actions: Actions = {
 		// Ha a korlát nőtt, a várólistáról most beférő csapatok bekerülnek.
 		const filled = await adminFillFromWaitlist(supabase, url.origin, params.id);
 		return { success: true, promoted: filled.promoted ?? 0 };
+	},
+
+	// Helyszíni csapat: kódot kap, amit a kezelő szóban ad át.
+	addWalkin: async ({ request, params, locals: { supabase } }) => {
+		const form = await request.formData();
+		const headcount = Number.parseInt(text(form, 'headcount'), 10);
+		const result = await adminAddWalkin(supabase, params.id, text(form, 'team_name'), headcount);
+		if (!result.ok) return fail(400, { error: result.message });
+		return { success: true, walkinCode: result.joinCode, walkinName: text(form, 'team_name') };
 	},
 
 	cancel: async ({ request, url, locals: { supabase } }) => {

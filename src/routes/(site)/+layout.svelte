@@ -29,7 +29,9 @@
 	<footer class="site-footer">
 		<span>© {year} {data.site.name}</span>
 		<div class="footer-links">
+			<a href={resolve('/szabalyzat')}>Részvételi szabályzat</a>
 			<a href={resolve('/adatkezeles')}>Adatkezelés</a>
+			<a href={resolve('/impresszum')}>Impresszum</a>
 			{#if data.site.contactEmail}
 				<a href={`mailto:${data.site.contactEmail}`}>Kapcsolat</a>
 			{/if}
@@ -146,7 +148,9 @@
 
 	.footer-links {
 		display: flex;
-		gap: 1.5rem;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 0.5rem 1.5rem;
 	}
 
 	.footer-links a {

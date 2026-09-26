@@ -51,6 +51,19 @@
 			description:
 				'Az adatkezelési tájékoztatóban szerepel — magánszemély vagy cég neve. Kötelező kitölteni!'
 		},
+		site_address: {
+			label: 'Székhely (impresszum)',
+			description: 'Az egyéni vállalkozó székhelye — az Impresszum oldalon jelenik meg. Kötelező!'
+		},
+		site_tax_number: {
+			label: 'Adószám (impresszum)',
+			description: 'Az Impresszum oldalon jelenik meg. Kötelező!'
+		},
+		site_registration: {
+			label: 'Nyilvántartási szám (impresszum)',
+			description:
+				'Az egyéni vállalkozói nyilvántartási szám és a nyilvántartó megnevezése, pl. „EV nyilvántartási szám: 12345678”. Kötelező!'
+		},
 		site_contact_email: {
 			label: 'Kapcsolati e-mail',
 			description:
@@ -168,6 +181,15 @@
 					: data.setup.serviceRole === 'invalid'
 						? 'be van állítva, de hibás'
 						: 'nincs beállítva'}</span
+			>
+		</li>
+		<li class:ok={data.setup.imprint}>
+			<span class="mark" aria-hidden="true">{data.setup.imprint ? '✓' : '✗'}</span>
+			<span
+				><b>Impresszum</b> (székhely, adószám, nyilvántartási szám — lent, ezen az oldalon): {data
+					.setup.imprint
+					? 'kitöltve'
+					: 'hiányzik — az Ekertv. szerint kötelező'}</span
 			>
 		</li>
 		<li class:ok={data.setup.operatorName && data.setup.contactEmail}>

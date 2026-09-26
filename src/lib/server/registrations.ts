@@ -58,7 +58,22 @@ function eventLines(event: EventInfo): string[] {
 	].filter((line): line is string => Boolean(line));
 }
 
-function layout(heading: string, paragraphs: string[], event: EventInfo, link: string): string {
+// A csapatkód (join_code) kiemelve: ezzel lehet az estén csatlakozni.
+function codeBlock(code: string): string {
+	return `<div style="background:#e3eee9;border-radius:12px;padding:16px 18px;margin:20px 0;text-align:center">
+<div style="font-size:13px;color:#1e5b4f;text-transform:uppercase;letter-spacing:.08em;font-weight:600">Csapatkód</div>
+<div style="font-size:32px;font-weight:700;letter-spacing:.2em;color:#143f37;font-family:ui-monospace,Menlo,Consolas,monospace">${escapeHtml(code)}</div>
+<div style="font-size:13px;color:#45423b;margin-top:6px">Az estén a kivetítőn látható PIN után ezt kell megadni a telefonon. Ha lemerül vagy lecserélitek a telefont, ugyanezzel a kóddal léphettek vissza.</div>
+</div>`;
+}
+
+function layout(
+	heading: string,
+	paragraphs: string[],
+	event: EventInfo,
+	link: string,
+	code?: string
+): string {
 	const details = eventLines(event)
 		.map((line, i) =>
 			i === 0
@@ -73,6 +88,7 @@ function layout(heading: string, paragraphs: string[], event: EventInfo, link: s
 <div style="max-width:520px;margin:0 auto;padding:32px 20px">
 <h1 style="font-size:22px;margin:0 0 18px;color:#111827">${escapeHtml(heading)}</h1>
 ${body}
+${code ? codeBlock(code) : ''}
 <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;margin:20px 0">${details}</div>
 <p style="margin:0 0 6px;font-size:14px;color:#4b5563">Ha mégsem tudtok jönni, kérjük, mondjátok le, hogy más csapat kaphassa meg a helyet:</p>
 <p style="margin:0 0 24px"><a href="${escapeHtml(link)}" style="color:#0f766e;font-weight:600">Jelentkezés lemondása</a></p>
@@ -80,20 +96,37 @@ ${body}
 </div></body></html>`;
 }
 
-function plain(heading: string, paragraphs: string[], event: EventInfo, link: string): string {
-	return [heading, '', ...paragraphs, '', ...eventLines(event), '', `Lemondás: ${link}`].join('\n');
+function plain(
+	heading: string,
+	paragraphs: string[],
+	event: EventInfo,
+	link: string,
+	code?: string
+): string {
+	return [
+		heading,
+		'',
+		...paragraphs,
+		...(code
+			? ['', `CSAPATKÓD: ${code}`, 'Az estén a PIN után ezt kell megadni a telefonon.']
+			: []),
+		'',
+		...eventLines(event),
+		'',
+		`Lemondás: ${link}`
+	].join('\n');
 }
 
-function confirmationEmail(teamName: string, event: EventInfo, link: string) {
+function confirmationEmail(teamName: string, code: string, event: EventInfo, link: string) {
 	const heading = 'Jelentkezés visszaigazolva';
 	const paragraphs = [
 		`A(z) „${teamName}” csapat jelentkezését rögzítettük. Várunk titeket!`,
-		'Érkezéskor a kivetítőn megjelenő PIN-kóddal vagy QR-kóddal tudtok csatlakozni.'
+		'Érkezéskor a kivetítőn megjelenő PIN-kóddal vagy QR-kóddal nyissátok meg a játékot, majd adjátok meg az alábbi csapatkódot. Őrizzétek meg ezt a levelet!'
 	];
 	return {
 		subject: `Jelentkezés visszaigazolva – ${event.title}`,
-		html: layout(heading, paragraphs, event, link),
-		text: plain(heading, paragraphs, event, link)
+		html: layout(heading, paragraphs, event, link, code),
+		text: plain(heading, paragraphs, event, link, code)
 	};
 }
 
@@ -103,7 +136,7 @@ function waitlistEmail(teamName: string, position: number | null, event: EventIn
 		`Az este jelenleg telt házas, ezért a(z) „${teamName}” csapat várólistára került${
 			position ? ` (${position}. hely)` : ''
 		}.`,
-		'Ha felszabadul egy hely, automatikusan bekerültök, és erről e-mailt küldünk.'
+		'Ha felszabadul elég hely, automatikusan bekerültök, és e-mailben elküldjük a csatlakozáshoz szükséges csapatkódot.'
 	];
 	return {
 		subject: `Várólista – ${event.title}`,
@@ -112,15 +145,16 @@ function waitlistEmail(teamName: string, position: number | null, event: EventIn
 	};
 }
 
-function promotedEmail(teamName: string, event: EventInfo, link: string) {
+function promotedEmail(teamName: string, code: string, event: EventInfo, link: string) {
 	const heading = 'Felszabadult egy hely — bekerültetek!';
 	const paragraphs = [
-		`Jó hír: a(z) „${teamName}” csapat a várólistáról bekerült a kvízestére. Várunk titeket!`
+		`Jó hír: a(z) „${teamName}” csapat a várólistáról bekerült a kvízestére. Várunk titeket!`,
+		'Az estén a PIN után az alábbi csapatkóddal tudtok csatlakozni.'
 	];
 	return {
 		subject: `Bekerültetek – ${event.title}`,
-		html: layout(heading, paragraphs, event, link),
-		text: plain(heading, paragraphs, event, link)
+		html: layout(heading, paragraphs, event, link, code),
+		text: plain(heading, paragraphs, event, link, code)
 	};
 }
 
@@ -129,6 +163,8 @@ export type RegisterResult =
 			ok: true;
 			status: 'confirmed' | 'waitlist';
 			waitlistPosition: number | null;
+			/** Csak megerősített jelentkezésnél — a várólistás a bekerüléskor kapja meg. */
+			joinCode: string | null;
 			email: EmailResult['status'];
 	  }
 	| { ok: false; message: string };
@@ -167,10 +203,16 @@ export async function registerTeam(
 	const message =
 		status === 'waitlist'
 			? waitlistEmail(teamName, row.waitlist_position, event, link)
-			: confirmationEmail(teamName, event, link);
+			: confirmationEmail(teamName, row.join_code, event, link);
 	const sent = await sendEmail({ to: input.contactEmail.trim(), ...message });
 
-	return { ok: true, status, waitlistPosition: row.waitlist_position, email: sent.status };
+	return {
+		ok: true,
+		status,
+		waitlistPosition: row.waitlist_position,
+		joinCode: status === 'confirmed' ? row.join_code : null,
+		email: sent.status
+	};
 }
 
 // Az előléptetett csapat elérhetőségét csak service-role klienssel (anonim
@@ -184,7 +226,9 @@ async function notifyPromoted(
 	const client = getSupabaseAdmin() ?? fallback;
 	const { data, error } = await client
 		.from('team_registrations')
-		.select('team_name, contact_email, cancel_token, games(title, scheduled_at, venues(name))')
+		.select(
+			'team_name, contact_email, cancel_token, join_code, games(title, scheduled_at, venues(name))'
+		)
 		.in('id', ids);
 	if (error) {
 		console.error('[notifyPromoted]', error);
@@ -199,7 +243,7 @@ async function notifyPromoted(
 			};
 			return sendEmail({
 				to: row.contact_email,
-				...promotedEmail(row.team_name, event, cancelUrl(origin, row.cancel_token))
+				...promotedEmail(row.team_name, row.join_code, event, cancelUrl(origin, row.cancel_token))
 			});
 		})
 	);
@@ -259,4 +303,31 @@ export async function adminFillFromWaitlist(
 	if (error) return { ok: false, message: 'Nem sikerült a várólista feldolgozása.' };
 	await notifyPromoted(supabase, origin, promoted);
 	return { ok: true, promoted: promoted?.length ?? 0 };
+}
+
+// Helyszíni csapat (előzetes jelentkezés nélkül): a kezelő vesz fel, a
+// csapatkódot szóban adja meg a csapatnak.
+export async function adminAddWalkin(
+	supabase: Client,
+	gameId: string,
+	teamName: string,
+	headcount: number
+): Promise<{ ok: true; joinCode: string } | { ok: false; message: string }> {
+	const { data, error } = await supabase.rpc('admin_add_walkin', {
+		p_game_id: gameId,
+		p_team_name: teamName,
+		p_headcount: headcount
+	});
+	const row = data?.[0];
+	if (error || !row) {
+		return {
+			ok: false,
+			message: error?.message.includes('name_taken')
+				? 'Ezen a néven már van csapat erre az estére.'
+				: error?.message.includes('invalid_input')
+					? 'Adj meg csapatnevet és 1–12 fős létszámot.'
+					: 'Nem sikerült felvenni a csapatot.'
+		};
+	}
+	return { ok: true, joinCode: row.join_code };
 }

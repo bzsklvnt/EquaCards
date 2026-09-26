@@ -454,6 +454,7 @@ create table games (
   venue_id uuid references venues(id) on delete set null,
   is_public boolean not null default false,    -- megjelenik a landing oldalon
   max_players integer,                         -- létszámkorlát FŐBEN; null = korlátlan; e fölött várólista
+  join_requires_code boolean not null default true,  -- csatlakozás csak csapatkóddal (próbaestén false)
   public_note text,
   current_round_id uuid references rounds(id),
   current_question_id uuid references questions(id),
@@ -592,6 +593,8 @@ create table team_registrations (
   consent_at timestamptz not null,
   status text not null default 'confirmed',  -- confirmed | waitlist | cancelled
   cancel_token uuid not null unique default gen_random_uuid(),  -- a visszaigazoló e-mail lemondási linkje
+  join_code text not null default generate_join_code(),  -- 6 karakteres csapatkód, estén belül egyedi
+  team_id uuid references teams(id) on delete set null,  -- a kóddal létrejött/átvett csapat
   cancelled_at timestamptz,
   promoted_at timestamptz,          -- várólistáról előléptetve
   created_at timestamptz not null default now()
@@ -608,7 +611,10 @@ create table team_registrations (
   `register_team(...)`, `registration_by_token(token)`,
   `cancel_registration(token)`, `public_event(id)`, `public_site_info()`;
   kezelői: `admin_cancel_registration(id)`, `admin_promote_registration(id)`,
-  `admin_fill_from_waitlist(game_id)`. A belső `promote_from_waitlist(game_id)`
+  `admin_fill_from_waitlist(game_id)`, `admin_add_walkin(game_id, name, headcount)`;
+  csatlakozás: `join_with_code(pin, code, device_token)` (anon). A `teams` anon
+  beszúrási policyja (`game_accepts_name_join`) csak kód nélküli, váró estén
+  enged név alapú csatlakozást. A belső `promote_from_waitlist(game_id)`
   és a napi `purge_old_registrations()` (pg_cron, 30 napos megőrzés)
   senkinek nincs grantelve.
 - **Kapacitás és várólista:** a `register_team` és a lemondások a `games`

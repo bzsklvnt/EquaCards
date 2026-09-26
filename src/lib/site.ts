@@ -8,7 +8,7 @@ import type { Json } from '$lib/types/database.types';
 // a linkek relatívak maradnak.
 
 // A nyilvános oldal útvonalai; minden más az app-hoz tartozik.
-const SITE_PREFIXES = ['/esemeny', '/lemondas', '/adatkezeles'];
+const SITE_PREFIXES = ['/esemeny', '/lemondas', '/adatkezeles', '/impresszum', '/szabalyzat'];
 
 export function isSitePath(pathname: string): boolean {
 	return (
@@ -48,6 +48,10 @@ export type SiteInfo = {
 	city: string;
 	operatorName: string;
 	contactEmail: string;
+	/** Impresszum (Ekertv. 4. §): székhely, adószám, nyilvántartási szám */
+	address: string;
+	taxNumber: string;
+	registration: string;
 };
 
 export function parseSiteInfo(raw: Json | null | undefined): SiteInfo {
@@ -60,6 +64,9 @@ export function parseSiteInfo(raw: Json | null | undefined): SiteInfo {
 		name: text('site_name') || 'Kocsmakvízest',
 		city: text('site_city'),
 		operatorName: text('site_operator_name'),
-		contactEmail: text('site_contact_email')
+		contactEmail: text('site_contact_email'),
+		address: text('site_address'),
+		taxNumber: text('site_tax_number'),
+		registration: text('site_registration')
 	};
 }

@@ -76,8 +76,9 @@ beépített küldője óránként csak néhány levelet enged.
 
 Kezelőfelület → **Beállítások**:
 
-1. Töltsd ki: üzemeltető neve, kapcsolati e-mail, város. Az első kettő az
-   adatkezelési tájékoztatóhoz kötelező.
+1. Töltsd ki: üzemeltető neve, kapcsolati e-mail, város, valamint az
+   impresszum adatai (székhely, adószám, nyilvántartási szám). Az
+   adatkezelési tájékoztatóhoz és az impresszumhoz ezek kötelezők.
 2. Az „Élesítés állapota” panelen minden sor legyen ✓. Az „App domain”
    sornál a „!” azt jelzi, hogy nem az app domainen nyitottad meg az
    oldalt (ez nem hiba).
@@ -100,9 +101,12 @@ Vercel **Logs** fülén (`[email]` sorok) láthatók.
 2. Új kvízeste → Esemény fül: időpont a jövőben, helyszín, létszámkorlát
    (pl. 6 fő), Nyilvános ✓, Mentés.
 3. A `kocsmakvizest.hu` kezdőlapján megjelenik → jelentkezés egy 4 fős
-   csapattal → visszaigazoló e-mail.
+   csapattal → visszaigazoló e-mail a csapatkóddal.
 4. Második jelentkezés 4 fővel → várólistás e-mail.
 5. Az első e-mailben a lemondási link → lemondás → a második csapat
    „Bekerültetek” e-mailt kap, és az Esemény fülön megerősítettként látszik.
-6. A kvízeste lezárása után a kezdőlapon az „Elmúlt esték” között jelenik
+6. Élő lebonyolítás → a telefonon a PIN, majd a csapatkód → a csapat a host
+   lobbyban megjelenik; ugyanezzel a kóddal egy második telefonról is be
+   lehet lépni.
+7. A kvízeste lezárása után a kezdőlapon az „Elmúlt esték” között jelenik
    meg.

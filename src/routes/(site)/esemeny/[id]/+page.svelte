@@ -101,8 +101,9 @@
 		<div class="how">
 			<h2>Hogyan zajlik?</h2>
 			<p>
-				Érkezéskor a kivetítőn megjelenő kóddal csatlakoztok egy telefonról, és azon adjátok meg a
-				válaszokat. Az este több körből áll, a körök végén kiderül, ki áll az élen.
+				Érkezéskor a kivetítőn látható PIN-nel nyitjátok meg a játékot egy telefonon, és a
+				visszaigazoló e-mailben kapott csapatkóddal léptek be — a válaszokat ezen a telefonon
+				adjátok meg. Az este több körből áll, a körök végén kiderül, ki áll az élen.
 			</p>
 			<p>
 				A létszámkorlát főben értendő. Ha a csapatotok már nem fér be, várólistára kerültök, és
@@ -127,9 +128,16 @@
 						{form.teamName ? `A(z) „${form.teamName}” csapat` : 'A csapatotok'} jelentkezését rögzítettük.
 					</p>
 				{/if}
+				{#if form.joinCode}
+					<div class="join-code">
+						<span>Csapatkód</span>
+						<strong>{form.joinCode}</strong>
+						<small>Az estén a PIN után ezzel tudtok csatlakozni. Írjátok fel!</small>
+					</div>
+				{/if}
 				<p class="small">
-					A visszaigazolást e-mailben küldjük, benne a lemondási linkkel — ha nem érkezne meg, nézd
-					meg a spam mappát is.
+					A visszaigazolást e-mailben küldjük, benne a csapatkóddal és a lemondási linkkel — ha nem
+					érkezne meg, nézd meg a spam mappát is.
 				</p>
 				<a class="button secondary" href={resolve('/')}>Vissza az estékhez</a>
 			</div>
@@ -230,9 +238,9 @@
 				<label class="consent">
 					<input type="checkbox" name="consent" required />
 					<span>
-						Elfogadom az <a href={resolve('/adatkezeles')} target="_blank"
-							>adatkezelési tájékoztatót</a
-						>. Az adatokat csak az este szervezéséhez használjuk.
+						Elfogadom a <a href={resolve('/szabalyzat')} target="_blank">részvételi szabályzatot</a>
+						és az <a href={resolve('/adatkezeles')} target="_blank">adatkezelési tájékoztatót</a>.
+						Az adatokat csak az este szervezéséhez használjuk.
 					</span>
 				</label>
 
@@ -545,6 +553,37 @@
 	.center {
 		margin: 0;
 		text-align: center;
+	}
+
+	.join-code {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.2rem;
+		padding: 1rem;
+		border-radius: 0.8rem;
+		background: var(--accent-soft);
+		text-align: center;
+	}
+
+	.join-code span {
+		font-size: 0.8rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+
+	.join-code strong {
+		font-family: ui-monospace, Menlo, Consolas, monospace;
+		font-size: 2rem;
+		letter-spacing: 0.2em;
+		color: var(--accent-dark);
+	}
+
+	.join-code small {
+		font-size: 0.85rem;
+		color: var(--ink-2);
 	}
 
 	.sr-only {

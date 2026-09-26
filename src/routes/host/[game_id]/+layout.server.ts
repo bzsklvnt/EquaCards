@@ -4,7 +4,9 @@ import type { LayoutServerLoad } from './$types';
 export const load: LayoutServerLoad = async ({ params, locals: { supabase } }) => {
 	const { data: game } = await supabase
 		.from('games')
-		.select('id, title, pin, status, current_round_id, current_question_id, design_theme_id')
+		.select(
+			'id, title, pin, status, current_round_id, current_question_id, design_theme_id, join_requires_code'
+		)
 		.eq('id', params.game_id)
 		.single();
 

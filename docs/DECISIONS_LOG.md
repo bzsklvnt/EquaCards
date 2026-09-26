@@ -2260,3 +2260,28 @@ magamnak” gomb a Resend pontos hibaüzenetét és a valószínű teendőt írj
 Az `EmailResult` hibaágban `detail` mezőt kapott. Lépésenkénti útmutató
 (Vercel, Resend + Rackhost DNS, Supabase Auth, éles próba):
 `docs/operations/GO_LIVE.md`.
+
+## 2026-09-26 — Csapatkód, impresszum, részvételi szabályzat
+
+**Csapatkód (a felhasználó kérése: „tényleg csak az adott csapat tudjon
+belépni”):** minden jelentkezés 6 karakteres kódot kap, a visszaigazoló
+e-mailben megy ki. Csapatkódos estén (alapértelmezés; próbaestén ki) a PIN
+önmagában nem elég, a `join_with_code()` csak megerősített jelentkezés
+kódját fogadja el. Döntések:
+
+- a kód a játék indulása után is érvényes (késve érkező csapat; másik
+  telefonról visszalépés — az új eszköz veszi át a csapatot), mert kocsmai
+  estén gyakori a lemerült/cserélt telefon;
+- a név alapú beszúrást az adatbázis is tiltja csapatkódos estén (teams RLS),
+  nem csak a felület;
+- helyszíni csapatnak a kezelő kér kódot (Esemény fül, host lobby panel), a
+  létszámkorláttól függetlenül.
+  Élőben, rollback-kal tesztelve: hibás és várólistás kód elutasítva,
+  kisbetűs kód elfogadva, visszalépés futó játék alatt új eszközzel, anon REST
+  beszúrás csapatkódos estére 42501, nyitott estére engedélyezve, helyszíni
+  felvétel rendszergazdaként működik, anon nem hívhatja.
+
+**Jogi oldalak:** `/impresszum` (Ekertv. 4. §, az adatok a Beállításokból)
+és `/szabalyzat` (részvételi szabályzat); a jelentkezéskor mindkét
+dokumentum elfogadása kötelező. A szövegek minták, élesítés előtt jogi
+átnézés javasolt. Részletek: `docs/features/landing-and-registration.md`.

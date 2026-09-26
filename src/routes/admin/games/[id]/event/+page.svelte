@@ -36,6 +36,10 @@
 	const publicHref = $derived(siteUrl(`/esemeny/${game.id}`));
 
 	let saving = $state(false);
+	let addingWalkin = $state(false);
+	let lastWalkin = $state<{ name: string; code: string } | null>(null);
+	let walkinName = $state('');
+	let walkinHeadcount = $state('4');
 	let busyId = $state<string | null>(null);
 
 	function submit(opts: {
@@ -85,7 +89,10 @@
 	}
 
 	async function copyEmails() {
-		const emails = confirmed.map((r) => r.contact_email).join(', ');
+		const emails = confirmed
+			.map((r) => r.contact_email)
+			.filter(Boolean)
+			.join(', ');
 		try {
 			await navigator.clipboard.writeText(emails);
 			toast.success(`${confirmed.length} e-mail cím a vágólapon.`);
@@ -179,6 +186,7 @@
 					<span role="columnheader">Csapat</span>
 					<span role="columnheader">Fő</span>
 					<span role="columnheader">Kapcsolattartó</span>
+					<span role="columnheader">Csapatkód</span>
 					<span role="columnheader">Állapot</span>
 					<span role="columnheader"><span class="sr-only">Művelet</span></span>
 				</div>
@@ -197,8 +205,18 @@
 						<span role="cell">{reg.headcount}</span>
 						<span role="cell" class="contact">
 							<span>{reg.contact_name}</span>
-							<a href={`mailto:${reg.contact_email}`}>{reg.contact_email}</a>
+							{#if reg.contact_email}
+								<a href={`mailto:${reg.contact_email}`}>{reg.contact_email}</a>
+							{/if}
 							{#if reg.contact_phone}<span>{reg.contact_phone}</span>{/if}
+						</span>
+						<span role="cell" class="code-cell">
+							{#if reg.status === 'confirmed'}
+								<code>{reg.join_code}</code>
+								{#if reg.team_id}<span class="muted small">csatlakozott</span>{/if}
+							{:else}
+								<span class="muted">—</span>
+							{/if}
 						</span>
 						<span role="cell" class="status">
 							{#if reg.status === 'confirmed'}
@@ -252,9 +270,59 @@
 			<p class="hint">
 				Ha egy megerősített csapat lemond, a várólistáról sorban bekerülnek azok, akiknek a létszáma
 				belefér — erről automatikusan e-mailt kapnak. A „Beenged” gomb a korláttól függetlenül
-				beengedi a csapatot.
+				beengedi a csapatot. A csapatkódot a megerősített csapatok e-mailben kapják meg.
 			</p>
 		{/if}
+
+		<form
+			method="POST"
+			action="?/addWalkin"
+			class="walkin"
+			data-tour="ev-walkin"
+			use:enhance={() => {
+				addingWalkin = true;
+				return async ({ result, update }) => {
+					addingWalkin = false;
+					if (result.type === 'success' && result.data?.walkinCode) {
+						lastWalkin = {
+							name: String(result.data.walkinName ?? ''),
+							code: String(result.data.walkinCode)
+						};
+						toast.success(`Helyszíni csapat felvéve — csapatkód: ${lastWalkin.code}`);
+						walkinName = '';
+						walkinHeadcount = '4';
+					} else if (result.type === 'failure') {
+						toast.error((result.data?.error as string) ?? 'Nem sikerült a művelet.');
+					}
+					await update({ reset: false });
+				};
+			}}
+		>
+			<h2>Helyszíni csapat felvétele</h2>
+			<p class="hint">
+				Előzetes jelentkezés nélkül érkezett csapatnak: kap egy csapatkódot, ezt mondd meg nekik a
+				csatlakozáshoz. A létszámkorlátot nem ellenőrzi.
+			</p>
+			<div class="walkin-row">
+				<Input label="Csapatnév" name="team_name" bind:value={walkinName} required maxlength={40} />
+				<Input
+					label="Fő"
+					name="headcount"
+					type="number"
+					min={1}
+					max={12}
+					bind:value={walkinHeadcount}
+					required
+				/>
+				<Button type="submit" variant="secondary" loading={addingWalkin}>Felvétel</Button>
+			</div>
+			{#if lastWalkin}
+				<p class="walkin-code" role="status">
+					<span>{lastWalkin.name}</span>
+					<code>{lastWalkin.code}</code>
+				</p>
+			{/if}
+		</form>
 	</section>
 
 	<aside class="settings">
@@ -305,6 +373,13 @@
 					label="Nyilvános — megjelenik a kezdőlapon, lehet jelentkezni"
 					name="is_public"
 					checked={game.is_public}
+				/>
+			</div>
+			<div data-tour="ev-join-code">
+				<Checkbox
+					label="Csatlakozás csak csapatkóddal (a PIN önmagában nem elég)"
+					name="join_requires_code"
+					checked={game.join_requires_code}
 				/>
 			</div>
 
@@ -481,14 +556,14 @@
 
 	.row {
 		display: grid;
-		grid-template-columns: minmax(8rem, 1.2fr) 2.5rem minmax(10rem, 1.5fr) 7.5rem 7.5rem;
-		gap: 1rem;
+		grid-template-columns: minmax(7rem, 1.2fr) 2rem minmax(9rem, 1.5fr) 6rem 7rem 7.5rem;
+		gap: 0.75rem;
 		align-items: center;
 		padding: 0.8rem 1.1rem;
 		border-bottom: 1px solid
 			color-mix(in srgb, var(--panel-border, var(--cabinet-3)) 60%, transparent);
 		font-size: 0.95rem;
-		min-width: 40rem;
+		min-width: 44rem;
 	}
 
 	.row:last-child {
@@ -514,6 +589,56 @@
 	.row.cancelled .team strong {
 		text-decoration: line-through;
 		font-weight: 400;
+	}
+
+	.code-cell {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+
+	.code-cell code,
+	.walkin-code code {
+		font-family: ui-monospace, Menlo, Consolas, monospace;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+	}
+
+	.walkin {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+		margin-top: 1.75rem;
+		padding: 1.1rem 1.2rem;
+		background: var(--cabinet-2);
+		border: 1px solid var(--panel-border, var(--cabinet-3));
+		border-radius: 0.75rem;
+	}
+
+	.walkin .hint {
+		margin: 0;
+	}
+
+	.walkin-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 5.5rem auto;
+		gap: 0.75rem;
+		align-items: end;
+	}
+
+	.walkin-code {
+		margin: 0;
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.7rem 1rem;
+		border-radius: 0.5rem;
+		background: color-mix(in srgb, var(--cyan) 12%, var(--cabinet-2));
+	}
+
+	.walkin-code code {
+		font-size: 1.4rem;
+		color: var(--cyan);
 	}
 
 	.team,
