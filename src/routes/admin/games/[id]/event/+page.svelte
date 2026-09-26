@@ -8,6 +8,7 @@
 	import GameTabs from '$lib/components/GameTabs.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import ReopenGameButton from '$lib/components/ReopenGameButton.svelte';
+	import DeleteGameButton from '$lib/components/DeleteGameButton.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import { formatEventDate, toBudapestLocalInput } from '$lib/datetime';
@@ -20,6 +21,8 @@
 	registerPageTour(() => 'game-event');
 
 	const game = $derived(data.game);
+	// Kvízestét csak rendszergazda (role_id = 1) törölhet.
+	const isSuperAdmin = $derived(data.profile?.role_id === 1);
 	const venueName = $derived(data.venues.find((v) => v.id === game.venue_id)?.name ?? null);
 	const defaultThemeId = $derived(data.themes.find((t) => t.isDefault)?.id ?? '');
 	const selectedThemeId = $derived(game.design_theme_id ?? defaultThemeId);
@@ -415,6 +418,21 @@
 
 			<Button type="submit" loading={saving}>Mentés</Button>
 		</form>
+		{#if isSuperAdmin}
+			<section class="danger-zone" data-tour="ev-delete">
+				<h2>Kvízeste törlése</h2>
+				<p>
+					Véglegesen törli az estét a köreivel, csapataival, válaszaival és jelentkezéseivel együtt.
+					A kérdések a kérdésbankban maradnak. Futó estét nem lehet törölni.
+				</p>
+				<DeleteGameButton
+					gameId={game.id}
+					title={game.title}
+					running={game.status === 'active' || game.status === 'paused'}
+					details={`${data.registrations.filter((r) => r.status !== 'cancelled').length} jelentkezés`}
+				/>
+			</section>
+		{/if}
 	</aside>
 </div>
 
@@ -719,6 +737,25 @@
 		align-self: flex-end;
 		font-size: 0.85rem;
 		color: var(--cyan);
+	}
+
+	.danger-zone {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.6rem;
+		margin-top: 1rem;
+		padding: 1.1rem 1.2rem;
+		border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--cabinet-2));
+		border-radius: 0.75rem;
+		background: color-mix(in srgb, var(--danger) 5%, var(--cabinet-2));
+	}
+
+	.danger-zone p {
+		margin: 0;
+		font-size: 0.85rem;
+		line-height: 1.5;
+		color: var(--marquee-dim);
 	}
 
 	.themes {

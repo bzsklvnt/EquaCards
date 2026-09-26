@@ -1,6 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { createPracticeGame, generatePin, reopenGameAction } from '$lib/server/games';
+import {
+	createPracticeGame,
+	deleteGameAction,
+	generatePin,
+	reopenGameAction
+} from '$lib/server/games';
 
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	const { data: games } = await supabase
@@ -23,6 +28,13 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 };
 
 export const actions: Actions = {
+	// Végleges törlés — csak rendszergazda (deleteGameAction, RLS + RPC ellenőrzi).
+	deleteGame: async ({ request, locals: { supabase } }) => {
+		const result = await deleteGameAction(supabase, await request.formData());
+		if ('error' in result) return fail(400, { error: result.error });
+		return { success: true, deleted: result.title };
+	},
+
 	create: async ({ request, locals: { supabase, safeGetSession } }) => {
 		const { user } = await safeGetSession();
 		const formData = await request.formData();

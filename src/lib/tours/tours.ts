@@ -264,6 +264,13 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 					'Előzetes jelentkezés nélkül érkezett csapatnak itt kérsz csapatkódot — ezt mondd meg nekik. A host lobbyban is megteheted.'
 			},
 			{
+				element: 'ev-delete',
+				title: 'Kvízeste törlése',
+				description:
+					'Csak rendszergazdának látszik. A jelentkezett csapatok nem kapnak értesítést — ha az este elmarad, előbb szólj nekik.',
+				side: 'left'
+			},
+			{
 				element: 'tab-rounds',
 				title: 'Körök és kérdések',
 				description: 'Itt állítod össze az este köreit és kérdéseit.'
@@ -320,6 +327,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				title: 'Újranyitás',
 				description:
 					'Egy lezárt estét vissza lehet állítani Váró állapotba, ha folytatni vagy megismételni szeretnéd. Ugyanez a gomb az este saját oldalán, a fejlécben is megvan.'
+			},
+			{
+				element: 'games-delete',
+				title: 'Törlés (csak rendszergazda)',
+				description:
+					'Véglegesen törli az estét a köreivel, csapataival, válaszaival és jelentkezéseivel együtt; a kérdések a kérdésbankban maradnak. Futó estét nem lehet törölni.'
 			}
 		]
 	},
