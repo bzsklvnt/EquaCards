@@ -1,5 +1,6 @@
-import { error as kitError } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { error as kitError, fail } from '@sveltejs/kit';
+import { reopenGameAction } from '$lib/server/games';
+import type { Actions, PageServerLoad } from './$types';
 
 // Fázis Q2 — részletes, körönkénti/kérdésenkénti eredmény-bontás
 // KIZÁRÓLAG a kezelőfelületen. Ez a route a /admin fa alatt van, tehát a
@@ -207,4 +208,13 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 	}));
 
 	return { game, rounds: roundsDetail, teams: teams ?? [] };
+};
+
+export const actions: Actions = {
+	// Lezárt este újranyitása az Eredmények fülről (reopenGameAction).
+	reopen: async ({ request, locals: { supabase } }) => {
+		const failure = await reopenGameAction(supabase, await request.formData());
+		if (failure) return fail(400, failure);
+		return { success: true, reopened: true };
+	}
 };

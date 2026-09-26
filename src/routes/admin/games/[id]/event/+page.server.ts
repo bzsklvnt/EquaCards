@@ -1,5 +1,6 @@
 import { error as kitError, fail } from '@sveltejs/kit';
 import { fromBudapestLocalInput } from '$lib/datetime';
+import { reopenGameAction } from '$lib/server/games';
 import {
 	adminCancelRegistration,
 	adminFillFromWaitlist,
@@ -60,6 +61,13 @@ function text(form: FormData, key: string): string {
 }
 
 export const actions: Actions = {
+	// Lezárt este újranyitása az este saját oldaláról (reopenGameAction).
+	reopen: async ({ request, locals: { supabase } }) => {
+		const failure = await reopenGameAction(supabase, await request.formData());
+		if (failure) return fail(400, failure);
+		return { success: true, reopened: true };
+	},
+
 	saveEvent: async ({ request, params, url, locals: { supabase } }) => {
 		const form = await request.formData();
 		const title = text(form, 'title');

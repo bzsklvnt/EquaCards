@@ -306,7 +306,7 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				element: 'games-reopen',
 				title: 'Újranyitás',
 				description:
-					'Egy lezárt estét vissza lehet állítani Váró állapotba, ha folytatni vagy megismételni szeretnéd.'
+					'Egy lezárt estét vissza lehet állítani Váró állapotba, ha folytatni vagy megismételni szeretnéd. Ugyanez a gomb az este saját oldalán, a fejlécben is megvan.'
 			}
 		]
 	},
@@ -339,7 +339,7 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				element: 'gs-pick',
 				title: 'Kézi válogatás vagy új kérdés',
 				description:
-					'„+ Kérdés a kérdésbankból”: téma és keresés alapján több kérdést is kijelölhetsz.<br>„+ Új kérdés ehhez a körhöz”: új kérdést írsz, és mentéskor egyből a kör végére kerül.'
+					'„+ Kérdés a kérdésbankból”: téma és keresés alapján több kérdést is kijelölhetsz.<br>„+ Új kérdés ehhez a körhöz”: felugró ablakban új kérdést írsz, mentéskor egyből a kör végére kerül, és az oldalon maradsz.'
 			},
 			{
 				element: 'gs-question-list',
@@ -363,6 +363,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				title: 'Esemény és jelentkezések',
 				description:
 					'Időpont, helyszín, létszámkorlát, nyilvánosság és megjelenés (Letisztult vagy Arcade), valamint a csapatjelentkezések és a várólista. Az „Eredmények” fülön körönként és kérdésenként látod, melyik csapat mit válaszolt.'
+			},
+			{
+				element: 'game-reopen',
+				title: 'Kvízeste újranyitása',
+				description:
+					'Lezárt estén jelenik meg: Váró állapotba állítja vissza az estét, hogy újra elindíthasd.'
 			},
 			{
 				element: 'gs-open-host',
@@ -474,6 +480,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 	results: {
 		title: 'Részletes eredmények',
 		steps: [
+			{
+				element: 'game-reopen',
+				title: 'Kvízeste újranyitása',
+				description:
+					'Lezárt estén jelenik meg: Váró állapotba állítja vissza az estét, hogy újra elindíthasd.'
+			},
 			{
 				title: 'Csak a kezelő látja',
 				description:

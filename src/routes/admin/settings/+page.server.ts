@@ -1,10 +1,35 @@
 import { error as kitError, fail } from '@sveltejs/kit';
+import { getSupabaseAdmin } from '$lib/server/admin';
+import { emailSetupStatus, sendEmail } from '$lib/server/email';
+import { appBase, parseSiteInfo, siteBase } from '$lib/site';
 import type { Json } from '$lib/types/database.types';
 import type { Actions, PageServerLoad } from './$types';
 
 // Csak super_admin (role_id = 1) — ugyanaz a route-szintű szűkítés, mint
 // a /admin/users-nél.
-export const load: PageServerLoad = async ({ parent, locals: { supabase } }) => {
+// "Élesítés állapota" panel: melyik éles beállítás van meg. Titkos kulcsnál
+// csak igen/nem jelenik meg; a service-role kulcsot egy apró lekérdezéssel
+// ténylegesen ki is próbáljuk.
+async function setupStatus(currentHost: string, settings: { key: string; value: Json }[]) {
+	const admin = getSupabaseAdmin();
+	let serviceRole: 'missing' | 'ok' | 'invalid' = 'missing';
+	if (admin) {
+		const { error } = await admin.from('venues').select('id', { head: true, count: 'exact' });
+		serviceRole = error ? 'invalid' : 'ok';
+	}
+	const site = parseSiteInfo(Object.fromEntries(settings.map((s) => [s.key, s.value])));
+	return {
+		siteUrl: siteBase(),
+		appUrl: appBase(),
+		currentHost,
+		email: emailSetupStatus(),
+		serviceRole,
+		operatorName: Boolean(site.operatorName),
+		contactEmail: Boolean(site.contactEmail)
+	};
+}
+
+export const load: PageServerLoad = async ({ parent, url, locals: { supabase } }) => {
 	const { profile } = await parent();
 	if (profile.role_id !== 1) {
 		kitError(403, 'Csak a rendszergazda módosíthatja a globális beállításokat.');
@@ -27,10 +52,35 @@ export const load: PageServerLoad = async ({ parent, locals: { supabase } }) => 
 		.select('id, title, is_default')
 		.order('title');
 
-	return { settings: settings ?? [], designThemes: designThemes ?? [] };
+	return {
+		settings: settings ?? [],
+		designThemes: designThemes ?? [],
+		setup: await setupStatus(url.host, settings ?? [])
+	};
 };
 
 export const actions: Actions = {
+	// Teszt e-mail a bejelentkezett rendszergazdának — a Resend pontos
+	// hibaüzenetét visszaadja, hogy látszódjon, mi hiányzik.
+	test_email: async ({ locals: { supabase, safeGetSession } }) => {
+		const { user } = await safeGetSession();
+		const { data: profile } = await supabase
+			.from('profiles')
+			.select('role_id')
+			.eq('id', user?.id ?? '')
+			.maybeSingle();
+		if (!user?.email || profile?.role_id !== 1) {
+			return fail(403, { emailTest: { status: 'failed', detail: 'Nincs jogosultság.' } });
+		}
+		const result = await sendEmail({
+			to: user.email,
+			subject: 'Teszt e-mail — Kocsmakvízest',
+			html: '<p>Ez egy teszt e-mail a kezelőfelület Beállítások oldaláról. Ha megkaptad, az e-mail küldés működik.</p>',
+			text: 'Ez egy teszt e-mail a kezelőfelület Beállítások oldaláról. Ha megkaptad, az e-mail küldés működik.'
+		});
+		return { emailTest: { ...result, to: user.email } };
+	},
+
 	update: async ({ request, locals: { supabase, safeGetSession } }) => {
 		const formData = await request.formData();
 		const key = formData.get('key') as string;

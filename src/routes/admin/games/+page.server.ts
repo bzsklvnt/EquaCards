@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { createPracticeGame, generatePin } from '$lib/server/games';
+import { createPracticeGame, generatePin, reopenGameAction } from '$lib/server/games';
 
 export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	const { data: games } = await supabase
@@ -56,30 +56,10 @@ export const actions: Actions = {
 		redirect(303, `/admin/games/${result.gameId}`);
 	},
 
-	// Fázis Q3 — a "Kvízeste újranyitása" a games.status-t 'lobby'-ra
-	// állítja vissza (nem 'active'-re és nem 'paused'-re — lásd
-	// docs/DECISIONS_LOG.md a döntés indoklásáért), és törli a
-	// finished_at-ot. A trg_audit_games trigger (Fázis Q3 migráció)
-	// automatikusan naplózza ezt a games.update-et az audit_logs-ba, nincs
-	// itt külön teendő hozzá.
+	// Fázis Q3 — újranyitás, lásd reopenGameAction() ($lib/server/games.ts).
 	reopen: async ({ request, locals: { supabase } }) => {
-		const formData = await request.formData();
-		const gameId = formData.get('game_id') as string;
-
-		if (!gameId) {
-			return fail(400, { error: 'Hiányzó kvízeste azonosító.' });
-		}
-
-		const { error } = await supabase
-			.from('games')
-			.update({ status: 'lobby', finished_at: null })
-			.eq('id', gameId)
-			.eq('status', 'finished');
-
-		if (error) {
-			return fail(400, { error: error.message });
-		}
-
+		const failure = await reopenGameAction(supabase, await request.formData());
+		if (failure) return fail(400, failure);
 		return { success: true, reopened: true };
 	}
 };

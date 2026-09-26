@@ -6,6 +6,8 @@
 	import Button from '$lib/components/Button.svelte';
 	import Checkbox from '$lib/components/Checkbox.svelte';
 	import GameTabs from '$lib/components/GameTabs.svelte';
+	import ReopenGameButton from '$lib/components/ReopenGameButton.svelte';
+	import QuestionForm from '$lib/components/QuestionForm.svelte';
 	import { withToast } from '$lib/toast-enhance';
 	import { registerPageTour } from '$lib/tours/state.svelte';
 	import type { ActionData, PageData } from './$types';
@@ -101,8 +103,21 @@
 		);
 	});
 
-	const newQuestionHref = (roundId: string) =>
-		`${resolve('/admin/questions/new')}?round_id=${roundId}${globalThemeId ? `&theme_id=${globalThemeId}` : ''}`;
+	// "+ Új kérdés ehhez a körhöz" — felugró ablakban, az oldal elhagyása
+	// nélkül; mentés után a kérdés azonnal megjelenik a kör listájában.
+	let newQuestionRound = $state<{ id: string; title: string } | null>(null);
+	let questionDialog = $state<HTMLDialogElement>();
+
+	$effect(() => {
+		if (newQuestionRound && questionDialog && !questionDialog.open) {
+			questionDialog.showModal();
+		}
+	});
+
+	function closeNewQuestion() {
+		questionDialog?.close();
+		newQuestionRound = null;
+	}
 </script>
 
 <svelte:head>
@@ -114,11 +129,16 @@
 		<h1>{data.game.title}</h1>
 		<p class="status">Állapot: {STATUS_LABELS[data.game.status] ?? data.game.status}</p>
 	</div>
-	<span data-tour="gs-open-host">
-		<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
-			>Élő lebonyolítás megnyitása →</Button
-		>
-	</span>
+	<div class="head-actions">
+		{#if data.game.status === 'finished'}
+			<ReopenGameButton gameId={data.game.id} />
+		{/if}
+		<span data-tour="gs-open-host">
+			<Button href={resolve('/host/[game_id]', { game_id: data.game.id })}
+				>Élő lebonyolítás megnyitása →</Button
+			>
+		</span>
+	</div>
 </header>
 
 <GameTabs gameId={data.game.id} />
@@ -242,7 +262,11 @@
 			<Button variant="secondary" onclick={() => openPicker(round.id)}>
 				{pickerRoundId === round.id ? 'Választó bezárása' : '+ Kérdés a kérdésbankból'}
 			</Button>
-			<Button variant="ghost" href={newQuestionHref(round.id)}>+ Új kérdés ehhez a körhöz</Button>
+			<Button
+				variant="ghost"
+				onclick={() => (newQuestionRound = { id: round.id, title: round.title })}
+				>+ Új kérdés ehhez a körhöz</Button
+			>
 		</div>
 
 		{#if pickerRoundId === round.id}
@@ -294,7 +318,95 @@
 	<p>Még nincs kör felvéve.</p>
 {/each}
 
+{#if newQuestionRound}
+	<dialog
+		bind:this={questionDialog}
+		class="question-dialog"
+		aria-labelledby="new-question-title"
+		onclose={() => (newQuestionRound = null)}
+	>
+		<div class="dialog-head">
+			<h2 id="new-question-title">Új kérdés — {newQuestionRound.title}</h2>
+			<button type="button" class="dialog-close" aria-label="Bezárás" onclick={closeNewQuestion}
+				>×</button
+			>
+		</div>
+		<p class="dialog-hint">
+			A kérdés a kérdésbankba is bekerül, és mentés után azonnal a kör végére kerül.
+		</p>
+		<QuestionForm
+			themes={data.themes}
+			questionTypes={data.questionTypes}
+			action="?/createQuestion"
+			defaultThemeId={globalThemeId || undefined}
+			hiddenFields={{ round_id: newQuestionRound.id }}
+			successMessage="Kérdés hozzáadva a körhöz."
+			oncancel={closeNewQuestion}
+			onsuccess={closeNewQuestion}
+		/>
+	</dialog>
+{/if}
+
 <style>
+	.question-dialog {
+		width: min(46rem, calc(100vw - 2rem));
+		max-height: calc(100dvh - 2rem);
+		padding: 1.5rem 1.75rem;
+		border: 1px solid var(--panel-border, var(--cabinet-3));
+		border-radius: 0.9rem;
+		background: var(--cabinet);
+		color: var(--marquee);
+		font-family: var(--font-body);
+		overflow-y: auto;
+	}
+
+	.question-dialog::backdrop {
+		background: rgb(28 27 24 / 45%);
+	}
+
+	.dialog-head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.dialog-head h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.5rem;
+		font-weight: 400;
+	}
+
+	.dialog-close {
+		min-width: 44px;
+		min-height: 44px;
+		border: 0;
+		border-radius: 0.5rem;
+		background: transparent;
+		color: var(--marquee-dim);
+		font-size: 1.75rem;
+		line-height: 1;
+		cursor: pointer;
+	}
+
+	.dialog-close:hover {
+		background: var(--cabinet-2);
+		color: var(--marquee);
+	}
+
+	.dialog-hint {
+		margin: 0.25rem 0 1.25rem;
+		color: var(--marquee-dim);
+	}
+
+	.head-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
 	.page-head {
 		display: flex;
 		flex-wrap: wrap;

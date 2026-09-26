@@ -1,31 +1,40 @@
 import { error as kitError, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { appendQuestionsToRound } from '$lib/server/questions';
+import { appendQuestionsToRound, createQuestionFromForm } from '$lib/server/questions';
+import { reopenGameAction } from '$lib/server/games';
 
 export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
 	// Élő tesztből: a körönkénti round_questions lekérdezés korábban
 	// soros N+1 kör-utazás volt (körönként egy), ami a Vercel ↔ Supabase
 	// késleltetéssel érezhetően lassította az oldalt és a host "Kilépés"
 	// navigációt. Most minden lekérdezés egyetlen párhuzamos körben fut.
-	const [{ data: game }, { data: rounds }, { data: themes }, { data: rqRows }, { data: bank }] =
-		await Promise.all([
-			supabase.from('games').select('id, title, status').eq('id', params.id).single(),
-			supabase
-				.from('rounds')
-				.select('id, title, order_index')
-				.eq('game_id', params.id)
-				.order('order_index'),
-			supabase.from('themes').select('id, title').order('title'),
-			supabase
-				.from('round_questions')
-				.select('round_id, question_id, order_index, questions(prompt), rounds!inner(game_id)')
-				.eq('rounds.game_id', params.id)
-				.order('order_index'),
-			supabase
-				.from('questions')
-				.select('id, prompt, theme_id, question_types(label)')
-				.order('created_at', { ascending: false })
-		]);
+	const [
+		{ data: game },
+		{ data: rounds },
+		{ data: themes },
+		{ data: rqRows },
+		{ data: bank },
+		{ data: questionTypes }
+	] = await Promise.all([
+		supabase.from('games').select('id, title, status').eq('id', params.id).single(),
+		supabase
+			.from('rounds')
+			.select('id, title, order_index')
+			.eq('game_id', params.id)
+			.order('order_index'),
+		supabase.from('themes').select('id, title').order('title'),
+		supabase
+			.from('round_questions')
+			.select('round_id, question_id, order_index, questions(prompt), rounds!inner(game_id)')
+			.eq('rounds.game_id', params.id)
+			.order('order_index'),
+		supabase
+			.from('questions')
+			.select('id, prompt, theme_id, question_types(label)')
+			.order('created_at', { ascending: false }),
+		// A kör szerkesztőjének "Új kérdés" felugró űrlapjához
+		supabase.from('question_types').select('id, code, label, min_options, max_options').order('id')
+	]);
 
 	if (!game) {
 		kitError(404, 'A kvízeste nem található.');
@@ -50,6 +59,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 		game,
 		rounds: rounds ?? [],
 		themes: themes ?? [],
+		questionTypes: questionTypes ?? [],
 		roundQuestions,
 		bank: (bank ?? []).map((q) => ({
 			id: q.id,
@@ -71,6 +81,13 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 // jövőbeli változtatás ne vezessen be véletlenül egy ilyen korlátozást —
 // lásd docs/DECISIONS_LOG.md Fázis Q4 bejegyzését.
 export const actions: Actions = {
+	// Lezárt este újranyitása az este saját oldaláról (reopenGameAction).
+	reopen: async ({ request, locals: { supabase } }) => {
+		const failure = await reopenGameAction(supabase, await request.formData());
+		if (failure) return fail(400, failure);
+		return { success: true, reopened: true };
+	},
+
 	addRound: async ({ request, params, locals: { supabase } }) => {
 		const formData = await request.formData();
 		const title = (formData.get('title') as string)?.trim();
@@ -192,5 +209,26 @@ export const actions: Actions = {
 		if (result.added === 0) {
 			return fail(400, { error: 'A kiválasztott kérdések már szerepelnek ebben a körben.' });
 		}
+	},
+
+	// "+ Új kérdés ehhez a körhöz": a kör szerkesztőjében felugró űrlapból —
+	// a kérdés a kérdésbankba mentődik, és azonnal a kör végére kerül, az
+	// oldal elhagyása nélkül.
+	createQuestion: async ({ request, locals: { supabase, safeGetSession } }) => {
+		const { user } = await safeGetSession();
+		const formData = await request.formData();
+		const roundId = formData.get('round_id') as string | null;
+		if (!roundId) return fail(400, { error: 'Hiányzó kör.' });
+
+		const created = await createQuestionFromForm(supabase, formData, user?.id);
+		if ('error' in created) return fail(400, { error: created.error });
+
+		const { error: appendError } = await appendQuestionsToRound(supabase, roundId, [created.id]);
+		if (appendError) {
+			return fail(400, {
+				error: `A kérdés elmentve a kérdésbankba, de nem sikerült a körhöz adni: ${appendError}`
+			});
+		}
+		return { success: true, questionCreated: true };
 	}
 };

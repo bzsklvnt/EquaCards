@@ -79,6 +79,30 @@
 	};
 
 	registerPageTour(() => 'settings');
+
+	// Élesítés állapota — a teszt e-mail eredménye és a Resend hibák magyarázata.
+	let testingEmail = $state(false);
+	const emailTest = $derived(form && 'emailTest' in form ? form.emailTest : null);
+
+	function explainEmailError(detail: string): string {
+		if (/not verified/i.test(detail)) {
+			return 'A feladó domainje még nincs hitelesítve a Resendben. A Rackhost DNS-kezelőjében add hozzá a Resend által kért rekordokat, majd a Resendben nyomd meg a „Verify” gombot.';
+		}
+		if (/testing emails|your own email/i.test(detail)) {
+			return 'A Resend teszt módban van: domain-hitelesítés nélkül csak a fiók saját címére küld.';
+		}
+		if (/api key/i.test(detail) || detail.startsWith('401')) {
+			return 'Érvénytelen API kulcs. Hozz létre újat a Resendben, cseréld le a Vercelen, majd Redeploy.';
+		}
+		if (/from/i.test(detail)) {
+			return 'Hibás feladó. Helyes formátum: Kocsmakvízest <kviz@kocsmakvizest.hu>';
+		}
+		return 'Nézd meg a Resend „Logs” oldalát, ott részletesebben is látszik a hiba.';
+	}
+
+	const appHostMismatch = $derived(
+		data.setup.appUrl !== null && new URL(data.setup.appUrl).host !== data.setup.currentHost
+	);
 </script>
 
 <svelte:head>
@@ -87,9 +111,109 @@
 
 <h1>Globális beállítások</h1>
 
-{#if form?.error}
+{#if form && 'error' in form && form.error}
 	<p class="error">{form.error}</p>
 {/if}
+
+<section class="setup" aria-labelledby="setup-title">
+	<h2 id="setup-title">Élesítés állapota</h2>
+	<p class="setting-description">
+		A Vercelen beállított környezeti változók csak a következő deploy után lépnek életbe
+		(Deployments → … → Redeploy).
+	</p>
+	<ul class="checks">
+		<li class:ok={data.setup.siteUrl}>
+			<span class="mark" aria-hidden="true">{data.setup.siteUrl ? '✓' : '✗'}</span>
+			<span
+				><b>Nyilvános domain</b> (<code>PUBLIC_SITE_URL</code>): {data.setup.siteUrl ??
+					'nincs beállítva'}</span
+			>
+		</li>
+		<li class:ok={data.setup.appUrl && !appHostMismatch} class:warn={appHostMismatch}>
+			<span class="mark" aria-hidden="true"
+				>{data.setup.appUrl ? (appHostMismatch ? '!' : '✓') : '✗'}</span
+			>
+			<span
+				><b>App domain</b> (<code>PUBLIC_APP_URL</code>): {data.setup.appUrl ?? 'nincs beállítva'}
+				{#if appHostMismatch}— most ezen a címen vagy: {data.setup.currentHost}{/if}</span
+			>
+		</li>
+		<li class:ok={data.setup.email.apiKey}>
+			<span class="mark" aria-hidden="true">{data.setup.email.apiKey ? '✓' : '✗'}</span>
+			<span
+				><b>Resend API kulcs</b> (<code>RESEND_API_KEY</code>): {data.setup.email.apiKey
+					? 'beállítva'
+					: 'nincs beállítva'}</span
+			>
+		</li>
+		<li class:ok={data.setup.email.from}>
+			<span class="mark" aria-hidden="true">{data.setup.email.from ? '✓' : '✗'}</span>
+			<span
+				><b>Feladó</b> (<code>EMAIL_FROM</code>): {data.setup.email.from ?? 'nincs beállítva'}</span
+			>
+		</li>
+		<li class:ok={data.setup.email.replyTo} class:optional={!data.setup.email.replyTo}>
+			<span class="mark" aria-hidden="true">{data.setup.email.replyTo ? '✓' : '–'}</span>
+			<span
+				><b>Válaszcím</b> (<code>EMAIL_REPLY_TO</code>, nem kötelező): {data.setup.email.replyTo ??
+					'nincs beállítva'}</span
+			>
+		</li>
+		<li class:ok={data.setup.serviceRole === 'ok'}>
+			<span class="mark" aria-hidden="true">{data.setup.serviceRole === 'ok' ? '✓' : '✗'}</span>
+			<span
+				><b>Supabase service-role kulcs</b> (<code>SUPABASE_SERVICE_ROLE_KEY</code>): {data.setup
+					.serviceRole === 'ok'
+					? 'működik'
+					: data.setup.serviceRole === 'invalid'
+						? 'be van állítva, de hibás'
+						: 'nincs beállítva'}</span
+			>
+		</li>
+		<li class:ok={data.setup.operatorName && data.setup.contactEmail}>
+			<span class="mark" aria-hidden="true"
+				>{data.setup.operatorName && data.setup.contactEmail ? '✓' : '✗'}</span
+			>
+			<span
+				><b>Üzemeltető neve és kapcsolati e-mail</b> (lent, ezen az oldalon): {data.setup
+					.operatorName && data.setup.contactEmail
+					? 'kitöltve'
+					: 'hiányzik — az adatkezelési tájékoztatóhoz kötelező'}</span
+			>
+		</li>
+	</ul>
+
+	<form
+		method="POST"
+		action="?/test_email"
+		class="test-email"
+		use:enhance={() => {
+			testingEmail = true;
+			return async ({ update }) => {
+				await update({ reset: false });
+				testingEmail = false;
+			};
+		}}
+	>
+		<Button type="submit" variant="secondary" loading={testingEmail}
+			>Teszt e-mail küldése magamnak</Button
+		>
+	</form>
+	{#if emailTest}
+		<div class="test-result" class:ok={emailTest.status === 'sent'} role="status">
+			{#if emailTest.status === 'sent'}
+				Elküldve ide: <b>{'to' in emailTest ? emailTest.to : ''}</b>. Nézd meg a postafiókot (a spam
+				mappát is).
+			{:else if emailTest.status === 'skipped'}
+				Nem ment ki: a <code>RESEND_API_KEY</code> vagy az <code>EMAIL_FROM</code> nincs beállítva ezen
+				a deployon.
+			{:else}
+				<p>Hiba: <code>{'detail' in emailTest ? emailTest.detail : ''}</code></p>
+				<p>{explainEmailError('detail' in emailTest ? emailTest.detail : '')}</p>
+			{/if}
+		</div>
+	{/if}
+</section>
 
 <section class="setting-row" data-tour="st-default-theme">
 	<div class="setting-info">
@@ -171,6 +295,70 @@
 </div>
 
 <style>
+	.setup {
+		margin: 1rem 0 2rem;
+		padding: 1.25rem 1.4rem;
+		background: var(--cabinet-2);
+		border: 1px solid var(--panel-border, var(--cabinet-3));
+		border-radius: 0.75rem;
+	}
+
+	.setup h2 {
+		margin: 0 0 0.25rem;
+		font-size: 1.1rem;
+	}
+
+	.checks {
+		margin: 1rem 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.checks li {
+		display: flex;
+		gap: 0.6rem;
+		align-items: baseline;
+		color: var(--marquee);
+		overflow-wrap: anywhere;
+	}
+
+	.mark {
+		width: 1.25rem;
+		flex-shrink: 0;
+		text-align: center;
+		font-weight: 700;
+		color: var(--danger);
+	}
+
+	.checks li.ok .mark {
+		color: var(--power);
+	}
+
+	.checks li.warn .mark,
+	.checks li.optional .mark {
+		color: var(--coin);
+	}
+
+	.test-result {
+		margin-top: 0.75rem;
+		padding: 0.8rem 1rem;
+		border-radius: 0.5rem;
+		background: color-mix(in srgb, var(--danger) 10%, var(--cabinet-2));
+		color: var(--marquee);
+		overflow-wrap: anywhere;
+	}
+
+	.test-result.ok {
+		background: color-mix(in srgb, var(--power) 12%, var(--cabinet-2));
+	}
+
+	.test-result p {
+		margin: 0.2rem 0;
+	}
+
 	h1 {
 		font-family: var(--font-display);
 		font-size: 2.1rem;

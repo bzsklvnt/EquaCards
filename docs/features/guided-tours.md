@@ -48,12 +48,12 @@ komponensek nem adják tovább az attribútumot), és vegyél fel egy lépést a
 | `questions`           | `/admin/questions`                  | 5       |
 | `question-form`       | `/admin/questions/new`, `/[id]`     | 9       |
 | `games`               | `/admin/games` (Próbaeste gombbal)  | 5       |
-| `game-setup`          | `/admin/games/[id]`                 | 10      |
+| `game-setup`          | `/admin/games/[id]`                 | 11      |
 | `game-event`          | `/admin/games/[id]/event`           | 6       |
 | `venues`              | `/admin/venues`                     | 2       |
 | `host-lobby`          | `/host/[game_id]`, várakozás        | 8       |
 | `host-live`           | `/host/[game_id]`, élő játék        | 7       |
-| `results`             | `/admin/games/[id]/results`         | 4       |
+| `results`             | `/admin/games/[id]/results`         | 5       |
 | `design-themes`       | `/admin/design-themes`              | 4       |
 | `design-theme-editor` | `/admin/design-themes/new`, `/[id]` | 4       |
 | `users`               | `/admin/users`                      | 2       |

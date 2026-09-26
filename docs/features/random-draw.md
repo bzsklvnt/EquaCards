@@ -89,12 +89,16 @@ Az `/admin/games/[id]` körkártyáin a random húzás mellett három új út va
    `appendQuestionsToRound()` (`src/lib/server/questions.ts`) a kör
    VÉGÉRE fűzi őket (`order_index` = eddigi max + 1…), a már szereplőket
    kihagyja.
-2. **"+ Új kérdés ehhez a körhöz"** — a `/admin/questions/new?round_id=…
-&theme_id=…` űrlapra visz (a téma előre kiválasztva). Mentéskor a
-   kérdés a kérdésbankba kerül ÉS ugyanazzal az `appendQuestionsToRound()`-
-   dal azonnal a kör végére, majd a felület visszairányít az estére. Ha a
-   körhöz fűzés nem sikerül, a hibaüzenet jelzi, hogy a kérdés a bankban
-   már elmentődött (nem vész el).
+2. **"+ Új kérdés ehhez a körhöz"** — a kör szerkesztőjén belül, felugró
+   ablakban (natív `<dialog>`) nyílik meg a kérdés-űrlap, a téma az este
+   globális témájával előre kiválasztva. Mentéskor (`?/createQuestion`, a
+   közös `createQuestionFromForm()` + `appendQuestionsToRound()`) a kérdés
+   a kérdésbankba kerül ÉS azonnal a kör végére; az ablak bezárul, a kör
+   listája frissül, az oldal nem töltődik újra és nem navigál el. (Élő
+   tesztből: korábban a `/admin/questions/new` oldalra vitt, ami a
+   kérdésbankban való elvesztés érzését keltette.) Ha a körhöz fűzés nem
+   sikerül, a hibaüzenet jelzi, hogy a kérdés a bankban már elmentődött. A
+   `/admin/questions/new?round_id=…` útvonal továbbra is működik.
 3. **"Összes kérdés törlése"** — `?/clearRound`, a kör összes
    `round_questions` sorát törli (a kérdések a bankban maradnak). Csak
    akkor jelenik meg, ha a körben van kérdés. Szándékosan nincs megerősítő

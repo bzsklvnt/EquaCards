@@ -7,6 +7,7 @@
 	import Checkbox from '$lib/components/Checkbox.svelte';
 	import GameTabs from '$lib/components/GameTabs.svelte';
 	import Input from '$lib/components/Input.svelte';
+	import ReopenGameButton from '$lib/components/ReopenGameButton.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import { formatEventDate, toBudapestLocalInput } from '$lib/datetime';
@@ -116,6 +117,9 @@
 		</p>
 	</div>
 	<div class="head-actions">
+		{#if game.status === 'finished'}
+			<ReopenGameButton gameId={game.id} />
+		{/if}
 		{#if game.is_public}
 			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- nyilvános domain -->
 			<Button variant="secondary" href={publicHref} target="_blank" rel="noopener"

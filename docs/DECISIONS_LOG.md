@@ -2229,3 +2229,34 @@ renderelve ellenőrizve). Fájlok: `src/lib/assets/favicon.svg` (fül),
 PNG-tartalékok: `static/favicon-32.png` (SVG-t nem ismerő böngészők),
 `static/apple-touch-icon.png` (iOS kezdőképernyő). A manifest neve
 „Kocsmakvízest” lett, színei a letisztult témát követik.
+
+## 2026-09-26 — Új kérdés a kör szerkesztőjén belül
+
+Élő tesztből: a „+ Új kérdés ehhez a körhöz” a kérdésbank új-kérdés oldalára
+navigált, a felhasználó viszont a kör szerkesztésén akart maradni. Most a
+kérdés-űrlap felugró ablakban nyílik a kvízeste oldalán; mentéskor a kérdés
+a kérdésbankba kerül, azonnal a kör végére fűződik, az ablak bezárul és a kör
+listája frissül. A kérdés-létrehozás közös szerver-függvénybe került
+(`createQuestionFromForm`), amit a kérdésbank oldala is használ. Részletek:
+`docs/features/random-draw.md`.
+
+## 2026-09-26 — Újranyitás az este saját oldaláról
+
+Élő tesztből: az új felületen nem volt található a „Kvízeste újranyitása”
+gomb (csak a Kvízesték lista kártyáin volt, lezárt estéknél). Most lezárt
+estén az este mindhárom fülének fejlécében is megjelenik (Körök és
+kérdések, Esemény és jelentkezések, Eredmények). A logika közös
+(`reopenGameAction()`, `src/lib/server/games.ts`), a gomb a
+`ReopenGameButton.svelte`; a bemutatók is említik.
+
+## 2026-09-26 — Élesítés állapota panel és go-live útmutató
+
+Élő tesztből: az e-mail küldés nem működött, és nem látszott, miért. A
+Beállítások oldalon (csak rendszergazda) új „Élesítés állapota” panel
+mutatja, melyik éles beállítás van meg: domainek, Resend kulcs és feladó,
+service-role kulcs (egy lekérdezéssel ténylegesen kipróbálva), üzemeltetői
+adatok. Titkos kulcsnak csak a megléte látszik. A „Teszt e-mail küldése
+magamnak” gomb a Resend pontos hibaüzenetét és a valószínű teendőt írja ki.
+Az `EmailResult` hibaágban `detail` mezőt kapott. Lépésenkénti útmutató
+(Vercel, Resend + Rackhost DNS, Supabase Auth, éles próba):
+`docs/operations/GO_LIVE.md`.

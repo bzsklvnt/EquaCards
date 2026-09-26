@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { registerPageTour } from '$lib/tours/state.svelte';
 	import GameTabs from '$lib/components/GameTabs.svelte';
+	import ReopenGameButton from '$lib/components/ReopenGameButton.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -17,8 +18,15 @@
 	<title>Részletes eredmények — {data.game.title} — Kezelőfelület</title>
 </svelte:head>
 
-<h1>{data.game.title}</h1>
-<p class="status">{data.teams.length} csapat</p>
+<header class="page-head">
+	<div>
+		<h1>{data.game.title}</h1>
+		<p class="status">{data.teams.length} csapat</p>
+	</div>
+	{#if data.game.status === 'finished'}
+		<ReopenGameButton gameId={data.game.id} />
+	{/if}
+</header>
 
 <GameTabs gameId={data.game.id} />
 
@@ -79,6 +87,14 @@
 {/if}
 
 <style>
+	.page-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1rem 1.5rem;
+	}
+
 	h1 {
 		margin: 0.5rem 0 0;
 		font-family: var(--font-display);
