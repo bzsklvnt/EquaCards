@@ -23,9 +23,10 @@
 	// kategóriában, a nyers nevével jelenik meg.
 	const SETTING_META: Record<string, { label: string; unit?: string; description?: string }> = {
 		question_reuse_cooldown_months: {
-			label: 'Kérdés-újrafelhasználási türelmi idő',
+			label: 'Kérdések pihentetése',
 			unit: 'hónap',
-			description: 'Ennyi hónapig nem húzható újra ugyanaz a kérdés a "Random húzás" funkcióval.'
+			description:
+				'0 = nincs pihentetés: minden kérdés korlátlanul újra felhasználható, bármelyik estén. Ha nagyobb, ennyi hónapig nem húzza újra a „Random húzás”, és a kvízösszerakó figyelmeztet a már elhangzott kérdésekre (kézzel ilyenkor is hozzáadható).'
 		},
 		question_default_time_seconds: {
 			label: 'Alap válaszidő új kérdéshez',
@@ -109,7 +110,8 @@
 
 	const PRESETS: Record<string, number[]> = {
 		question_reading_seconds: [0, 3, 5, 8, 10],
-		question_default_time_seconds: [20, 30, 45, 60]
+		question_default_time_seconds: [20, 30, 45, 60],
+		question_reuse_cooldown_months: [0, 1, 3, 6]
 	};
 
 	const setup = $derived(data.setup);

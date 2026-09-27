@@ -270,6 +270,64 @@ export async function createPracticeGame(
 	return { gameId: game.id };
 }
 
+// Este másolása (docs/features/question-reuse.md): a körök és kérdéseik
+// (sorrend, „állás a kérdés után” beállítás) és a vizuális köntös egy új,
+// váró állapotú estére kerülnek. Az esemény adatai (helyszín, időpont,
+// nyilvánosság, létszám, leírás), a csapatok és a jelentkezések nem.
+export async function duplicateGame(
+	supabase: SupabaseClient<Database>,
+	sourceId: string,
+	userId: string | undefined
+): Promise<{ gameId: string } | { error: string }> {
+	const { data: source } = await supabase
+		.from('games')
+		.select('title, design_theme_id, join_requires_code')
+		.eq('id', sourceId)
+		.maybeSingle();
+	if (!source) return { error: 'A kvízeste nem található.' };
+
+	const { data: rounds } = await supabase
+		.from('rounds')
+		.select('id, title, order_index, round_questions(question_id, order_index, show_standings)')
+		.eq('game_id', sourceId)
+		.order('order_index');
+
+	const created = await insertGameWithPin(supabase, {
+		title: `${source.title} (másolat)`.slice(0, 120),
+		host_id: userId,
+		design_theme_id: source.design_theme_id,
+		join_requires_code: source.join_requires_code
+	});
+	if ('error' in created) return { error: created.error };
+
+	const fail = async (message: string) => {
+		await supabase.from('games').delete().eq('id', created.id);
+		return { error: message };
+	};
+
+	for (const round of rounds ?? []) {
+		const { data: copy, error: roundError } = await supabase
+			.from('rounds')
+			.insert({ game_id: created.id, title: round.title, order_index: round.order_index })
+			.select('id')
+			.single();
+		if (roundError || !copy) return fail(roundError?.message ?? 'Nem sikerült a kört másolni.');
+		const questions = round.round_questions ?? [];
+		if (questions.length === 0) continue;
+		const { error: rqError } = await supabase.from('round_questions').insert(
+			questions.map((q) => ({
+				round_id: copy.id,
+				question_id: q.question_id,
+				order_index: q.order_index,
+				show_standings: q.show_standings
+			}))
+		);
+		if (rqError) return fail(rqError.message);
+	}
+
+	return { gameId: created.id };
+}
+
 // Fázis Q3 — a "Kvízeste újranyitása" a games.status-t 'lobby'-ra állítja
 // vissza (nem 'active'-re és nem 'paused'-re, lásd docs/DECISIONS_LOG.md), és
 // törli a finished_at-ot; a trg_audit_games trigger naplózza. A kvízestek

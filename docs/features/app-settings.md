@@ -51,11 +51,11 @@ nem funkcionális követelmény egy új beállítás megjelenéséhez.
 
 ## Jelenlegi kulcsok
 
-| Kulcs                            | Típus  | Jelentés                                                                                                                |
-| -------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `question_reuse_cooldown_months` | number | Ennyi hónapig nem húzható újra ugyanaz a kérdés a `draw_random_questions_for_round` RPC-nél (DATA_MODEL.md 2. szakasz). |
-| `question_reading_seconds`       | number | Olvasási idő minden kérdés előtt (alap 5, 0–120 egész; kérdésenként felülírható) — `docs/features/timer.md` 9.          |
-| `question_default_time_seconds`  | number | Új kérdés alap válaszideje a kérdésbankban és a kvízösszerakóban (alap 30, 5–600 egész) — csak az előtöltést adja.      |
+| Kulcs                            | Típus  | Jelentés                                                                                                                                                                                                                                                                                                |
+| -------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `question_reuse_cooldown_months` | number | Kérdések pihentetése. **0 = nincs pihentetés (alap, 2026-09-27 óta)**: minden kérdés korlátlanul újra felhasználható. Nagyobb értéknél ennyi hónapig nem húzza újra a `draw_random_questions_for_round`, és a kvízösszerakó figyelmeztet a már elhangzott kérdésre (`docs/features/question-reuse.md`). |
+| `question_reading_seconds`       | number | Olvasási idő minden kérdés előtt (alap 5, 0–120 egész; kérdésenként felülírható) — `docs/features/timer.md` 9.                                                                                                                                                                                          |
+| `question_default_time_seconds`  | number | Új kérdés alap válaszideje a kérdésbankban és a kvízösszerakóban (alap 30, 5–600 egész) — csak az előtöltést adja.                                                                                                                                                                                      |
 
 ## Visszajelzés
 

@@ -192,17 +192,24 @@ export async function loadBank(supabase: Client, gameId?: string): Promise<BankI
 /** A kérdés-beállítások alapértékei egy lekérdezésben (Beállítások › Játék). */
 export async function questionDefaults(
 	supabase: Client
-): Promise<{ readingDefault: number; defaultTime: number }> {
+): Promise<{ readingDefault: number; defaultTime: number; cooldownMonths: number }> {
 	const { data } = await supabase
 		.from('app_settings')
 		.select('key, value')
-		.in('key', ['question_reading_seconds', 'question_default_time_seconds']);
+		.in('key', [
+			'question_reading_seconds',
+			'question_default_time_seconds',
+			'question_reuse_cooldown_months'
+		]);
 	const value = (key: string) => Number(data?.find((r) => r.key === key)?.value);
 	const reading = value('question_reading_seconds');
 	const time = value('question_default_time_seconds');
+	const cooldown = value('question_reuse_cooldown_months');
 	return {
 		readingDefault: Number.isFinite(reading) && reading >= 0 ? reading : 5,
-		defaultTime: Number.isInteger(time) && time >= 5 && time <= 600 ? time : 30
+		defaultTime: Number.isInteger(time) && time >= 5 && time <= 600 ? time : 30,
+		// 0 = nincs pihentetés: a kérdések korlátlanul újra felhasználhatók.
+		cooldownMonths: Number.isFinite(cooldown) && cooldown > 0 ? cooldown : 0
 	};
 }
 

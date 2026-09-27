@@ -54,6 +54,7 @@ export const load: PageServerLoad = async ({ depends, params, locals: { supabase
 		questionTypes: questionTypes ?? [],
 		bank,
 		readingDefault: defaults.readingDefault,
+		cooldownMonths: defaults.cooldownMonths,
 		defaultTime: defaults.defaultTime
 	};
 };

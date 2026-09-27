@@ -2450,3 +2450,14 @@ az este köreivel (választógombok, egyszerre egy aktív, kérdésszámmal), a
 kijelölt körben „a kijelölt kérdés után / a kör végére” kapcsolóval, és a
 Hozzáadás gomb is kiírja a célt. Így kör váltásához nem kell bezárni a
 fiókot.
+
+## 2026-09-27 — Kérdések újrajátszása, pihentetés kapcsoló, este másolása
+
+Egy már lejátszott kérdés újra feltéve hibásan viselkedett: a host
+számlálója a kérdés összes korábbi válaszát számolta (azonnali lezárás), a
+kiértékelés és a „feltárva” állapot sem szűrt estére. Most minden élő
+lekérdezés és a kiértékelés az adott estére szűr, így ugyanaz a kérdés akár
+egyszerre két helyszínen is játszható. A pihentetés globálisan kapcsolható
+(0 hónap = nincs, ez lett az alap), és új funkció az „Este másolása”. A
+beragadt „ciau” teszt-estet a kérés szerint töröltük. Részletek:
+`docs/features/question-reuse.md`.

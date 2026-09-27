@@ -249,20 +249,26 @@
 			.from('answers')
 			.select('id', { count: 'exact', head: true })
 			.eq('question_id', questionId)
+			.eq('game_id', game.id)
 			.then(({ count }) => (submissionCount = count ?? 0));
 
+		// Csak ennek az estének a válaszai számítanak: ugyanaz a kérdés más estén
+		// (akár egyszerre másik helyszínen) is elhangozhat — docs/features/question-reuse.md.
+		const gameId = game.id;
 		const changesChannel = data.supabase
-			.channel(`answers:${questionId}`)
+			.channel(`answers:${gameId}:${questionId}`)
 			.on(
 				'postgres_changes',
 				{
 					event: 'INSERT',
 					schema: 'public',
 					table: 'answers',
-					filter: `question_id=eq.${questionId}`
+					filter: `game_id=eq.${gameId}`
 				},
-				() => {
-					submissionCount++;
+				(change) => {
+					if ((change.new as { question_id?: string }).question_id === questionId) {
+						submissionCount++;
+					}
 				}
 			)
 			.subscribe();
@@ -542,7 +548,8 @@
 		// Egy hívás (host_reveal): kiértékel (evaluate_question) és visszaadja a
 		// helyes választ.
 		const { data: revealed, error: evalError } = await data.supabase.rpc('host_reveal', {
-			p_question_id: current.question_id
+			p_question_id: current.question_id,
+			p_game_id: game.id
 		});
 		if (evalError) {
 			statusMessage = evalError.message;

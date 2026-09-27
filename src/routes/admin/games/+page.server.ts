@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	createPracticeGame,
 	deleteGameAction,
+	duplicateGame,
 	insertGameWithPin,
 	reopenGameAction
 } from '$lib/server/games';
@@ -73,6 +74,19 @@ export const actions: Actions = {
 			return fail(400, { error: result.error });
 		}
 		redirect(303, `/admin/games/${result.gameId}`);
+	},
+
+	// Este másolása: körök + kérdések új estére, az esemény adatai nélkül.
+	duplicate: async ({ request, locals: { supabase, safeGetSession } }) => {
+		const { user } = await safeGetSession();
+		const gameId = (await request.formData()).get('game_id');
+		if (typeof gameId !== 'string' || !gameId) {
+			return fail(400, { error: 'Hiányzó kvízeste azonosító.' });
+		}
+		const result = await duplicateGame(supabase, gameId, user?.id);
+		if ('error' in result) return fail(400, { error: result.error });
+		// Utána az esemény adatai: új időpont, helyszín.
+		redirect(303, `/admin/games/${result.gameId}/event`);
 	},
 
 	// Fázis Q3 — újranyitás, lásd reopenGameAction() ($lib/server/games.ts).

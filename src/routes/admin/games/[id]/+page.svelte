@@ -112,7 +112,10 @@
 		return used;
 	});
 	const currentRoundIndex = $derived(rounds.findIndex((r) => r.id === selected?.roundId));
-	const playedCount = (id: string) => bank.find((b) => b.id === id)?.played_count ?? 0;
+	// „Már elhangzott” figyelmeztetés csak bekapcsolt pihentetésnél
+	// (Beállítások › Játék); 0 hónapnál a kérdések korlátlanul újrajátszhatók.
+	const playedCount = (id: string) =>
+		data.cooldownMonths > 0 ? (bank.find((b) => b.id === id)?.played_count ?? 0) : 0;
 	const isDirty = (key: string) => {
 		const d = drafts[key];
 		return !!d && (d.id === null || draftSignature(d) !== savedSig[key]);
@@ -1277,6 +1280,7 @@
 	defaultRoundId={currentRound?.id ?? rounds[0]?.id ?? null}
 	afterLabel={currentRound && currentIndex >= 0 ? 'a kijelölt kérdés után' : null}
 	usedIn={usedInGame}
+	freshDefault={data.cooldownMonths > 0}
 	defaultThemeId={currentDraft?.theme_id ?? null}
 	{busy}
 	onadd={(ids, roundId, afterCurrent) => void addFromBank(ids, roundId, afterCurrent)}

@@ -31,6 +31,7 @@
 	let creating = $state(false);
 	let creatingPractice = $state(false);
 	let reopening = $state(false);
+	let duplicating = $state(false);
 	let createDialog = $state<HTMLDialogElement>();
 
 	const STATUS: Record<string, string> = {
@@ -396,6 +397,21 @@
 				target="_blank"
 				rel="noopener"><span>Kivetítő (új lap)</span><kbd>V</kbd></a
 			>
+			<form
+				method="POST"
+				action="?/duplicate"
+				data-tour="games-duplicate"
+				use:enhance={withToast({ setSubmitting: (v) => (duplicating = v) })}
+			>
+				<input type="hidden" name="game_id" value={g.id} />
+				<button
+					type="submit"
+					class="ws-action"
+					disabled={duplicating}
+					title="A körök és kérdések egy új estére kerülnek (pl. másik helyszínre); időpont, helyszín és jelentkezések nélkül."
+					><span>{duplicating ? 'Másolás…' : 'Este másolása új estére'}</span></button
+				>
+			</form>
 			{#if g.status === 'finished' || isSuperAdmin}
 				<p class="ws-cap">Ritkán</p>
 			{/if}
