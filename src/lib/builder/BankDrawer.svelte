@@ -12,6 +12,7 @@
 		defaultRoundId,
 		afterLabel = null,
 		usedIn,
+		freshDefault = false,
 		defaultThemeId,
 		busy = false,
 		onadd,
@@ -29,6 +30,8 @@
 		/** Az estén már szereplő kérdések → melyik körben. Ezek inaktívak:
 		 * egy kérdés egy estén csak egyszer szerepelhet. */
 		usedIn: Record<string, { roundId: string; label: string }>;
+		/** „Csak még nem játszott” alapból (csak bekapcsolt pihentetésnél). */
+		freshDefault?: boolean;
 		defaultThemeId: string | null;
 		busy?: boolean;
 		onadd: (ids: string[], roundId: string, afterCurrent: boolean) => void;
@@ -40,7 +43,7 @@
 	let search = $state('');
 	let themeId = $state('');
 	let typeCode = $state('');
-	let onlyFresh = $state(true);
+	let onlyFresh = $state(false);
 	let onlyImage = $state(false);
 	let selected = $state<string[]>([]);
 	let focusIndex = $state(0);
@@ -64,6 +67,7 @@
 		if (open && !dialog.open) {
 			themeId = defaultThemeId ?? '';
 			targetRound = defaultRoundId ?? rounds[0]?.id ?? null;
+			onlyFresh = freshDefault;
 			afterCurrent = true;
 			selected = [];
 			focusIndex = 0;

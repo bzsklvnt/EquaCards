@@ -1,5 +1,9 @@
 # Random húzás + cooldown
 
+> 2026-09-27: a pihentetés kikapcsolható — `question_reuse_cooldown_months = 0`
+> (ez az alap) esetén nincs cooldown-szűrés, csak az este már szereplő
+> kérdései maradnak ki. Lásd `docs/features/question-reuse.md`.
+
 ## Cél
 
 Egy kvízeste körének összeállításakor az admin egy témát választ, és a

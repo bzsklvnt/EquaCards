@@ -989,7 +989,10 @@ export type Database = {
 					isSetofReturn: true;
 				};
 			};
-			evaluate_question: { Args: { p_question_id: string }; Returns: undefined };
+			evaluate_question: {
+				Args: { p_game_id?: string; p_question_id: string };
+				Returns: undefined;
+			};
 			generate_join_code: { Args: never; Returns: string };
 			game_accepts_name_join: { Args: { p_game_id: string }; Returns: boolean };
 			game_by_pin: {
@@ -1004,7 +1007,7 @@ export type Database = {
 			};
 			game_status: { Args: { p_game_id: string }; Returns: string };
 			host_next_question: { Args: { p_game_id: string; p_question_id: string }; Returns: Json };
-			host_reveal: { Args: { p_question_id: string }; Returns: Json };
+			host_reveal: { Args: { p_game_id?: string; p_question_id: string }; Returns: Json };
 			join_with_code: {
 				Args: { p_code: string; p_device_token: string; p_pin: string };
 				Returns: {

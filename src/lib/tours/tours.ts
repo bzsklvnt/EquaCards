@@ -284,6 +284,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 					'Egy kattintással gyakorló este 2 körrel és mintakérdésekkel; a riportokban nem jelenik meg.'
 			},
 			{
+				element: 'games-duplicate',
+				title: 'Este másolása',
+				description:
+					'Ugyanaz a kvíz másik helyszínen vagy napon: a körök és kérdések egy új estére kerülnek, utána csak az időpontot és a helyszínt kell megadni.'
+			},
+			{
 				element: 'games-reopen',
 				title: 'Újranyitás',
 				description: 'Lezárt estén: Váró állapotba állítja vissza, hogy újra elindíthasd.'
@@ -590,7 +596,7 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 				element: 'st-cooldown',
 				title: 'Kérdés-pihentetés',
 				description:
-					'Hány hónapig nem húzza újra a random betöltés a már játszott kérdést. Kézzel bármikor hozzáadható.'
+					'0 = nincs pihentetés: minden kérdés bármelyik estén újra játszható. Ha nagyobb, ennyi hónapig nem húzza újra a random betöltés a már játszott kérdést (kézzel bármikor hozzáadható).'
 			},
 			{
 				element: 'st-default-theme',
