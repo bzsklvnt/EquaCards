@@ -98,6 +98,21 @@
 	const currentNumber = $derived(
 		currentKey ? (currentNumbering.numbers[currentKey] ?? null) : null
 	);
+	// Az estén (bármelyik körben) már szereplő kérdések — a kérdésbank-fiókban
+	// inaktívak, így egy kérdés nem kerülhet kétszer ugyanarra az estére.
+	const usedInGame = $derived.by(() => {
+		const used: Record<string, string> = {};
+		rounds.forEach((round, ri) => {
+			for (const key of round.keys) {
+				const id = drafts[key]?.id;
+				if (id && !used[id]) {
+					used[id] =
+						round.id === currentRound?.id ? 'ebben a körben' : `${ri + 1}. kör · ${round.title}`;
+				}
+			}
+		});
+		return used;
+	});
 	const currentRoundIndex = $derived(rounds.findIndex((r) => r.id === selected?.roundId));
 	const playedCount = (id: string) => bank.find((b) => b.id === id)?.played_count ?? 0;
 	const isDirty = (key: string) => {
@@ -615,8 +630,11 @@
 	async function addFromBank(ids: string[]) {
 		const round = currentRound ?? rounds[0];
 		if (!round) return;
-		const newIds = ids.filter((id) => !idsOf(round.keys).includes(id));
-		if (newIds.length === 0) return;
+		const newIds = ids.filter((id) => !usedInGame[id]);
+		if (newIds.length === 0) {
+			toast('Ezek a kérdések már szerepelnek ezen az estén.');
+			return;
+		}
 		const index =
 			round.id === currentRound?.id && currentIndex >= 0 ? currentIndex + 1 : round.keys.length;
 		const keys = [...round.keys.slice(0, index), ...newIds, ...round.keys.slice(index)];
@@ -1250,7 +1268,7 @@
 	targetLabel={currentRound
 		? `${currentRoundIndex + 1}. kör · ${currentRound.title}${currentIndex >= 0 ? `, a ${currentIndex + 1}. kérdés után` : ''}`
 		: 'nincs kör'}
-	excludeIds={currentRound ? idsOf(currentRound.keys) : []}
+	usedIn={usedInGame}
 	defaultThemeId={currentDraft?.theme_id ?? null}
 	{busy}
 	onadd={(ids) => void addFromBank(ids)}

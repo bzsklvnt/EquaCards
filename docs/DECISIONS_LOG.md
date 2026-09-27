@@ -2432,3 +2432,12 @@ szerveren is. Döntés: az értelmezés a böngészőben fut (azonnali előnéze
 nincs fájlfeltöltés a szerverre), a mentés 40-es kötegekben megy, hogy a
 serverless időkorlát ne szóljon közbe; a Windows-1250 kódolású (magyar
 Excel) fájlt is elfogadja. Részletek: `docs/features/question-import.md`.
+
+## 2026-09-27 — Egy kérdés egy estén csak egyszer
+
+A kérdésbankból való hozzáadásnál (kvízösszerakó kérdésbank-fiókja és a
+Kérdésbank „Hozzáadás estéhez” választója) az estén már szereplő kérdés
+inaktív, és látszik, melyik körben van. Eddig csak az aktuális kör kérdései
+voltak kizárva, így egy kérdés két körbe is bekerülhetett. A szerver is
+elutasítja a dupla hozzáadást, és a random húzás az este minden körét
+figyelembe veszi.

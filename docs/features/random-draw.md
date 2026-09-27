@@ -29,11 +29,9 @@ belül `current_user_role_id() in (1,2)`-re ellenőrizve), ami:
 
 1. Kiolvassa a cooldown hónapszámot az `app_settings`-ből.
 2. A megadott témájú kérdések közül kiválasztja azokat, amik cooldown-on
-   kívül esnek, ÉS még nincsenek benne a célkör `round_questions`
-   listájában (ismételt húzásnál nem próbál duplikátumot beszúrni — ez a
-   `docs/architecture/DATA_MODEL.md` 2. szakaszának mintapéldájához képesti
-   kiegészítés, mert anélkül egy második húzás ütközne a
-   `round_questions` elsődleges kulcsával).
+   kívül esnek, ÉS még nincsenek benne az este egyik körében sem
+   (2026-09-27 óta az egész estére nézi, nem csak a célkörre — egy kérdés
+   egy estén csak egyszer szerepelhet; `20260927150000_draw_exclude_same_game.sql`).
 3. `order by random() limit p_count` — véletlenszerű válogatás.
 4. Beszúrja a kiválasztott kérdéseket a `round_questions`-be, a kör
    meglévő `order_index`-e után folytatva a sorszámozást.

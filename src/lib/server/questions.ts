@@ -110,3 +110,26 @@ export async function appendQuestionsToRound(
 		);
 	return { added: error ? 0 : toAdd.length, error: error?.message ?? null };
 }
+
+/** Mely kérdések szerepelnek már az este valamelyik körében (a megadott kört
+ * kivéve) — egy kérdés egy estén csak egyszer szerepelhet. Visszaadja a
+ * kérdés → „N. kör · Cím” párokat. */
+export async function questionsUsedInGame(
+	supabase: Client,
+	gameId: string,
+	questionIds: string[],
+	exceptRoundId?: string
+): Promise<Record<string, string>> {
+	if (questionIds.length === 0) return {};
+	const { data } = await supabase
+		.from('round_questions')
+		.select('question_id, round_id, rounds!inner(game_id, title, order_index)')
+		.eq('rounds.game_id', gameId)
+		.in('question_id', questionIds);
+	const used: Record<string, string> = {};
+	for (const row of data ?? []) {
+		if (row.round_id === exceptRoundId || used[row.question_id]) continue;
+		used[row.question_id] = `${row.rounds.order_index}. kör · ${row.rounds.title}`;
+	}
+	return used;
+}
