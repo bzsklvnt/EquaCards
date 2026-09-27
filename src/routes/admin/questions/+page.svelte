@@ -487,6 +487,9 @@
 				<button type="button" class="ws-btn outline" data-tour="q-new" onclick={newQuestion}
 					>+ Kérdés <kbd class="ws-kbd">N</kbd></button
 				>
+				<a class="ws-btn" href={resolve('/admin/questions/import')} data-tour="q-import"
+					>Importálás CSV-ből</a
+				>
 			{/snippet}
 		</RailList>
 	{/snippet}

@@ -151,6 +151,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 					'N: új kérdés a vásznon. Addig nem kerül a bankba, amíg nem teljes (szöveg + helyes válasz) — a hiányzót a vászon felett látod.'
 			},
 			{
+				element: 'q-import',
+				title: 'Importálás CSV-ből',
+				description:
+					'Sok kérdés egyszerre, Excelből: tölts le egy mintát, töltsd ki, és töltsd fel. Feltöltés előtt soronként látod a hibákat és a duplikátumokat.'
+			},
+			{
 				element: 'qb-prompt',
 				title: 'Szerkesztés billentyűzettel',
 				description:
