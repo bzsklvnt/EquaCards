@@ -101,14 +101,12 @@
 	// Az estén (bármelyik körben) már szereplő kérdések — a kérdésbank-fiókban
 	// inaktívak, így egy kérdés nem kerülhet kétszer ugyanarra az estére.
 	const usedInGame = $derived.by(() => {
-		const used: Record<string, string> = {};
+		const used: Record<string, { roundId: string; label: string }> = {};
 		rounds.forEach((round, ri) => {
 			for (const key of round.keys) {
 				const id = drafts[key]?.id;
-				if (id && !used[id]) {
-					used[id] =
-						round.id === currentRound?.id ? 'ebben a körben' : `${ri + 1}. kör · ${round.title}`;
-				}
+				if (id && !used[id])
+					used[id] = { roundId: round.id, label: `${ri + 1}. kör · ${round.title}` };
 			}
 		});
 		return used;
@@ -627,8 +625,10 @@
 	}
 
 	// --- Kérdésbank -------------------------------------------------------------
-	async function addFromBank(ids: string[]) {
-		const round = currentRound ?? rounds[0];
+	/** Kérdések a bankból a választott körbe: a kijelölt kérdés után (ha abban
+	 * a körben állsz és ezt kérted), egyébként a kör végére. */
+	async function addFromBank(ids: string[], roundId: string, afterCurrent: boolean) {
+		const round = rounds.find((r) => r.id === roundId);
 		if (!round) return;
 		const newIds = ids.filter((id) => !usedInGame[id]);
 		if (newIds.length === 0) {
@@ -636,7 +636,9 @@
 			return;
 		}
 		const index =
-			round.id === currentRound?.id && currentIndex >= 0 ? currentIndex + 1 : round.keys.length;
+			afterCurrent && round.id === currentRound?.id && currentIndex >= 0
+				? currentIndex + 1
+				: round.keys.length;
 		const keys = [...round.keys.slice(0, index), ...newIds, ...round.keys.slice(index)];
 		busy = true;
 		try {
@@ -660,7 +662,9 @@
 			bankOpen = false;
 			view = 'editor';
 			select(round.id, newIds[0], true);
-			toast.success(`${newIds.length} kérdés hozzáadva.`);
+			toast.success(
+				`${newIds.length} kérdés hozzáadva: ${rounds.indexOf(round) + 1}. kör · ${round.title}.`
+			);
 		} catch (err) {
 			toast.error((err as Error).message);
 		} finally {
@@ -668,8 +672,8 @@
 		}
 	}
 
-	async function draw(themeId: string, count: number) {
-		const round = currentRound ?? rounds[0];
+	async function draw(themeId: string, count: number, roundId: string) {
+		const round = rounds.find((r) => r.id === roundId);
 		if (!round) return;
 		busy = true;
 		try {
@@ -1265,14 +1269,18 @@
 	bind:open={bankOpen}
 	{bank}
 	themes={data.themes}
-	targetLabel={currentRound
-		? `${currentRoundIndex + 1}. kör · ${currentRound.title}${currentIndex >= 0 ? `, a ${currentIndex + 1}. kérdés után` : ''}`
-		: 'nincs kör'}
+	rounds={rounds.map((r, ri) => ({
+		id: r.id,
+		label: `${ri + 1}. kör · ${r.title}`,
+		count: questionNumbers(r.keys, drafts).total
+	}))}
+	defaultRoundId={currentRound?.id ?? rounds[0]?.id ?? null}
+	afterLabel={currentRound && currentIndex >= 0 ? 'a kijelölt kérdés után' : null}
 	usedIn={usedInGame}
 	defaultThemeId={currentDraft?.theme_id ?? null}
 	{busy}
-	onadd={(ids) => void addFromBank(ids)}
-	ondraw={(themeId, count) => void draw(themeId, count)}
+	onadd={(ids, roundId, afterCurrent) => void addFromBank(ids, roundId, afterCurrent)}
+	ondraw={(themeId, count, roundId) => void draw(themeId, count, roundId)}
 />
 
 <ShortcutHelp

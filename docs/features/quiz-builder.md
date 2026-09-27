@@ -34,8 +34,11 @@ terv (9 képernyő) a „Kvízösszerakó – koncepció” artifactban van.
   kérdés, ugyanaz a helyes lap egymás után, üres kör. F8 a következőre ugrik.
 - **Kérdésbank-fiók (B):** a szerkesztő fölött nyílik (nem navigál el):
   keresés, téma/típus szűrő, „Csak még nem játszott” (más, már elindított
-  estén szerepelt-e), „Van kép”, többes kijelölés, hozzáadás az aktuális
-  kérdés után; random húzás a témából (a pihentetési idő szerint). Az estén
+  estén szerepelt-e), „Van kép”, többes kijelölés; random húzás a témából
+  (a pihentetési idő szerint). Felül **„Hová kerül?”**: az este körei
+  választógombként (alapból az, ahol a szerkesztőben állsz), abban a körben
+  „a kijelölt kérdés után” / „a kör végére” kapcsolóval; a Hozzáadás gomb is
+  kiírja a célkört. A random húzás is a választott körbe megy. Az estén
   (bármelyik körben) már szereplő kérdés inaktív, „már benne: 2. kör · …”
   felirattal — egy kérdés egy estén csak egyszer szerepelhet; ezt a szerver
   is ellenőrzi (`questionsUsedInGame()`), és a random húzás sem húzza.
