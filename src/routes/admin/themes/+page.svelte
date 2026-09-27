@@ -7,8 +7,8 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import Workspace from '$lib/components/admin/Workspace.svelte';
 	import RailList from '$lib/components/admin/RailList.svelte';
-	import SaveStatus from '$lib/components/admin/SaveStatus.svelte';
 	import { createAutosave } from '$lib/admin/autosave.svelte';
+	import { registerSaveStatus } from '$lib/admin/save-status.svelte';
 	import { createSelection } from '$lib/admin/selection.svelte';
 	import { plainKey, registerPageShortcuts } from '$lib/admin/keys.svelte';
 	import { TYPE_SHORT } from '$lib/builder/model';
@@ -31,6 +31,7 @@
 	let title = $state('');
 	let form = $state<HTMLFormElement>();
 	const autosave = createAutosave({ snapshot: () => title, submit: () => form?.requestSubmit() });
+	registerSaveStatus(() => ({ state: autosave.state, error: autosave.error }));
 	let loadedId: string | null = null;
 	$effect(() => {
 		const t = selected;
@@ -160,7 +161,6 @@
 		{#if selected}
 			<div class="ws-crumb">
 				Témák › <b>{selected.title}</b>
-				<SaveStatus state={autosave.state} error={autosave.error} />
 			</div>
 			<form bind:this={form} method="POST" action="?/update" use:enhance={autosave.enhance}>
 				<input type="hidden" name="id" value={selected.id} />

@@ -2409,3 +2409,15 @@ válaszidő a klip végén induljon (olvasási idő = klip hossza), vagy a
 szokásos olvasási idővel párhuzamosan menjen. A beágyazhatóságot a
 szerkesztő mentés előtt ellenőrzi (oEmbed). A pontszámítás nem változott.
 Részletek: `docs/features/question-layout.md`.
+
+## 2026-09-27 — Oldalsó menüsáv, mentésállapot a menüben, tagolt panelek
+
+A kezelő felső menüsora laptopon zsúfolt volt, és a változó hosszú
+mentés-felirat („Mentve” / „Mentés…” / „Nem mentett változás”) a fejlécekben
+ugráltatta a gombokat. Ezért a menü újra oldalsáv lett: legfelül a mentés
+állapota (összecsukva zöld / sárga / piros pötty), alatta a menüpontok, alul
+keresés, súgó és felhasználó; 1440px alatt alapból ikonsáv, telefonon jobb
+felső hamburger. Az oldalak a `registerSaveStatus()`-szal jelentik az
+állapotukat, a fejlécekből kikerült a felirat; a rövid mentések nem
+villognak. A kérdés-beállítások és az Esemény panel szakaszait halvány,
+vékony vonal tagolja. Részletek: `docs/features/admin-workspace.md`.

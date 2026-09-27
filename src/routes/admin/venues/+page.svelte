@@ -9,8 +9,8 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import Workspace from '$lib/components/admin/Workspace.svelte';
 	import RailList from '$lib/components/admin/RailList.svelte';
-	import SaveStatus from '$lib/components/admin/SaveStatus.svelte';
 	import { createAutosave } from '$lib/admin/autosave.svelte';
+	import { registerSaveStatus } from '$lib/admin/save-status.svelte';
 	import { createSelection } from '$lib/admin/selection.svelte';
 	import { plainKey, registerPageShortcuts } from '$lib/admin/keys.svelte';
 	import { formatEventDate } from '$lib/datetime';
@@ -38,6 +38,7 @@
 		snapshot: () => JSON.stringify(fields),
 		submit: () => form?.requestSubmit()
 	});
+	registerSaveStatus(() => ({ state: autosave.state, error: autosave.error }));
 
 	let loadedId: string | null = null;
 	$effect(() => {
@@ -181,7 +182,6 @@
 		{#if selected}
 			<div class="ws-crumb">
 				Helyszínek › <b>{selected.name}</b>
-				<SaveStatus state={autosave.state} error={autosave.error} />
 			</div>
 			<h1 class="ws-h1">{fields.name || 'Névtelen helyszín'}</h1>
 			<form

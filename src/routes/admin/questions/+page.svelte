@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerSaveStatus } from '$lib/admin/save-status.svelte';
 	import { beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -72,6 +73,10 @@
 	const dirty = $derived(
 		!!current && (current.id === null || draftSignature(current) !== savedSig[current.key])
 	);
+	registerSaveStatus(() => ({
+		state: saving ? 'saving' : saveError ? 'error' : dirty ? 'dirty' : 'saved',
+		error: saveError || currentError || ''
+	}));
 
 	// --- Betöltés ------------------------------------------------------------------
 	async function api<T>(body: Record<string, unknown>): Promise<T> {
@@ -490,10 +495,6 @@
 		{#if current && currentKey}
 			<div class="ws-crumb">
 				Kérdésbank › {themeTitle(current.theme_id)}
-				{#if saving}<span class="ws-saved busy">Mentés…</span>
-				{:else if saveError}<span class="ws-saved error">● Mentési hiba</span>
-				{:else if dirty}<span class="ws-saved busy">● Nem mentett változás</span>
-				{:else}<span class="ws-saved">● Mentve</span>{/if}
 			</div>
 			{#if currentError}
 				<p class="draft-error" role="status">Még nem menthető: {currentError}</p>
