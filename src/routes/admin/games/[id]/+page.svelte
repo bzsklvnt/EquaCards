@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerSaveStatus } from '$lib/admin/save-status.svelte';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { beforeNavigate } from '$app/navigation';
@@ -112,6 +113,20 @@
 		rounds.flatMap((r) => r.keys).filter((k) => isDirty(k) && !saving[k])
 	);
 	const currentError = $derived(currentDraft ? draftError(currentDraft, types) : null);
+	// A mentés állapota a kezelői menüsáv tetején látszik (docs/features/admin-workspace.md).
+	registerSaveStatus(() => {
+		const errors = Object.values(saveErrors);
+		return {
+			state: anySaving
+				? 'saving'
+				: errors.length > 0
+					? 'error'
+					: unsavedKeys.length > 0
+						? 'dirty'
+						: 'saved',
+			error: errors[0] ?? currentError ?? ''
+		};
+	});
 
 	// --- API ---------------------------------------------------------------
 	async function api<T = Record<string, unknown>>(body: Record<string, unknown>): Promise<T> {
@@ -932,13 +947,6 @@
 		<a class="back" href={resolve('/admin/games')}>← Kvízesték</a>
 		<div class="title">
 			<h1>{data.game.title}</h1>
-			{#if anySaving}
-				<span class="chip saving">Mentés…</span>
-			{:else if unsavedKeys.length > 0}
-				<span class="chip unsaved" title={currentError ?? ''}>● Nem mentett változás</span>
-			{:else}
-				<span class="chip saved">● Mentve</span>
-			{/if}
 		</div>
 		<nav class="views" aria-label="Kvízeste nézetek" data-tour="tab-rounds">
 			<button
@@ -1319,23 +1327,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		max-width: 22rem;
-	}
-
-	.chip {
-		font-size: 0.8rem;
-		white-space: nowrap;
-	}
-
-	.chip.saved {
-		color: var(--power);
-	}
-
-	.chip.saving {
-		color: var(--marquee-dim);
-	}
-
-	.chip.unsaved {
-		color: var(--coin);
 	}
 
 	.views {

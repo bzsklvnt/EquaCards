@@ -241,8 +241,14 @@
 	.settings {
 		display: flex;
 		flex-direction: column;
-		gap: 1.1rem;
+		gap: 1rem;
 		font-size: 0.9rem;
+	}
+
+	/* A szakaszokat halvány, vékony vonal tagolja. */
+	.settings > :global(* + *) {
+		padding-top: 1rem;
+		border-top: 1px solid var(--panel-border, #e4ded2);
 	}
 
 	section {

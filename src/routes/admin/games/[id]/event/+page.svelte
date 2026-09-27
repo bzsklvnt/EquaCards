@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registerSaveStatus } from '$lib/admin/save-status.svelte';
 	import { refreshPage } from '$lib/admin/refresh';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
@@ -150,6 +151,7 @@
 	});
 	let saveState = $state<'saved' | 'dirty' | 'saving' | 'error'>('saved');
 	let saveError = $state('');
+	registerSaveStatus(() => ({ state: saveState, error: saveError }));
 	let settingsForm = $state<HTMLFormElement>();
 	let lastSent = JSON.stringify(untrack(() => fields));
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -273,14 +275,6 @@
 
 <div class="page">
 	<GameHeader {game} active="event">
-		{#snippet status()}
-			{#if saveState === 'saving'}<span class="ws-saved busy">Mentés…</span>
-			{:else if saveState === 'dirty'}<span class="ws-saved busy">● Nem mentett változás</span>
-			{:else if saveState === 'error'}<span class="ws-saved error" title={saveError}
-					>● Nem sikerült menteni</span
-				>
-			{:else}<span class="ws-saved">● Mentve</span>{/if}
-		{/snippet}
 		{#snippet actions()}
 			{#if game.status === 'finished'}<ReopenGameButton gameId={game.id} />{/if}
 			{#if game.is_public}
@@ -495,52 +489,56 @@
 					<span class="dim small">automatikus mentés</span>
 				</div>
 				{#if saveState === 'error'}<p class="save-error" role="alert">{saveError}</p>{/if}
-				<label class="ws-field"
-					><span>Név</span><input
-						name="title"
-						bind:value={fields.title}
-						required
-						maxlength="120"
-					/></label
-				>
-				<label class="ws-field"
-					><span>Időpont (magyar idő)</span><input
-						name="scheduled_at"
-						type="datetime-local"
-						bind:value={fields.scheduled_at}
-					/></label
-				>
-				<label class="ws-field">
-					<span>Helyszín · <a href={resolve('/admin/venues')}>kezelés</a></span>
-					<select name="venue_id" bind:value={fields.venue_id}>
-						<option value="">— nincs megadva —</option>
-						{#each data.venues as venue (venue.id)}
-							<option value={venue.id}>{venue.name}{venue.city ? ` (${venue.city})` : ''}</option>
-						{/each}
-					</select>
-				</label>
-				<label class="ws-field"
-					><span>Létszámkorlát (fő)</span><input
-						name="max_players"
-						type="number"
-						min="1"
-						placeholder="üresen: nincs korlát"
-						bind:value={fields.max_players}
-					/></label
-				>
-				<label class="ws-toggle" data-tour="ev-public">
-					<span>Nyilvános — a kezdőlapon, lehet jelentkezni</span>
-					<input type="checkbox" name="is_public" bind:checked={fields.is_public} />
-				</label>
-				<label class="ws-toggle" data-tour="ev-join-code">
-					<span>Belépés csak csapatkóddal</span>
-					<input
-						type="checkbox"
-						name="join_requires_code"
-						bind:checked={fields.join_requires_code}
-					/>
-				</label>
-				<fieldset class="themes" data-tour="ev-theme">
+				<div class="group">
+					<label class="ws-field"
+						><span>Név</span><input
+							name="title"
+							bind:value={fields.title}
+							required
+							maxlength="120"
+						/></label
+					>
+					<label class="ws-field"
+						><span>Időpont (magyar idő)</span><input
+							name="scheduled_at"
+							type="datetime-local"
+							bind:value={fields.scheduled_at}
+						/></label
+					>
+					<label class="ws-field">
+						<span>Helyszín · <a href={resolve('/admin/venues')}>kezelés</a></span>
+						<select name="venue_id" bind:value={fields.venue_id}>
+							<option value="">— nincs megadva —</option>
+							{#each data.venues as venue (venue.id)}
+								<option value={venue.id}>{venue.name}{venue.city ? ` (${venue.city})` : ''}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="ws-field"
+						><span>Létszámkorlát (fő)</span><input
+							name="max_players"
+							type="number"
+							min="1"
+							placeholder="üresen: nincs korlát"
+							bind:value={fields.max_players}
+						/></label
+					>
+				</div>
+				<div class="group">
+					<label class="ws-toggle" data-tour="ev-public">
+						<span>Nyilvános — a kezdőlapon, lehet jelentkezni</span>
+						<input type="checkbox" name="is_public" bind:checked={fields.is_public} />
+					</label>
+					<label class="ws-toggle" data-tour="ev-join-code">
+						<span>Belépés csak csapatkóddal</span>
+						<input
+							type="checkbox"
+							name="join_requires_code"
+							bind:checked={fields.join_requires_code}
+						/>
+					</label>
+				</div>
+				<fieldset class="themes group" data-tour="ev-theme">
 					<legend class="ws-cap">Megjelenés ezen az estén</legend>
 					<div class="theme-grid">
 						{#each data.themes as theme (theme.id)}
@@ -566,18 +564,20 @@
 						{/each}
 					</div>
 				</fieldset>
-				<label class="ws-field"
-					><span>Leírás a nyilvános oldalon</span><textarea
-						name="public_note"
-						rows="3"
-						placeholder="pl. témák, nevezési díj, asztalfoglalás"
-						bind:value={fields.public_note}></textarea></label
-				>
+				<div class="group">
+					<label class="ws-field"
+						><span>Leírás a nyilvános oldalon</span><textarea
+							name="public_note"
+							rows="3"
+							placeholder="pl. témák, nevezési díj, asztalfoglalás"
+							bind:value={fields.public_note}></textarea></label
+					>
+					<p class="ws-note">
+						A várólistáról automatikusan bekerül, aki befér, ha emeled a korlátot vagy valaki lemond
+						— és e-mailt kap.
+					</p>
+				</div>
 			</form>
-			<p class="ws-note">
-				A várólistáról automatikusan bekerül, aki befér, ha emeled a korlátot vagy valaki lemond —
-				és e-mailt kap.
-			</p>
 			{#if isSuperAdmin}
 				<div class="danger-zone" data-tour="ev-delete">
 					<p class="ws-cap">Kvízeste törlése</p>
@@ -726,7 +726,16 @@
 	.settings {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: 1rem;
+	}
+
+	/* A beállítások csoportjait halvány, vékony vonal tagolja. */
+	.group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.7rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--panel-border, #e4ded2);
 	}
 
 	.side-head {
@@ -751,6 +760,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
+	}
+
+	.themes.group {
+		padding-top: 1rem;
+		border-top: 1px solid var(--panel-border, #e4ded2);
 	}
 
 	.theme-grid {
@@ -802,6 +816,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--panel-border, #e4ded2);
 	}
 
 	.walkin-dialog {

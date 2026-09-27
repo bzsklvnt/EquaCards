@@ -8,14 +8,28 @@ jobb oldalt műveletek és beállítások**, alul billentyű-sáv. Külön
 
 ## Héj (`src/lib/components/DashboardShell.svelte`)
 
-- **Felső menüsor** (a korábbi oldalsáv helyett): márka, szerepkör szerinti
-  menü (a rendszergazda-pontok elválasztó után), „Keresés, parancs…” gomb,
-  Bemutató gomb, `?` súgó, felhasználói menü (kijelentkezés). 980px alatt
-  „Menü ▾” lenyíló, 520px alatt a billentyű-jelzések és a `?` rejtve (telefonon
-  nincs billentyűzet), a Bemutató gomb csak ▶.
+- **Oldalsó menüsáv** (2026-09-27, a felső menüsor helyett — laptopon a
+  felső sáv zsúfolt volt): legfelül az **automatikus mentés állapota**
+  (`SaveIndicator`: zöld = mentve, sárga = mentés folyamatban / mentésre vár,
+  piros = hiba, a részletek fölé állva), alatta a szerepkör szerinti menü (a
+  rendszergazda-pontok elválasztó után), alul Keresés (Ctrl K), súgó,
+  Bemutató gomb és a felhasználói menü (kijelentkezés).
+- **Összecsukás**: ikonsáv, a mentésállapot ilyenkor csak pötty. Alapból
+  1440px alatt (laptop) összecsukva, fölötte kinyitva — ezt CSS dönti el,
+  így betöltéskor nem ugrik; a kézi váltás eszközönként megmarad
+  (`localStorage` `equacards:nav`).
+- **Telefon (800px alatt)**: felső sáv márkával, a jobb felső sarokban a
+  mentés-pötty és a hamburger; a menü jobbról becsúszó fiók (fent a
+  mentésállapot, alatta a menüpontok).
+- **Mentésállapot forrása**: az oldalak a `registerSaveStatus()`
+  (`src/lib/admin/save-status.svelte.ts`) hívással jelentik az állapotukat
+  (kvízösszerakó, Esemény, Kérdésbank, Témák, Helyszínek, Vizuális témák). A
+  fejlécekben nincs mentés-felirat, így a változó hosszú szöveg nem tolja el a
+  gombokat; a rövid mentések nem villognak (a sárga csak ~0,6 mp után jelenik
+  meg).
 - **Munkaterület-mód**: a kvízösszerakó és a kvízeste Esemény/Eredmények nézete
-  (`workspace: true` a szerver loadban) saját fejlécet kap (`GameHeader`), a
-  felső menüsor ilyenkor rejtve (`--topbar-h: 0`).
+  (`workspace: true` a szerver loadban) saját fejlécet kap (`GameHeader`); a
+  menüsáv itt is látszik, a G+betű ugrás nem él.
 - **Ctrl K — parancspaletta** (`src/lib/components/admin/CommandPalette.svelte`):
   oldalak, gyors műveletek (új kvízeste / kérdés / helyszín, játék-
   beállítások), és 2 karaktertől a `/admin/search` végpont találatai

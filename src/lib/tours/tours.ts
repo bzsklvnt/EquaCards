@@ -37,6 +37,12 @@ export const TOURS: Record<TourId, { title: string; steps: TourStep[] }> = {
 					'Minden oldal ugyanúgy épül fel: bal oldalt a lista, középen a kijelölt elem részletei, jobb oldalt a műveletek, alul a billentyű-súgó. A változások automatikusan mentődnek.'
 			},
 			{
+				element: 'save-status',
+				title: 'Mentés állapota',
+				description:
+					'A menüsáv tetején látod, elmentődött-e a munkád: zöld = mentve, sárga = mentés folyamatban, piros = hiba (fölé állva a részletek). A nyíllal a menü ikonsávvá csukható; laptopon ez az alap.'
+			},
+			{
 				element: 'nav-games',
 				title: 'Kvízesték',
 				description:
