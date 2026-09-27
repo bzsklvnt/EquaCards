@@ -9,7 +9,7 @@
 		bank,
 		themes,
 		targetLabel,
-		excludeIds,
+		usedIn,
 		defaultThemeId,
 		busy = false,
 		onadd,
@@ -19,7 +19,9 @@
 		bank: BankItem[];
 		themes: { id: string; title: string }[];
 		targetLabel: string;
-		excludeIds: string[];
+		/** Az estén már szereplő kérdések → hol (pl. „2. kör · Budapest”).
+		 * Ezek inaktívak: egy kérdés egy estén csak egyszer szerepelhet. */
+		usedIn: Record<string, string>;
 		defaultThemeId: string | null;
 		busy?: boolean;
 		onadd: (ids: string[]) => void;
@@ -50,7 +52,7 @@
 		if (!open && dialog.open) dialog.close();
 	});
 
-	const excluded = $derived(new Set(excludeIds));
+	const excluded = $derived(new Set(Object.keys(usedIn)));
 	const results = $derived.by(() => {
 		const needle = search.trim().toLowerCase();
 		return bank.filter(
@@ -195,17 +197,18 @@
 		aria-activedescendant={results[focusIndex] ? `bank-row-${focusIndex}` : undefined}
 	>
 		{#each results as q, i (q.id)}
-			{@const inRound = excluded.has(q.id)}
+			{@const inGame = usedIn[q.id]}
 			{@const isSelected = selected.includes(q.id)}
 			<div
 				id="bank-row-{i}"
 				class="row"
 				class:focus={i === focusIndex}
 				class:selected={isSelected}
-				class:disabled={inRound}
+				class:disabled={!!inGame}
 				role="option"
 				aria-selected={isSelected}
-				aria-disabled={inRound}
+				aria-disabled={!!inGame}
+				title={inGame ? `Már szerepel ezen az estén: ${inGame}` : undefined}
 				tabindex="-1"
 				onclick={() => {
 					focusIndex = i;
@@ -222,9 +225,9 @@
 							: ''}{q.has_video ? ' · videó' : ''}</span
 					>
 				</span>
-				<span class="used" class:fresh={q.played_count === 0}>
-					{inRound
-						? 'már a körben'
+				<span class="used" class:fresh={q.played_count === 0 && !inGame} class:in-game={!!inGame}>
+					{inGame
+						? `már benne: ${inGame}`
 						: q.played_count === 0
 							? 'sosem játszott'
 							: `játszott: ${q.played_last ?? ''}${q.played_count > 1 ? ` (+${q.played_count - 1})` : ''}`}
@@ -462,8 +465,17 @@
 	}
 
 	.row.disabled {
-		opacity: 0.5;
-		cursor: default;
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+
+	.row.disabled .box {
+		border-style: dashed;
+	}
+
+	.used.in-game {
+		color: var(--marquee);
+		font-weight: 700;
 	}
 
 	.box {

@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { Draft } from '$lib/builder/model';
-import { appendQuestionsToRound, saveDraft } from '$lib/server/questions';
+import { appendQuestionsToRound, questionsUsedInGame, saveDraft } from '$lib/server/questions';
 import { loadDrafts, loadUsage } from '$lib/server/builder';
 import { requireStaff } from '$lib/server/auth';
 
@@ -61,6 +61,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		case 'addToRound': {
+			// Egy kérdés egy estén csak egyszer szerepelhet.
+			const { data: round } = await supabase
+				.from('rounds')
+				.select('game_id')
+				.eq('id', body.round_id)
+				.maybeSingle();
+			if (!round?.game_id) return json({ error: 'A kör nem található.' }, { status: 404 });
+			const used = await questionsUsedInGame(supabase, round.game_id, [body.question_id]);
+			if (used[body.question_id]) {
+				return json(
+					{ error: `A kérdés már szerepel ezen az estén (${used[body.question_id]}).` },
+					{ status: 400 }
+				);
+			}
 			const result = await appendQuestionsToRound(supabase, body.round_id, [body.question_id]);
 			if (result.error) return json({ error: result.error }, { status: 400 });
 			if (result.added === 0) {

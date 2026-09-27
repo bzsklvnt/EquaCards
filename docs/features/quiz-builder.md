@@ -35,7 +35,10 @@ terv (9 képernyő) a „Kvízösszerakó – koncepció” artifactban van.
 - **Kérdésbank-fiók (B):** a szerkesztő fölött nyílik (nem navigál el):
   keresés, téma/típus szűrő, „Csak még nem játszott” (más, már elindított
   estén szerepelt-e), „Van kép”, többes kijelölés, hozzáadás az aktuális
-  kérdés után; random húzás a témából (a pihentetési idő szerint).
+  kérdés után; random húzás a témából (a pihentetési idő szerint). Az estén
+  (bármelyik körben) már szereplő kérdés inaktív, „már benne: 2. kör · …”
+  felirattal — egy kérdés egy estén csak egyszer szerepelhet; ezt a szerver
+  is ellenőrzi (`questionsUsedInGame()`), és a random húzás sem húzza.
 - **Előnézet (P):** kivetítő-nézet a kérdés saját megjelenésével (ugyanaz a
   `QuestionStage` komponens, mint a kivetítőn), a helyes válasz jelölése
   nélkül. A magyarázó dia a menetrendben „i” jelet kap, a sorszámozásba nem

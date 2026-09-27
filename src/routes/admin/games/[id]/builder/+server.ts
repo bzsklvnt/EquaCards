@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { Draft } from '$lib/builder/model';
-import { saveDraft } from '$lib/server/questions';
+import { questionsUsedInGame, saveDraft } from '$lib/server/questions';
 import { loadDrafts } from '$lib/server/builder';
 import { requireStaff } from '$lib/server/auth';
 
@@ -116,6 +116,17 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 		}
 
 		case 'addFromBank': {
+			// Egy kérdés egy estén csak egyszer szerepelhet.
+			const used = await questionsUsedInGame(supabase, gameId, body.new_ids, body.round_id);
+			const already = Object.entries(used);
+			if (already.length > 0) {
+				return json(
+					{
+						error: `${already.length} kérdés már szerepel ezen az estén (${already[0][1]}).`
+					},
+					{ status: 400 }
+				);
+			}
 			const failure = await setRound(body.round_id, body.order);
 			if (failure) return json({ error: failure }, { status: 400 });
 			return json({ drafts: await loadDrafts(supabase, body.new_ids) });

@@ -286,6 +286,11 @@
 	}
 
 	let targetRound = $state('');
+	// Egy kérdés egy estén csak egyszer szerepelhet: ahol már benne van, az az
+	// este inaktív a választóban.
+	const usedGames = $derived(
+		new Set((current?.id ? usage[current.id] : undefined)?.map((u) => u.game_id) ?? [])
+	);
 	let targetSelect = $state<HTMLSelectElement>();
 
 	async function addToRound() {
@@ -297,6 +302,7 @@
 				round_id: targetRound
 			});
 			usage[current.id] = res.usage;
+			targetRound = '';
 			toast.success('Kérdés a kör végére került.');
 		} catch (err) {
 			toast.error((err as Error).message);
@@ -546,9 +552,12 @@
 							>
 								<option value="">Hozzáadás estéhez… (A)</option>
 								{#each data.games as game (game.id)}
-									<optgroup label={game.title}>
+									{@const already = usedGames.has(game.id)}
+									<optgroup label={already ? `${game.title} — már szerepel rajta` : game.title}>
 										{#each game.rounds as round (round.id)}
-											<option value={round.id}>{round.order_index}. {round.title}</option>
+											<option value={round.id} disabled={already}
+												>{round.order_index}. {round.title}</option
+											>
 										{/each}
 									</optgroup>
 								{/each}
