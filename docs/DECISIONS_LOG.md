@@ -2421,3 +2421,14 @@ felső hamburger. Az oldalak a `registerSaveStatus()`-szal jelentik az
 állapotukat, a fejlécekből kikerült a felirat; a rövid mentések nem
 villognak. A kérdés-beállítások és az Esemény panel szakaszait halvány,
 vékony vonal tagolja. Részletek: `docs/features/admin-workspace.md`.
+
+## 2026-09-27 — Kérdésbank-import CSV-ből
+
+Új oldal a Kérdésbankban: mintafájl, feltöltés, előnézet soronkénti
+hibákkal, témák hozzárendelése (ismeretlen téma létrehozása vagy meglévőre
+irányítása), duplikátum-figyelmeztetés, kötegelt import haladásjelzővel. A
+sorokat a kézi mentéssel azonos szabályok ellenőrzik a kliensen és a
+szerveren is. Döntés: az értelmezés a böngészőben fut (azonnali előnézet,
+nincs fájlfeltöltés a szerverre), a mentés 40-es kötegekben megy, hogy a
+serverless időkorlát ne szóljon közbe; a Windows-1250 kódolású (magyar
+Excel) fájlt is elfogadja. Részletek: `docs/features/question-import.md`.

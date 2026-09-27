@@ -207,6 +207,12 @@
 					},
 					{
 						group: 'Parancsok',
+						title: 'Kérdések importálása CSV-ből',
+						sub: 'Kérdésbank',
+						href: resolve('/admin/questions/import')
+					},
+					{
+						group: 'Parancsok',
 						title: 'Új helyszín',
 						sub: 'Helyszínek',
 						href: `${resolve('/admin/venues')}?new=1`
