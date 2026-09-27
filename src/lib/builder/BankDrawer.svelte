@@ -8,7 +8,9 @@
 		open = $bindable(false),
 		bank,
 		themes,
-		targetLabel,
+		rounds,
+		defaultRoundId,
+		afterLabel = null,
 		usedIn,
 		defaultThemeId,
 		busy = false,
@@ -18,14 +20,19 @@
 		open?: boolean;
 		bank: BankItem[];
 		themes: { id: string; title: string }[];
-		targetLabel: string;
-		/** Az estén már szereplő kérdések → hol (pl. „2. kör · Budapest”).
-		 * Ezek inaktívak: egy kérdés egy estén csak egyszer szerepelhet. */
-		usedIn: Record<string, string>;
+		/** Az este körei — a „Hová kerül?” választó (egyszerre egy aktív). */
+		rounds: { id: string; label: string; count: number }[];
+		/** Alapból kijelölt kör: ahol a szerkesztőben épp állsz. */
+		defaultRoundId: string | null;
+		/** Az alapkörben a kijelölt kérdés utáni beszúrás felirata (null: nincs). */
+		afterLabel?: string | null;
+		/** Az estén már szereplő kérdések → melyik körben. Ezek inaktívak:
+		 * egy kérdés egy estén csak egyszer szerepelhet. */
+		usedIn: Record<string, { roundId: string; label: string }>;
 		defaultThemeId: string | null;
 		busy?: boolean;
-		onadd: (ids: string[]) => void;
-		ondraw: (themeId: string, count: number) => void;
+		onadd: (ids: string[], roundId: string, afterCurrent: boolean) => void;
+		ondraw: (themeId: string, count: number, roundId: string) => void;
 	} = $props();
 
 	let dialog = $state<HTMLDialogElement>();
@@ -39,11 +46,25 @@
 	let focusIndex = $state(0);
 	let anchorIndex = $state<number | null>(null);
 	let drawCount = $state(8);
+	let targetRound = $state<string | null>(null);
+	let afterCurrent = $state(true);
+
+	const target = $derived(rounds.find((r) => r.id === targetRound) ?? null);
+	// A „kijelölt kérdés után” csak abban a körben értelmes, ahol a szerkesztőben állsz.
+	const canInsertAfter = $derived(!!afterLabel && targetRound === defaultRoundId);
+	const insertAfter = $derived(canInsertAfter && afterCurrent);
+
+	function add(ids: string[]) {
+		if (!targetRound || ids.length === 0) return;
+		onadd(ids, targetRound, insertAfter);
+	}
 
 	$effect(() => {
 		if (!dialog) return;
 		if (open && !dialog.open) {
 			themeId = defaultThemeId ?? '';
+			targetRound = defaultRoundId ?? rounds[0]?.id ?? null;
+			afterCurrent = true;
 			selected = [];
 			focusIndex = 0;
 			dialog.showModal();
@@ -113,9 +134,9 @@
 		}
 		if (e.key === 'Enter' && !(target.tagName === 'BUTTON')) {
 			e.preventDefault();
-			if (selected.length > 0) onadd(selected);
+			if (selected.length > 0) add(selected);
 			else if (results[focusIndex] && !excluded.has(results[focusIndex].id)) {
-				onadd([results[focusIndex].id]);
+				add([results[focusIndex].id]);
 			}
 			return;
 		}
@@ -129,7 +150,7 @@
 			searchEl?.focus();
 		} else if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey) {
 			e.preventDefault();
-			if (themeId) ondraw(themeId, drawCount);
+			if (themeId && targetRound) ondraw(themeId, drawCount, targetRound);
 		}
 	}
 
@@ -147,9 +168,45 @@
 		<div class="title-row">
 			<div>
 				<h2 id="bank-title">Kérdésbank</h2>
-				<p>cél: <strong>{targetLabel}</strong></p>
 			</div>
 			<button type="button" class="ghost" onclick={() => (open = false)}>Bezárás · Esc</button>
+		</div>
+		<div class="target">
+			<span class="target-label" id="bank-target">Hová kerül?</span>
+			<div class="rounds" role="radiogroup" aria-labelledby="bank-target">
+				{#each rounds as round (round.id)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={targetRound === round.id}
+						class:on={targetRound === round.id}
+						onclick={() => (targetRound = round.id)}
+						><span class="radio" aria-hidden="true"></span>{round.label}<small
+							>{round.count} kérdés</small
+						></button
+					>
+				{/each}
+			</div>
+			{#if canInsertAfter}
+				<div class="position" role="radiogroup" aria-label="Hová a körön belül?">
+					<button
+						type="button"
+						role="radio"
+						aria-checked={afterCurrent}
+						class:on={afterCurrent}
+						onclick={() => (afterCurrent = true)}>{afterLabel}</button
+					>
+					<button
+						type="button"
+						role="radio"
+						aria-checked={!afterCurrent}
+						class:on={!afterCurrent}
+						onclick={() => (afterCurrent = false)}>a kör végére</button
+					>
+				</div>
+			{:else if target}
+				<span class="dim small">a kör végére kerülnek</span>
+			{/if}
 		</div>
 		<label class="search">
 			<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"
@@ -197,7 +254,8 @@
 		aria-activedescendant={results[focusIndex] ? `bank-row-${focusIndex}` : undefined}
 	>
 		{#each results as q, i (q.id)}
-			{@const inGame = usedIn[q.id]}
+			{@const used = usedIn[q.id]}
+			{@const inGame = used ? (used.roundId === targetRound ? 'ebben a körben' : used.label) : null}
 			{@const isSelected = selected.includes(q.id)}
 			<div
 				id="bank-row-{i}"
@@ -249,16 +307,18 @@
 			<button
 				type="button"
 				class="ghost"
-				disabled={!themeId || busy}
+				disabled={!themeId || !targetRound || busy}
 				title={themeId ? '' : 'Előbb válassz témát'}
-				onclick={() => ondraw(themeId, drawCount)}>a témából <kbd>R</kbd></button
+				onclick={() => targetRound && ondraw(themeId, drawCount, targetRound)}
+				>a témából <kbd>R</kbd></button
 			>
 		</label>
 		<button
 			type="button"
 			class="primary"
-			disabled={selected.length === 0 || busy}
-			onclick={() => onadd(selected)}>Hozzáadás <kbd>Enter</kbd></button
+			disabled={selected.length === 0 || !targetRound || busy}
+			onclick={() => add(selected)}
+			>Hozzáadás{target ? ` → ${target.label}` : ''} <kbd>Enter</kbd></button
 		>
 	</footer>
 </dialog>
@@ -312,10 +372,95 @@
 		font-size: 1.6rem;
 	}
 
-	.title-row p {
-		margin: 0.2rem 0 0;
+	/* „Hová kerül?” — az este körei választógombként, egyszerre egy aktív. */
+	.target {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 0.75rem;
+		padding: 0.7rem 0.8rem;
+		border: 1px solid var(--panel-border, #e4ded2);
+		border-radius: 0.75rem;
+		background: var(--cabinet);
+	}
+
+	.target-label {
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 		color: var(--marquee-dim);
-		font-size: 0.9rem;
+	}
+
+	.rounds {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.rounds button {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		min-height: 2.3rem;
+		padding: 0 0.8rem 0 0.6rem;
+		border: 1px solid var(--field-border, #d5cec0);
+		border-radius: 999px;
+		background: var(--cabinet-2);
+		color: var(--marquee);
+		font-size: 0.88rem;
+	}
+
+	.rounds button small {
+		color: var(--marquee-dim);
+		font-size: 0.75rem;
+	}
+
+	.radio {
+		width: 0.95rem;
+		height: 0.95rem;
+		flex-shrink: 0;
+		border: 2px solid var(--field-border, #c9bfa9);
+		border-radius: 50%;
+		box-sizing: border-box;
+	}
+
+	.rounds button.on {
+		border: 2px solid var(--cyan);
+		background: color-mix(in srgb, var(--cyan) 12%, var(--cabinet-2));
+		font-weight: 700;
+	}
+
+	.rounds button.on .radio {
+		border: 4px solid var(--cyan);
+	}
+
+	.position {
+		display: inline-flex;
+		padding: 3px;
+		border-radius: 0.6rem;
+		background: var(--cabinet-2);
+		border: 1px solid var(--panel-border, #e4ded2);
+	}
+
+	.position button {
+		height: 1.9rem;
+		padding: 0 0.7rem;
+		border: 0;
+		border-radius: 0.45rem;
+		background: transparent;
+		color: var(--marquee-dim);
+		font-size: 0.85rem;
+	}
+
+	.position button.on {
+		background: var(--cabinet);
+		color: var(--marquee);
+		font-weight: 700;
+	}
+
+	.small {
+		font-size: 0.82rem;
 	}
 
 	button {

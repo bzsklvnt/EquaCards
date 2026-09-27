@@ -2441,3 +2441,12 @@ inaktív, és látszik, melyik körben van. Eddig csak az aktuális kör kérdé
 voltak kizárva, így egy kérdés két körbe is bekerülhetett. A szerver is
 elutasítja a dupla hozzáadást, és a random húzás az este minden körét
 figyelembe veszi.
+
+## 2026-09-27 — Célkör választó a kérdésbank-fiókban
+
+A kvízösszerakó kérdésbank-fiókjában eddig csak egy apró „cél:” felirat
+mutatta, melyik körbe kerülnek a kérdések. Most felül „Hová kerül?” sor van
+az este köreivel (választógombok, egyszerre egy aktív, kérdésszámmal), a
+kijelölt körben „a kijelölt kérdés után / a kör végére” kapcsolóval, és a
+Hozzáadás gomb is kiírja a célt. Így kör váltásához nem kell bezárni a
+fiókot.
