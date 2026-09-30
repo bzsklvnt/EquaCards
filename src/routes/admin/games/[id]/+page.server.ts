@@ -2,6 +2,7 @@ import { error as kitError, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { reopenGameAction } from '$lib/server/games';
 import { loadBank, loadGameRoundQuestions, questionDefaults } from '$lib/server/builder';
+import { aiEnabled } from '$lib/server/ai';
 
 // Kvízösszerakó — docs/features/quiz-builder.md. A szerkesztési műveletek a
 // ./builder JSON végponton mennek (automatikus mentés, átrendezés,
@@ -55,7 +56,8 @@ export const load: PageServerLoad = async ({ depends, params, locals: { supabase
 		bank,
 		readingDefault: defaults.readingDefault,
 		cooldownMonths: defaults.cooldownMonths,
-		defaultTime: defaults.defaultTime
+		defaultTime: defaults.defaultTime,
+		aiEnabled: aiEnabled()
 	};
 };
 

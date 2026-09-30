@@ -76,3 +76,28 @@ szöveget és ▲▼ gombokat mutatnak.
   létezik vagy privát).
 - „Videó teljes”: a klip alatt a videó tölti ki a kivetítőt, utána a kérdés
   látszik. „Videó + kérdés”: a videó végig a kérdés mellett marad.
+
+## Kompakt telefonos kérdésnézet
+
+Képes vagy hosszú szövegű kérdésnél a válaszlapok korábban a képernyő alja
+alá csúsztak. A telefon (`src/routes/play/[pin]/+page.svelte`) ezért:
+
+- **Kisebb lapok:** a `ChoiceButton` `compact` változata kb. 10%-kal kisebb
+  (kisebb belső margó, lapmagasság és indexsáv), a betűméret változatlan.
+  A lapok közti rés 0,8 → 0,7 rem, a sorrend-kártyák is alacsonyabbak.
+- **Időzítő-csík:** a 120 px-es kör helyett vékony csík a képernyő tetején
+  (`src/lib/components/TimerBar.svelte`), a hátralévő másodpercekkel.
+  Görgetéskor is fent marad. Olvasási időben szürke, „Olvasás” felirattal;
+  az utolsó 5 másodpercben piros. A videó utáni válaszidő várakozása a
+  saját sávjával változatlan.
+- **Kis kép:** a kérdés képe bélyegkép (a képernyő legfeljebb 22%-a, max.
+  10 rem). Koppintásra teljes képernyőn nagyítható. A pixeles felfedés is
+  ugyanekkora.
+- **Összecsukódó kérdés:** 90 karakternél hosszabb kérdés (képnél 45
+  karakternél hosszabb) az olvasási idő alatt teljes méretben látszik, utána
+  3 sorra csukódik („Teljes kérdés ▾” gombbal nyitható).
+- Kérdés közben a játék címe nem látszik, és a felső margó kisebb.
+
+A szabályalapú ellenőrzés figyelmeztet, ha a kérdés (160 karakter felett)
+vagy egy válasz (45 karakter felett) túl hosszú a telefonhoz. Részletek:
+`docs/features/ai-assistant.md`.

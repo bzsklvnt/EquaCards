@@ -12,6 +12,7 @@
 		correct = false,
 		tall = false,
 		stamp = null,
+		compact = false,
 		onclick
 	}: {
 		text: string;
@@ -42,6 +43,10 @@
 		tall?: boolean;
 		/** Pecsét a lapon (pl. „BEKÜLDVE”) — a beküldött válasz jelölése. */
 		stamp?: string | null;
+		/** Telefonos, ~10%-kal kisebb lap (kisebb margó és magasság, a
+		 * betűméret változatlan) — hogy a válaszok kép / hosszú kérdés
+		 * mellett is kiférjenek. */
+		compact?: boolean;
 	} = $props();
 
 	// Kártyalap (docs/features/question-layout.md): a sarokindex betű + szín
@@ -62,6 +67,7 @@
 	class:suited={!!s}
 	class:tall={!!s && tall}
 	class:display
+	class:compact
 	style={s ? `--suit: ${s.color}` : undefined}
 	disabled={disabled || display}
 	aria-pressed={display ? undefined : selected}
@@ -268,6 +274,31 @@
 		align-items: center;
 		padding: 2.1rem 1.4rem;
 		text-align: center;
+	}
+
+	/* Telefonos kompakt lap: ~10%-kal kisebb, a betűméret marad. */
+	.choice.suited.compact {
+		min-height: 3.35rem;
+	}
+
+	.choice.suited.compact .index {
+		width: 3.2rem;
+	}
+
+	.choice.suited.compact .body {
+		padding: 0.62rem 0.9rem;
+	}
+
+	.choice.suited.compact.tall {
+		min-height: 7.6rem;
+	}
+
+	.choice.suited.compact.tall .index {
+		width: auto;
+	}
+
+	.choice.suited.compact.tall .body {
+		padding: 1.85rem 1.25rem;
 	}
 
 	/* Inaktív (olvasás / videó alatt): szaggatott szél, a szöveg olvasható. */

@@ -16,7 +16,10 @@
 		onselect,
 		onopen,
 		onmove,
-		ondrawall
+		ondrawall,
+		aiEnabled = false,
+		aiBusy = false,
+		onaicheck
 	}: {
 		rounds: BuilderRound[];
 		drafts: Record<string, Draft>;
@@ -30,6 +33,10 @@
 		onopen: (roundId: string, key: string) => void;
 		onmove: (fromRoundId: string, key: string, toRoundId: string, toIndex: number) => void;
 		ondrawall: (themeId: string, count: number) => void;
+		/** AI-ellenőrzés az egész estére (gombnyomásra, docs/features/ai-assistant.md). */
+		aiEnabled?: boolean;
+		aiBusy?: boolean;
+		onaicheck?: () => void;
 	} = $props();
 
 	function roundMinutes(round: BuilderRound): number {
@@ -229,10 +236,11 @@
 				<button
 					type="button"
 					class="issue {issue.level}"
+					class:ai={issue.ai}
 					disabled={!issue.key}
 					onclick={() => focusIssue(i)}
 				>
-					<span class="mark">{issue.level === 'error' ? '!' : '?'}</span>
+					<span class="mark">{issue.ai ? '✦' : issue.level === 'error' ? '!' : '?'}</span>
 					<span>{issue.text}</span>
 				</button>
 			{:else}
@@ -245,6 +253,20 @@
 				: 'Nincs blokkoló hiba.'}
 			<kbd>F8</kbd> a következőre ugrik.
 		</p>
+		{#if onaicheck}
+			<button
+				type="button"
+				class="ai-all"
+				disabled={!aiEnabled || aiBusy}
+				title={aiEnabled
+					? 'Tényhelyesség, egyértelműség, elírás — minden kör'
+					: 'Az AI nincs beállítva (ANTHROPIC_API_KEY)'}
+				onclick={onaicheck}>{aiBusy ? 'AI ellenőriz…' : '✦ Ellenőrzés AI-val (egész este)'}</button
+			>
+			<p class="dim">
+				Az AI csak jelez és javasol; a javítást a kérdésnél egy kattintással veheted át.
+			</p>
+		{/if}
 	</aside>
 </div>
 
@@ -499,6 +521,29 @@
 
 	.issue.error .mark {
 		color: var(--danger);
+	}
+
+	.issue.warn.ai .mark {
+		color: var(--cyan);
+	}
+
+	.ai-all {
+		width: 100%;
+		min-height: 2.4rem;
+		margin-top: 0.6rem;
+		border: 1px solid var(--cyan);
+		border-radius: 0.55rem;
+		background: var(--cabinet-2);
+		color: var(--cyan);
+		font: inherit;
+		font-size: 0.88rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.ai-all:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 
 	.issue.warn .mark {
