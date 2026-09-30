@@ -2461,3 +2461,23 @@ egyszerre két helyszínen is játszható. A pihentetés globálisan kapcsolhat�
 (0 hónap = nincs, ez lett az alap), és új funkció az „Este másolása”. A
 beragadt „ciau” teszt-estet a kérés szerint töröltük. Részletek:
 `docs/features/question-reuse.md`.
+
+## 2026-09-30 — Kompakt telefon, AI kérdésjavaslat és ellenőrzés
+
+Képes vagy hosszú kérdésnél a válaszlapok lecsúsztak a telefon képernyőjéről.
+Ezért a lapok kb. 10%-kal kisebbek lettek (betűméret változatlan), a nagy
+időzítő-kör helyett vékony, fent tapadó csík jelenik meg, a kép bélyegkép
+(koppintásra nagyítható), és a hosszú kérdés az olvasási idő után 3 sorra
+csukódik. Részletek: `docs/features/question-layout.md`.
+
+Új AI-segéd (Claude API, `ANTHROPIC_API_KEY` a Vercelen). Az „AI javaslat”
+kontextusa a kérés szerint csak az aktuális kvízeste kérdései, és csak az
+elfogadott javaslatok kerülnek a körbe. Az ellenőrzés csak gombnyomásra fut,
+a költség és a kiszámíthatóság miatt, és kérdésenként vagy az egész estére
+kérhető. Az eredmény figyelmeztetés, egy kattintással átvehető javaslattal;
+automatikusan semmi nem íródik át. Mellette AI nélküli szabályok is vannak
+(hossz, azonos válaszok, minden helyes ugyanazon a lapon). A modell
+alapból a legújabb Opus a Models API listájából (`ANTHROPIC_MODEL`-lel
+felülírható), mert a tényellenőrzésnél a pontosság fontosabb, és a
+hívásszám kicsi. Részletek:
+`docs/features/ai-assistant.md`.

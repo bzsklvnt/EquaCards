@@ -22,7 +22,7 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';
 	import ChoiceButton from '$lib/components/ChoiceButton.svelte';
-	import TimerRing from '$lib/components/TimerRing.svelte';
+	import TimerBar from '$lib/components/TimerBar.svelte';
 	import PodiumCard from '$lib/components/PodiumCard.svelte';
 	import StandingsBoard from '$lib/components/StandingsBoard.svelte';
 	import RoundStanding from '$lib/components/RoundStanding.svelte';
@@ -77,6 +77,24 @@
 	const clipSeconds = $derived(
 		currentQuestion?.video ? currentQuestion.video.end - currentQuestion.video.start : 0
 	);
+	// Kompakt telefonos nézet (docs/features/question-layout.md): hosszú
+	// kérdésnél az olvasási idő után a szöveg 3 sorra csukódik, hogy a
+	// válaszlapok feljebb kerüljenek; a kép bélyegkép, koppintásra nagyítható.
+	const LONG_PROMPT = 90;
+	let promptOpen = $state(false);
+	let imageZoom = $state(false);
+	const promptCollapsible = $derived(
+		!!currentQuestion &&
+			layout.phone_prompt &&
+			(currentQuestion.prompt.length > LONG_PROMPT ||
+				(!!currentQuestion.image_url && currentQuestion.prompt.length > LONG_PROMPT / 2))
+	);
+	const promptCollapsed = $derived(promptCollapsible && !reading && !promptOpen);
+	$effect(() => {
+		void currentQuestion?.question_id;
+		promptOpen = false;
+		imageZoom = false;
+	});
 	let finalLeaderboard = $state<FinalLeaderboardRevealPayload | null>(null);
 	let submitted = $state(false);
 	let submitting = $state(false);
@@ -622,7 +640,7 @@
 	<title>{gameTitle || 'Csatlakozás'} — EquaCards</title>
 </svelte:head>
 
-<main class="cabinet" style={theme.css}>
+<main class="cabinet" class:in-question={!!currentQuestion && !revealInfo} style={theme.css}>
 	{#if joined && connectionStatus !== 'connected'}
 		<ReconnectOverlay />
 	{/if}
@@ -724,6 +742,18 @@
 				currentQuestion.question_type === 'single_choice' ||
 				currentQuestion.question_type === 'multi_choice' ||
 				currentQuestion.question_type === 'true_false'}
+			{#if timerInfo && !locked && !(reading && videoGate)}
+				{#if reading}
+					<TimerBar
+						calm
+						label="Olvasás"
+						secondsLeft={readingLeft}
+						duration={timerInfo.reading_seconds || readingLeft}
+					/>
+				{:else}
+					<TimerBar {secondsLeft} duration={timerInfo.duration} />
+				{/if}
+			{/if}
 			{#key currentQuestion.question_id}
 				<div in:fly={{ y: 16, duration: 300 }}>
 					<ArcadePanel>
@@ -731,64 +761,84 @@
 							{currentQuestion.round_title} — {currentQuestion.order_index}/{currentQuestion.total_questions}
 						</p>
 						{#if layout.phone_prompt}
-							<p class="prompt">{currentQuestion.prompt}</p>
+							<p class="prompt" class:collapsed={promptCollapsed}>{currentQuestion.prompt}</p>
+							{#if promptCollapsible && !reading}
+								<button
+									type="button"
+									class="prompt-toggle"
+									aria-expanded={promptOpen}
+									onclick={() => (promptOpen = !promptOpen)}
+									>{promptOpen ? 'Kérdés összecsukása ▴' : 'Teljes kérdés ▾'}</button
+								>
+							{/if}
 						{:else}
 							<p class="prompt-hint">A kérdést a kivetítőn látod.</p>
 						{/if}
 						{#if currentQuestion.image_url && currentQuestion.image_pixelate}
-							<PixelatedImage
-								src={currentQuestion.image_url}
-								startTime={timerInfo?.server_start_time ?? null}
-								duration={timerInfo?.duration ?? 0}
-								sharp={locked}
-							/>
+							<div class="pixel-wrap">
+								<PixelatedImage
+									src={currentQuestion.image_url}
+									startTime={timerInfo?.server_start_time ?? null}
+									duration={timerInfo?.duration ?? 0}
+									sharp={locked}
+								/>
+							</div>
 						{:else if currentQuestion.image_url && !currentQuestion.video}
-							<img class="question-image" src={currentQuestion.image_url} alt="" />
+							<button
+								type="button"
+								class="image-thumb"
+								aria-label="Kép nagyítása"
+								onclick={() => (imageZoom = true)}
+							>
+								<img class="question-image" src={currentQuestion.image_url} alt="" />
+								<span class="zoom-hint" aria-hidden="true">⤢</span>
+							</button>
 						{/if}
 					</ArcadePanel>
 				</div>
 			{/key}
+			{#if imageZoom && currentQuestion.image_url}
+				<button
+					type="button"
+					class="image-zoom"
+					aria-label="Nagyított kép bezárása"
+					onclick={() => (imageZoom = false)}
+					in:fade={{ duration: 150 }}
+				>
+					<img src={currentQuestion.image_url} alt="" />
+					<span>Koppints a bezáráshoz</span>
+				</button>
+			{/if}
 			{#if timerInfo}
-				<div class="timer-wrap">
-					{#if locked}
-						<p class="locked-label">Lezárva</p>
-					{:else if reading && videoGate}
-						<div class="video-wait" role="status">
-							<p class="video-banner">
-								<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"
-									><rect x="2" y="4" width="20" height="13" rx="2" /><path
-										d="M10 8.5v5l4-2.5z"
-									/></svg
-								>
-								Figyeld a kivetítőt — a videó után válaszolhatsz
-							</p>
-							<div class="video-bar">
-								<div
-									style="width: {Math.min(
-										100,
-										(1 - readingLeft / Math.max(1, timerInfo.reading_seconds || clipSeconds)) * 100
-									)}%"
-								></div>
-							</div>
-							<span class="video-left">Még {readingLeft} mp a videóból</span>
+				{#if locked}
+					<p class="locked-label">Lezárva</p>
+				{:else if reading && videoGate}
+					<div class="video-wait" role="status">
+						<p class="video-banner">
+							<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"
+								><rect x="2" y="4" width="20" height="13" rx="2" /><path
+									d="M10 8.5v5l4-2.5z"
+								/></svg
+							>
+							Figyeld a kivetítőt — a videó után válaszolhatsz
+						</p>
+						<div class="video-bar">
+							<div
+								style="width: {Math.min(
+									100,
+									(1 - readingLeft / Math.max(1, timerInfo.reading_seconds || clipSeconds)) * 100
+								)}%"
+							></div>
 						</div>
-					{:else if reading}
-						<div class="reading" role="status">
-							<TimerRing
-								calm
-								secondsLeft={readingLeft}
-								duration={timerInfo.reading_seconds || readingLeft}
-							/>
-							<p>
-								{currentQuestion.video
-									? 'A kivetítőn videó megy — a gombok mindjárt aktívak.'
-									: 'Olvassátok a kérdést — a gombok mindjárt aktívak.'}
-							</p>
-						</div>
-					{:else}
-						<TimerRing {secondsLeft} duration={timerInfo.duration} />
-					{/if}
-				</div>
+						<span class="video-left">Még {readingLeft} mp a videóból</span>
+					</div>
+				{:else if reading}
+					<p class="reading-note" role="status">
+						{currentQuestion.video
+							? 'A kivetítőn videó megy — a gombok mindjárt aktívak.'
+							: 'Olvassátok a kérdést — a gombok mindjárt aktívak.'}
+					</p>
+				{/if}
 			{/if}
 
 			{#if submitted && choice && (selectedOptionId || selectedOptionIds.length > 0)}
@@ -800,6 +850,7 @@
 							text={option.option_text}
 							imageUrl={option.image_url}
 							suit={i}
+							compact
 							tall={layout.phone_cols === 2}
 							disabled
 							selected={mine}
@@ -820,6 +871,7 @@
 								text={option.option_text}
 								imageUrl={option.image_url}
 								suit={i}
+								compact
 								tall={layout.phone_cols === 2}
 								disabled={reading}
 								selected={selectedOptionId === option.id}
@@ -835,6 +887,7 @@
 								text={option.option_text}
 								imageUrl={option.image_url}
 								suit={i}
+								compact
 								tall={layout.phone_cols === 2}
 								disabled={reading}
 								selected={selectedOptionIds.includes(option.id)}
@@ -1094,6 +1147,15 @@
 		min-height: 100vh;
 	}
 
+	/* Kérdés közben a játék címe helyett több hely jut a válaszoknak. */
+	main.cabinet.in-question {
+		padding-top: 0.75rem;
+	}
+
+	main.cabinet.in-question > h1 {
+		display: none;
+	}
+
 	main.cabinet h1 {
 		font-family: var(--font-display);
 		font-size: 1.1rem;
@@ -1115,24 +1177,99 @@
 
 	.prompt {
 		font-size: clamp(1.1rem, 5vw, 1.5rem);
-		margin: 1rem 0;
+		margin: 0.75rem 0;
+	}
+
+	/* Hosszú kérdés az olvasási idő után: 3 sor, a többi a gombra nyílik. */
+	.prompt.collapsed {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		overflow: hidden;
+		margin-bottom: 0.25rem;
+	}
+
+	.prompt-toggle {
+		margin: 0 0 0.5rem;
+		padding: 0.3rem 0.6rem;
+		border: 0;
+		background: none;
+		color: var(--cyan);
+		font: inherit;
+		font-size: 0.85rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	/* Kép bélyegképként (a kivetítőn úgyis nagyban látszik), koppintásra nagyítható. */
+	.image-thumb {
+		position: relative;
+		display: block;
+		margin: 0 auto 0.25rem;
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: zoom-in;
 	}
 
 	.question-image {
-		max-width: 100%;
-		max-height: 14rem;
-		border-radius: 0.5rem;
-		margin: 0 auto 0.5rem;
 		display: block;
+		max-width: 100%;
+		max-height: min(22vh, 10rem);
+		border-radius: 0.5rem;
 	}
 
-	.timer-wrap {
+	.pixel-wrap {
+		--pixel-max-height: min(22vh, 10rem);
+	}
+
+	.zoom-hint {
+		position: absolute;
+		right: 0.35rem;
+		bottom: 0.35rem;
+		display: grid;
+		place-items: center;
+		width: 1.8rem;
+		height: 1.8rem;
+		border-radius: 50%;
+		background: rgba(0, 0, 0, 0.55);
+		color: #fff;
+		font-size: 1rem;
+	}
+
+	.image-zoom {
+		position: fixed;
+		inset: 0;
+		z-index: 50;
 		display: flex;
+		flex-direction: column;
+		align-items: center;
 		justify-content: center;
-		margin: 1rem 0;
+		gap: 0.8rem;
+		padding: 1rem;
+		border: 0;
+		background: rgba(0, 0, 0, 0.88);
+		color: #fff;
+		font: inherit;
+		font-size: 0.85rem;
+		cursor: zoom-out;
+	}
+
+	.image-zoom img {
+		max-width: 100%;
+		max-height: 85vh;
+		border-radius: 0.5rem;
+	}
+
+	.reading-note {
+		margin: 0.6rem 0 0;
+		color: var(--marquee-dim);
+		font-size: 0.9rem;
 	}
 
 	.locked-label {
+		margin: 0.75rem 0 0;
 		font-family: var(--font-display);
 		font-size: 0.9rem;
 		color: var(--danger);
@@ -1140,8 +1277,8 @@
 
 	.options {
 		display: grid;
-		gap: 0.8rem;
-		margin: 1rem 0;
+		gap: 0.7rem;
+		margin: 0.75rem 0;
 	}
 
 	.options.cols-2 {
@@ -1232,19 +1369,6 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	.reading {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.4rem;
-	}
-
-	.reading p {
-		margin: 0;
-		color: var(--marquee-dim);
-		font-size: 0.9rem;
-	}
-
 	.slider {
 		margin: 1.5rem 0;
 	}
@@ -1296,7 +1420,7 @@
 	.ordering li {
 		display: flex;
 		align-items: stretch;
-		min-height: 3.6rem;
+		min-height: 3.25rem;
 		border: 1px solid #e4ded2;
 		border-radius: 0.9rem;
 		background: #fffdf8;

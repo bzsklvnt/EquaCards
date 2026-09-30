@@ -12,8 +12,17 @@
 	import QuestionSettings from '$lib/builder/QuestionSettings.svelte';
 	import QuestionPreview from '$lib/builder/QuestionPreview.svelte';
 	import BankDrawer from '$lib/builder/BankDrawer.svelte';
+	import AiSuggestDialog from '$lib/builder/AiSuggestDialog.svelte';
+	import {
+		applyFix,
+		describeFix,
+		draftToAi,
+		suggestionToDraft,
+		type ReviewFinding,
+		type SuggestedQuestion
+	} from '$lib/builder/ai';
 	import BuilderOverview from '$lib/builder/BuilderOverview.svelte';
-	import { computeIssues, type BuilderRound } from '$lib/builder/issues';
+	import { computeIssues, draftWarnings, type BuilderRound } from '$lib/builder/issues';
 	import {
 		convertDraft,
 		draftError,
@@ -73,6 +82,11 @@
 		untrack(() => page.url.searchParams.get('view')) === 'overview' ? 'overview' : 'editor'
 	);
 	let bankOpen = $state(false);
+	let aiOpen = $state(false);
+	// AI-ellenőrzés eredménye kérdésenként, a vizsgált változat aláírásával:
+	// ha a kérdés azóta változott, az észrevétel elavult és nem látszik.
+	let aiReview = $state<Record<string, { sig: string; findings: ReviewFinding[] }>>({});
+	let aiChecking = $state<string | null>(null);
 	let helpOpen = $state(false);
 	let previewOpen = $state(false);
 	let busy = $state(false);
@@ -120,9 +134,23 @@
 		const d = drafts[key];
 		return !!d && (d.id === null || draftSignature(d) !== savedSig[key]);
 	};
+	/** Az érvényes (a kérdés azóta nem változott) AI-észrevételek. */
+	const aiFindings = (key: string): ReviewFinding[] => {
+		const r = aiReview[key];
+		const d = drafts[key];
+		return r && d && r.sig === draftSignature(d) ? r.findings : [];
+	};
 	const issues = $derived(
-		computeIssues(rounds, drafts, types, playedCount, (k) => !!saving[k] || isDirty(k))
+		computeIssues(
+			rounds,
+			drafts,
+			types,
+			playedCount,
+			(k) => !!saving[k] || isDirty(k),
+			(k) => aiFindings(k).map((f) => `AI: ${f.problem}`)
+		)
 	);
+	const currentAiFindings = $derived(currentKey ? aiFindings(currentKey) : []);
 	const errorCount = $derived(issues.filter((i) => i.level === 'error').length);
 	const anySaving = $derived(Object.values(saving).some(Boolean));
 	const unsavedKeys = $derived(
@@ -731,6 +759,134 @@
 		}
 	}
 
+	// --- AI kérdésjavaslat (docs/features/ai-assistant.md) -----------------------
+	/** Az elfogadott javaslatok új kérdésként a kör végére kerülnek, és
+	 * egymás után mentődnek (így a kör sorrendje nem ütközik). */
+	async function acceptSuggestions(roundId: string, questions: SuggestedQuestion[]) {
+		const round = rounds.find((r) => r.id === roundId);
+		if (!round) return;
+		const roundDrafts = round.keys.map((k) => drafts[k]).filter((d): d is Draft => !!d);
+		const template = roundDrafts.find((d) => d.type_code !== 'info') ?? {
+			time_limit_seconds: data.defaultTime,
+			points: 1000,
+			points_decay: true
+		};
+		// A kör leggyakoribb témája (ha van), különben a kijelölt kérdésé.
+		const counts: Record<string, number> = {};
+		for (const d of roundDrafts) if (d.theme_id) counts[d.theme_id] = (counts[d.theme_id] ?? 0) + 1;
+		const themeId =
+			Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? currentDraft?.theme_id ?? null;
+		const created = questions
+			.map((q) => suggestionToDraft(q, types, template, themeId))
+			.filter((d): d is Draft => !!d);
+		if (created.length === 0) {
+			toast.error('A javaslatokból nem lett menthető kérdés.');
+			return;
+		}
+		const before = snap([round.id]);
+		for (const d of created) drafts[d.key] = d;
+		round.keys = [...round.keys, ...created.map((d) => d.key)];
+		record(before, 'AI javaslat');
+		view = 'editor';
+		select(round.id, created[0].key);
+		toast.success(
+			`${created.length} AI-kérdés hozzáadva: ${rounds.indexOf(round) + 1}. kör · ${round.title}.`
+		);
+		for (const d of created) await save(d.key);
+	}
+
+	// --- AI-ellenőrzés (gombnyomásra) --------------------------------------------
+	/** A megadott kérdések ellenőrzése körönként (a körök párhuzamosan). */
+	async function runAiReview(targets: { roundId: string; keys: string[] }[], label: string) {
+		if (aiChecking) return;
+		const jobs = targets
+			.map((t) => ({ ...t, keys: t.keys.filter((k) => drafts[k]?.prompt.trim()) }))
+			.filter((t) => t.keys.length > 0);
+		if (jobs.length === 0) {
+			toast('Nincs ellenőrizhető kérdés.');
+			return;
+		}
+		aiChecking = label;
+		let found = 0;
+		let checked = 0;
+		const failures: string[] = [];
+		await Promise.all(
+			jobs.map(async (job) => {
+				const snapshot = job.keys.map((k) => $state.snapshot(drafts[k]) as Draft);
+				try {
+					const res = await fetch(resolve('/admin/games/[id]/ai', { id: gameId }), {
+						method: 'POST',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify({
+							op: 'review',
+							round_id: job.roundId,
+							questions: snapshot.map(draftToAi)
+						})
+					});
+					const payload = (await res.json().catch(() => ({}))) as {
+						findings?: ReviewFinding[];
+						error?: string;
+						message?: string;
+					};
+					if (!res.ok || !payload.findings) {
+						throw new Error(payload.error ?? payload.message ?? 'Nem sikerült az ellenőrzés.');
+					}
+					for (const d of snapshot) {
+						// Közben mentés miatt új kulcsot kaphatott (rekey): az id alapján is keressük.
+						const liveKey = drafts[d.key] ? d.key : (d.id ?? d.key);
+						const mine = payload.findings.filter((f) => f.key === d.key);
+						found += mine.length;
+						checked += 1;
+						aiReview[liveKey] = { sig: draftSignature(d), findings: mine };
+					}
+				} catch (err) {
+					failures.push((err as Error).message);
+				}
+			})
+		);
+		aiChecking = null;
+		if (failures.length > 0) toast.error(failures[0]);
+		if (checked > 0) {
+			toast.success(
+				found > 0
+					? `AI-ellenőrzés: ${checked} kérdés, ${found} észrevétel.`
+					: `AI-ellenőrzés: ${checked} kérdés, nem talált problémát.`
+			);
+		}
+	}
+
+	function aiCheckCurrent() {
+		if (!currentRound || !currentKey) return;
+		void runAiReview([{ roundId: currentRound.id, keys: [currentKey] }], 'current');
+	}
+
+	function aiCheckAll() {
+		void runAiReview(
+			rounds.map((r) => ({ roundId: r.id, keys: r.keys })),
+			'all'
+		);
+	}
+
+	function applyAiFix(key: string, finding: ReviewFinding) {
+		const d = drafts[key];
+		if (!d || !finding.fix) return;
+		const next = applyFix($state.snapshot(d) as Draft, finding.fix);
+		if (!next) {
+			toast('A javaslat már nem illik a kérdésre.');
+			return;
+		}
+		drafts[key] = next;
+		const rest = aiReview[key]?.findings.filter((f) => f !== finding) ?? [];
+		aiReview[key] = { sig: draftSignature(next), findings: rest };
+		schedule(key, 200);
+		toast.success('Javítás átvéve.');
+	}
+
+	function dismissAiFinding(key: string, finding: ReviewFinding) {
+		const r = aiReview[key];
+		if (r) aiReview[key] = { ...r, findings: r.findings.filter((f) => f !== finding) };
+	}
+
 	// --- Előnézet ---------------------------------------------------------------
 	$effect(() => {
 		if (!previewDialog) return;
@@ -748,7 +904,7 @@
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		if (e.defaultPrevented || bankOpen || helpOpen || previewOpen) return;
+		if (e.defaultPrevented || bankOpen || aiOpen || helpOpen || previewOpen) return;
 		if (document.querySelector('dialog[open]')) return;
 		const typing = isTyping(e.target);
 		const mod = e.ctrlKey || e.metaKey;
@@ -1049,6 +1205,9 @@
 				}}
 				onmove={(from, key, to, index) => void moveQuestion(from, key, to, index)}
 				ondrawall={(themeId, count) => void drawAll(themeId, count)}
+				aiEnabled={data.aiEnabled}
+				aiBusy={aiChecking === 'all'}
+				onaicheck={aiCheckAll}
 			/>
 		</div>
 	{:else}
@@ -1180,6 +1339,15 @@
 					<button type="button" class="ghost" onclick={() => (bankOpen = true)} data-tour="gs-pick"
 						>Kérdésbank <kbd>B</kbd></button
 					>
+					<button
+						type="button"
+						class="ghost ai"
+						disabled={rounds.length === 0}
+						title={data.aiEnabled
+							? 'Új kérdések javaslata az este kérdései alapján'
+							: 'Az AI nincs beállítva (ANTHROPIC_API_KEY)'}
+						onclick={() => (aiOpen = true)}>✦ AI javaslat</button
+					>
 				</div>
 			</aside>
 
@@ -1209,6 +1377,23 @@
 								>
 							</span>
 						{/if}
+						{#if currentDraft.prompt.trim()}
+							<button
+								type="button"
+								class="ghost small ai-check"
+								disabled={!data.aiEnabled || !!aiChecking}
+								title={data.aiEnabled
+									? 'Helyes-e a megjelölt válasz, egyértelmű-e, van-e elírás'
+									: 'Az AI nincs beállítva (ANTHROPIC_API_KEY)'}
+								onclick={aiCheckCurrent}
+								>{aiChecking === 'current'
+									? 'AI ellenőriz…'
+									: aiReview[currentKey] &&
+										  aiReview[currentKey].sig === draftSignature(currentDraft)
+										? '✦ AI ellenőrizte — újra'
+										: '✦ Ellenőrzés AI-val'}</button
+							>
+						{/if}
 					</div>
 					{#if currentError}
 						<p class="draft-error" role="status">Még nem menthető: {currentError}</p>
@@ -1217,6 +1402,38 @@
 					{/if}
 					{#if currentDraft.id && playedCount(currentDraft.id) > 0}
 						<p class="note">Ez a kérdés már elhangzott egy korábbi estén.</p>
+					{/if}
+					{#each draftWarnings(currentDraft) as warning (warning)}
+						<p class="note">Figyelem: {warning}</p>
+					{/each}
+					{#if currentAiFindings.length > 0}
+						<section class="ai-findings" aria-label="AI-ellenőrzés észrevételei">
+							{#each currentAiFindings as finding, fi (fi)}
+								<div class="ai-finding {finding.severity}">
+									<span class="ai-mark" aria-hidden="true">✦</span>
+									<div>
+										<p>{finding.problem}</p>
+										{#if finding.fix && describeFix(currentDraft, finding.fix)}
+											<p class="fix">Javaslat: {describeFix(currentDraft, finding.fix)}</p>
+										{/if}
+									</div>
+									<div class="ai-actions">
+										{#if finding.fix && describeFix(currentDraft, finding.fix)}
+											<button
+												type="button"
+												class="outline"
+												onclick={() => applyAiFix(currentKey, finding)}>Átvétel</button
+											>
+										{/if}
+										<button
+											type="button"
+											class="ghost"
+											onclick={() => dismissAiFinding(currentKey, finding)}>Elvetés</button
+										>
+									</div>
+								</div>
+							{/each}
+						</section>
 					{/if}
 					<QuestionCanvas bind:this={canvas} bind:draft={drafts[currentKey]} {types} />
 				{:else}
@@ -1285,6 +1502,19 @@
 	{busy}
 	onadd={(ids, roundId, afterCurrent) => void addFromBank(ids, roundId, afterCurrent)}
 	ondraw={(themeId, count, roundId) => void draw(themeId, count, roundId)}
+/>
+
+<AiSuggestDialog
+	bind:open={aiOpen}
+	{gameId}
+	rounds={rounds.map((r, ri) => ({
+		id: r.id,
+		label: `${ri + 1}. kör · ${r.title}`,
+		count: questionNumbers(r.keys, drafts).total
+	}))}
+	defaultRoundId={currentRound?.id ?? rounds[0]?.id ?? null}
+	enabled={data.aiEnabled}
+	onaccept={(roundId, questions) => void acceptSuggestions(roundId, questions)}
 />
 
 <ShortcutHelp
@@ -1692,6 +1922,11 @@
 		justify-content: center;
 	}
 
+	/* Az AI-javaslat a két fő gomb alatt, teljes szélességben. */
+	.rail-actions .ai {
+		grid-column: 1 / -1;
+	}
+
 	.stage {
 		min-width: 0;
 		overflow-y: auto;
@@ -1744,6 +1979,68 @@
 	.note {
 		background: color-mix(in srgb, var(--cabinet-3) 70%, var(--cabinet-2));
 		color: var(--marquee-dim);
+	}
+
+	.small {
+		min-height: 2rem;
+		padding: 0 0.65rem;
+		font-size: 0.82rem;
+	}
+
+	.ai-check {
+		margin-left: auto;
+	}
+
+	/* AI-ellenőrzés észrevételei a szerkesztőben, egy kattintásos javítással. */
+	.ai-findings {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.ai-finding {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.6rem;
+		padding: 0.55rem 0.8rem;
+		border: 1px solid color-mix(in srgb, var(--cyan) 30%, var(--panel-border, #e4ded2));
+		border-left: 4px solid var(--cyan);
+		border-radius: 0.55rem;
+		background: color-mix(in srgb, var(--cyan) 6%, var(--cabinet-2));
+		font-size: 0.86rem;
+	}
+
+	.ai-finding.error {
+		border-left-color: var(--danger, #a3261e);
+	}
+
+	.ai-finding > div:first-of-type {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.ai-finding p {
+		margin: 0;
+	}
+
+	.ai-finding .fix {
+		margin-top: 0.25rem;
+		color: var(--marquee-dim);
+	}
+
+	.ai-mark {
+		color: var(--cyan);
+	}
+
+	.ai-actions {
+		display: flex;
+		gap: 0.35rem;
+	}
+
+	.ai-actions button {
+		min-height: 2rem;
+		padding: 0 0.6rem;
+		font-size: 0.82rem;
 	}
 
 	.empty-stage {

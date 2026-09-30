@@ -111,6 +111,14 @@ vissza a menetrendbe. Teljes lista: `?` (ShortcutHelp).
 | Létrehozás  | N új kérdés, Shift+N új kör, B kérdésbank (benne R random), Ctrl+D duplikálás, Del eltávolítás a körből        |
 | Egyéb       | P előnézet, Ctrl+Z/Y, Ctrl+S mentés most, F8 következő hiba, ? súgó, Esc                                       |
 
+## AI-segéd
+
+„✦ AI javaslat” (menetrend-oszlop) és „✦ Ellenőrzés AI-val” (kérdésenként a
+szerkesztőben, az egész estére az Áttekintésben), mellette szabályalapú
+figyelmeztetések (túl hosszú kérdés vagy válasz a telefonhoz, azonos
+válaszok, minden helyes ugyanazon a lapon). Részletek:
+`docs/features/ai-assistant.md`.
+
 ## Ellenőrzés
 
 Mock adatos böngészős harness-szel (Playwright): automatikus mentés,
